@@ -400,6 +400,13 @@ function clearFilter(){
 // ── Brand & Product ──
 function detectBrand(name){return /^HT[\s\-–]/i.test(name.trim())||/^HT$/i.test(name.trim())?'HT':'CT';}
 function detectProduct(name){
+  const n=name.toLowerCase();
+  if(/thần tài|ban thần tài|thàn tài/.test(n)) return 'Thần Tài';
+  if(/tượng phật|tuong phat/.test(n))           return 'Tượng Phật';
+  if(/đèn thờ|đèn|den tho|den/.test(n))         return 'Đèn Thờ';
+  if(/ban thờ|bàn thờ|ban tho/.test(n))         return 'Ban Thờ';
+  if(/dịch vụ|dich vu/.test(n))                 return 'Dịch Vụ';
+  // Không match → giữ tên gốc (bỏ prefix brand + ngày)
   return name.trim()
     .replace(/^(HT|Shidai)\s*[-–]\s*/i,'')
     .replace(/\s*[-–]\s*(fix bài cũ|fix bai cu|mess tiềm năng|mess mua hàng).*$/i,'')
@@ -565,15 +572,22 @@ function buildCharts(camps,htSpend,ctSpend){
 
 // ── Calc ──
 function calcKPI(rows){
-  let ts=0,tm=0,tr2=0,treach=0,timp=0,ctr=0,cpc=0,n=0;
-  rows.forEach(r=>{ts+=toNum(r[COL.SPEND]);tm+=toNum(r[COL.MESSAGES]);tr2+=toNum(r[COL.RESULTS]);treach+=toNum(r[COL.REACH]);timp+=toNum(r[COL.IMPRESSIONS]);ctr+=toNum(r[COL.CTR]);cpc+=toNum(r[COL.CPC]);n++;});
+  let ts=0,tm=0,tr2=0,treach=0,timp=0,ctrSum=0,cpcSum=0,n=0;
+  rows.forEach(r=>{
+    ts+=toNum(r[COL.SPEND]);tm+=toNum(r[COL.MESSAGES]);tr2+=toNum(r[COL.RESULTS]);
+    treach+=toNum(r[COL.REACH]);timp+=toNum(r[COL.IMPRESSIONS]);
+    ctrSum+=toNum(r[COL.CTR]);cpcSum+=toNum(r[COL.CPC]);n++;
+  });
   return{totalSpend:ts,totalMess:tm,totalResults:tr2,totalReach:treach,totalImpressions:timp,
-    costPerMess:tm>0?ts/tm:0,avgCTR:n>0?ctr/n:0,avgCPC:n>0?cpc/n:0};
+    costPerMess:tm>0?ts/tm:0,avgCTR:n>0?ctrSum/n:0,avgCPC:n>0?cpcSum/n:0};
 }
 function calcKPIRows(rows){
-  let spend=0,mess=0,results=0,ctr=0,cpc=0,n=0;
-  rows.forEach(r=>{spend+=toNum(r[COL.SPEND]);mess+=toNum(r[COL.MESSAGES]);results+=toNum(r[COL.RESULTS]);ctr+=toNum(r[COL.CTR]);cpc+=toNum(r[COL.CPC]);n++;});
-  return{spend,mess,results,avgCTR:n>0?ctr/n:0,avgCPC:n>0?cpc/n:0};
+  let spend=0,mess=0,results=0,ctrSum=0,cpcSum=0,n=0;
+  rows.forEach(r=>{
+    spend+=toNum(r[COL.SPEND]);mess+=toNum(r[COL.MESSAGES]);results+=toNum(r[COL.RESULTS]);
+    ctrSum+=toNum(r[COL.CTR]);cpcSum+=toNum(r[COL.CPC]);n++;
+  });
+  return{spend,mess,results,avgCTR:n>0?ctrSum/n:0,avgCPC:n>0?cpcSum/n:0};
 }
 function groupByCamp(rows){
   const g={};
@@ -592,7 +606,19 @@ function groupByCamp(rows){
 function mkKpi(icon,label,val,sub,color){return`<div class="kpi kpi-${color}"><div class="kpi-acc"></div><div class="kpi-icon">${icon}</div><div class="kpi-lbl">${label}</div><div class="kpi-val">${val}</div>${sub?`<div class="kpi-sub">${sub}</div>`:''}</div>`;}
 function showLoading(){const l='<div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:600;color:var(--text2)">Đang tải…</span></div>';document.getElementById('page-overview').innerHTML=l;document.getElementById('page-detail').innerHTML=l;}
 function showErr(msg){const e=`<div class="err-box">❌ ${msg}</div>`;document.getElementById('page-overview').innerHTML=e;document.getElementById('page-detail').innerHTML=e;}
-function parseDate(v){if(!v)return null;const s=String(v).trim();const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(iso)return new Date(+iso[1],+iso[2]-1,+iso[3]);const vn=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(vn)return new Date(+vn[3],+vn[2]-1,+vn[1]);const d=new Date(v);return isNaN(d)?null:d;}
+function parseDate(v){
+  if(!v)return null;
+  const s=String(v).trim();
+  // ISO: 2026-06-03 → local date (tránh UTC shift)
+  const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso)return new Date(+iso[1],+iso[2]-1,+iso[3]);
+  // dd/mm/yyyy
+  const vn=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(vn)return new Date(+vn[3],+vn[2]-1,+vn[1]);
+  // fallback: strip time to avoid UTC
+  const d=new Date(s.replace(/-/g,'/'));
+  return isNaN(d)?null:d;
+}
 function fmtDate(d){if(!d)return'';return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();}
 function toNum(v){if(v===null||v===undefined||v==='')return 0;const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?0:n;}
 function vnd(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n))+' ₫';}
