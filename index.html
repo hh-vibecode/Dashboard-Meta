@@ -404,16 +404,18 @@ function renderAll(rows){
 // ── TỔNG QUAN ──
 function renderOverview(rows,kpi,camps,period,now){
   const htSpend=camps.filter(c=>detectBrand(c.name)==='HT').reduce((s,c)=>s+c.spend,0);
+  const sdSpend=camps.filter(c=>detectBrand(c.name)==='Shidai').reduce((s,c)=>s+c.spend,0);
   const ctSpend=camps.filter(c=>detectBrand(c.name)==='CT').reduce((s,c)=>s+c.spend,0);
-  const total=htSpend+ctSpend||1;
+  const total=htSpend+sdSpend+ctSpend||1;
 
   document.getElementById('page-overview').innerHTML=`
     <div class="page-title">Tổng Quan</div>
-    <div class="page-sub">Dữ liệu tổng hợp theo kỳ báo cáo</div>
+    <div class="page-sub">Dữ liệu tổng hợp — chọn brand & khoảng ngày trên topbar</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
-      <div class="stat-chip"><span class="brand-ht">HT</span>&nbsp;${vnd(htSpend)}</div>
-      <div class="stat-chip"><span class="brand-ct">CT</span>&nbsp;${vnd(ctSpend)}</div>
+      ${htSpend>0?`<div class="stat-chip"><span class="brand-ht">HT</span>&nbsp;${vnd(htSpend)}</div>`:''}
+      ${sdSpend>0?`<div class="stat-chip"><span class="brand-sd">SD</span>&nbsp;${vnd(sdSpend)}</div>`:''}
+      ${ctSpend>0?`<div class="stat-chip"><span class="brand-ct">CT</span>&nbsp;${vnd(ctSpend)}</div>`:''}
       <div class="stat-chip">🕐 ${now}</div>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
@@ -423,7 +425,7 @@ function renderOverview(rows,kpi,camps,period,now){
       ${mkKpi('💰','Tổng Chi Phí',vnd(kpi.totalSpend),'ngân sách đã tiêu','g-blue')}
       ${mkKpi('💬','Tổng Mess',num(kpi.totalMess),'lượt trò chuyện','g-green')}
       ${mkKpi('📌','CP / Mess',vnd(kpi.costPerMess),'trung bình / mess','g-yellow')}
-      ${mkKpi('📊','ADS/DS',kpi.roas>0?kpi.roas.toFixed(2)+'x':'Chưa có DS','ads / doanh số','g-purple','kpi-empty')}
+      ${mkKpi('📊','ADS/DS (Chi phí/DS)',kpi.roas>0?kpi.roas.toFixed(2)+'x':'Chưa có DS','ads / doanh số','g-purple','kpi-empty')}
     </div>
 
     <div class="sec-label">Sale Performance</div>
@@ -438,15 +440,15 @@ function renderOverview(rows,kpi,camps,period,now){
     <div class="charts-2col">
       <div class="chart-card">
         <div class="chart-head">
-          <div class="chart-title">Ngân Sách: HT vs Chánh Tâm</div>
+          <div class="chart-title">Ngân Sách Theo Brand</div>
           <span class="chart-sub">${vnd(total)} tổng</span>
         </div>
         <div class="chart-wrap"><canvas id="cBrand"></canvas></div>
       </div>
       <div class="chart-card">
         <div class="chart-head">
-          <div class="chart-title">Top 5 SP — ADS/DS Thấp Nhất</div>
-          <span class="chart-sub">Cần cải thiện</span>
+          <div class="chart-title">Top 5 ADS/DS</div>
+          <span class="chart-sub">ADS/DS thấp = hiệu quả tốt</span>
         </div>
         <div class="chart-empty" id="roasChartWrap">
           <div class="icon">📉</div>
@@ -461,18 +463,19 @@ function renderOverview(rows,kpi,camps,period,now){
       <div class="tov-scroll">${buildGroupedTable(rows,period)}</div>
     </div>`;
 
-  buildBrandChart(htSpend,ctSpend,total);
+  buildBrandChart(htSpend,sdSpend,ctSpend,total);
 }
 
-function buildBrandChart(htSpend,ctSpend,total){
+function buildBrandChart(htSpend,sdSpend,ctSpend,total){
   const ctx=document.getElementById('cBrand');
   if(!ctx)return;
+  const labels=[],data=[],bgColors=[],bdColors=[];
+  if(htSpend>0){labels.push('Hiền Thuỷ');data.push(htSpend);bgColors.push('rgba(249,115,22,.85)');bdColors.push('#f97316');}
+  if(sdSpend>0){labels.push('Shidai');data.push(sdSpend);bgColors.push('rgba(8,145,178,.85)');bdColors.push('#0891b2');}
+  if(ctSpend>0){labels.push('Chánh Tâm');data.push(ctSpend);bgColors.push('rgba(124,58,237,.85)');bdColors.push('#7c3aed');}
   chartBrand=new Chart(ctx,{
     type:'doughnut',
-    data:{
-      labels:['Hiền Thuỷ','Chánh Tâm'],
-      datasets:[{data:[htSpend,ctSpend],backgroundColor:['rgba(249,115,22,.85)','rgba(124,58,237,.85)'],borderColor:['#f97316','#7c3aed'],borderWidth:2,hoverOffset:10}]
-    },
+    data:{labels,datasets:[{data,backgroundColor:bgColors,borderColor:bdColors,borderWidth:2,hoverOffset:10}]},
     options:{
       responsive:true,maintainAspectRatio:false,cutout:'62%',
       plugins:{
@@ -514,7 +517,7 @@ function buildGroupedTable(rows,period){
   }
 
   const byBrand={HT:[],Shidai:[],CT:[]};
-  rows.forEach(r=>byBrand[detectBrand(r[COL.CAMPAIGN])].push(r));
+  rows.forEach(r=>{const b=detectBrand(r[COL.CAMPAIGN]);if(byBrand[b])byBrand[b].push(r);});
   ['HT','Shidai','CT'].forEach(br=>{
     if(!byBrand[br].length)return;
     const bkpi=calcKPIRows(byBrand[br]);
@@ -542,7 +545,7 @@ function renderDetail(camps,period,now){
     const st=(g.status||'').toLowerCase();
     const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
     const _b=detectBrand(g.name);
-    const bb=_b==='HT'?'<span class="brand-ht">HT</span>':_b==='Shidai'?'<span class="brand-sd">SD</span>':'<span class="brand-ct">CT</span>';
+    const bb=_b==='HT'?'<span class="brand-ht">HT</span>':_b==='Shidai'?'<span class="brand-sd">SD</span>':_b==='CT'?'<span class="brand-ct">CT</span>':'<span class="brand-ct">CT</span>';
     const safeId=encodeURIComponent(g.name);
     return`<tr class="camp-row" onclick="toggleAds('${safeId}')" style="cursor:pointer">
       <td style="width:32px;text-align:center;font-size:11px;color:var(--muted)" id="arrow-${safeId}">▶</td>
@@ -601,46 +604,58 @@ function toggleAds(safeId){
     // Lazy load ad content
     if(!content.dataset.loaded){
       const campName=decodeURIComponent(safeId);
-      const adRows=(window.allRowsRaw||[]).filter(r=>{
+      // Lọc + gộp ad con theo mã (cột B=index 1)
+      const adRowsAll=(window.allRowsRaw||[]).filter(r=>{
         const lvl=(r[COL.LEVEL]||'').trim().toLowerCase();
         return r[COL.CAMPAIGN]===campName && lvl==='ad';
       });
-      if(!adRows.length){
+      if(!adRowsAll.length){
         content.innerHTML='<div style="padding:12px 20px;font-size:12px;color:var(--muted)">Không có ad con</div>';
       } else {
-        const maxSpend=Math.max(...adRows.map(r=>toNum(r[COL.SPEND])),1);
+        // Gộp theo mã quảng cáo
+        const byId={};
+        adRowsAll.forEach(r=>{
+          const id=r[1]||'unknown';
+          if(!byId[id])byId[id]={id,status:r[COL.STATUS]||'',spend:0,mess:0,results:0,ctr:0,cpc:0,n:0,resultType:r[COL.RESULT_TYPE]||''};
+          byId[id].spend+=toNum(r[COL.SPEND]);
+          byId[id].mess+=toNum(r[COL.MESSAGES]);
+          byId[id].results+=toNum(r[COL.RESULTS]);
+          byId[id].ctr+=toNum(r[COL.CTR]);
+          byId[id].cpc+=toNum(r[COL.CPC]);
+          byId[id].n++;
+          if(!byId[id].resultType&&r[COL.RESULT_TYPE])byId[id].resultType=r[COL.RESULT_TYPE];
+        });
+        const ads=Object.values(byId).sort((a,b)=>b.spend-a.spend);
+        const maxSp=Math.max(...ads.map(a=>a.spend),1);
+        const _brand=detectBrand(campName);
+        const _bb=_brand==='HT'?'<span class="brand-ht">HT</span>':_brand==='Shidai'?'<span class="brand-sd">SD</span>':'<span class="brand-ct">CT</span>';
         let html='<table style="width:100%;border-collapse:collapse;font-size:11.5px">';
         html+='<thead><tr style="background:var(--surface2)">';
-        html+='<th style="padding:7px 13px 7px 48px;text-align:left;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap">Mã quảng cáo</th>';
-        ['Brand','Trạng thái','Chi phí','Mess','CP/Mess','Kết quả','Loại KQ','CTR','CPC'].forEach(h=>{
+        ['','Mã quảng cáo','Brand','Trạng thái','Chi phí','Mess','CP/Mess','Kết quả','Loại KQ','CTR TB','CPC TB'].forEach(h=>{
           html+=`<th style="padding:7px 13px;text-align:left;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap">${h}</th>`;
         });
         html+='</tr></thead><tbody>';
-        adRows.forEach(r=>{
-          const spend=toNum(r[COL.SPEND]);
-          const mess=toNum(r[COL.MESSAGES]);
-          const cpm=mess>0?spend/mess:0;
-          const ctr=toNum(r[COL.CTR]);
-          const cpc=toNum(r[COL.CPC]);
-          const res=toNum(r[COL.RESULTS]);
-          const st=(r[COL.STATUS]||'').toLowerCase();
-          const bp=(spend/maxSpend*100).toFixed(1);
+        ads.forEach(a=>{
+          const cpm=a.mess>0?a.spend/a.mess:0;
+          const actr=a.n>0?a.ctr/a.n:0;
+          const acpc=a.n>0?a.cpc/a.n:0;
+          const bp=(a.spend/maxSp*100).toFixed(1);
+          const st=a.status.toLowerCase();
           const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
-          const _b2=detectBrand(r[COL.CAMPAIGN]);
-          const bb=_b2==='HT'?'<span class="brand-ht">HT</span>':_b2==='Shidai'?'<span class="brand-sd">SD</span>':'<span class="brand-ct">CT</span>';
           html+=`<tr style="border-top:1px solid var(--border)">
-            <td style="padding:8px 13px 8px 48px;font-family:JetBrains Mono,monospace;font-size:10.5px;color:var(--muted)">${r[1]||'—'}</td>
-            <td style="padding:8px 13px">${bb}</td>
+            <td style="width:32px"></td>
+            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:10.5px;color:var(--muted)">${a.id}</td>
+            <td style="padding:8px 13px">${_bb}</td>
             <td style="padding:8px 13px"><span class="badge ${bdg}">${st||'—'}</span></td>
             <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">
-              <div class="bar-cell"><span>${vnd(spend)}</span><div class="bar-bg"><div class="bar-fill" style="width:${bp}%;background:var(--accent)"></div></div></div>
+              <div class="bar-cell"><span>${vnd(a.spend)}</span><div class="bar-bg"><div class="bar-fill" style="width:${bp}%;background:var(--accent)"></div></div></div>
             </td>
-            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${num(mess)}</td>
+            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${num(a.mess)}</td>
             <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${vnd(cpm)}</td>
-            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${num(res)}</td>
-            <td style="padding:8px 13px;font-size:10.5px;color:var(--text2)">${r[COL.RESULT_TYPE]||'—'}</td>
-            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${pct(ctr)}</td>
-            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${vnd(cpc)}</td>
+            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${num(a.results)}</td>
+            <td style="padding:8px 13px;font-size:10.5px;color:var(--text2)">${a.resultType||'—'}</td>
+            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${pct(actr)}</td>
+            <td style="padding:8px 13px;font-family:JetBrains Mono,monospace;font-size:11px">${vnd(acpc)}</td>
           </tr>`;
         });
         html+='</tbody></table>';
