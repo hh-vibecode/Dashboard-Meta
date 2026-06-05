@@ -170,6 +170,8 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 .badge-other{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}.badge-other::before{background:var(--muted)}
 .brand-ht{display:inline-flex;align-items:center;background:var(--orange-l);color:var(--orange);border:1px solid rgba(249,115,22,.2);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700}
 .brand-ct{display:inline-flex;align-items:center;background:var(--purple-l);color:var(--purple);border:1px solid rgba(124,58,237,.2);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700}
+.brand-sd{display:inline-flex;align-items:center;background:var(--teal-l);color:var(--teal);border:1px solid rgba(8,145,178,.2);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700}
+.row-brand-sd td:first-child{color:var(--teal);font-weight:700;padding-left:22px}
 .bar-cell{display:flex;align-items:center;gap:7px}
 .bar-bg{flex:1;height:4px;background:var(--bg2);border-radius:3px;min-width:45px;overflow:hidden}
 .bar-fill{height:100%;border-radius:3px}
@@ -195,7 +197,17 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   <select class="brand-select" id="brandFilter" onchange="applyFilter()">
     <option value="all">Tất cả brand</option>
     <option value="HT">Hiền Thuỷ</option>
+    <option value="Shidai">Shidai</option>
     <option value="CT">Chánh Tâm</option>
+  </select>
+  <select class="brand-select" id="quickFilter" onchange="applyQuickFilter()" style="min-width:110px">
+    <option value="">Chọn nhanh…</option>
+    <option value="today">Hôm nay</option>
+    <option value="yesterday">Hôm qua</option>
+    <option value="7days">7 ngày qua</option>
+    <option value="30days">30 ngày qua</option>
+    <option value="thismonth">Tháng này</option>
+    <option value="lastmonth">Tháng trước</option>
   </select>
   <div class="date-filter">
     <label>Từ</label>
@@ -292,9 +304,16 @@ async function loadData(){
     Papa.parse(text,{
       skipEmptyLines:true,
       complete:r=>{
-        // Lưu tất cả rows (kể cả ad con) để expand
-        window.allRowsRaw=r.data.slice(1).filter(row=>row[COL.CAMPAIGN]);
-        allRows=r.data.slice(1).filter(row=>{
+        // Lưu toàn bộ raw (kể cả ad con không có tên cột A)
+        const allData=r.data.slice(1).filter(row=>row.some(c=>c!==''));
+        // Fill tên campaign xuống các dòng ad con (cột A trống)
+        let lastCamp='';
+        allData.forEach(row=>{
+          if(row[COL.CAMPAIGN])lastCamp=row[COL.CAMPAIGN];
+          else row[COL.CAMPAIGN]=lastCamp;
+        });
+        window.allRowsRaw=allData;
+        allRows=allData.filter(row=>{
           const lvl=(row[COL.LEVEL]||'').trim().toLowerCase();
           return lvl==='campaign'&&row[COL.CAMPAIGN];
         });
@@ -345,7 +364,12 @@ function localDate(str,end=false){
 }
 
 // ── Brand & Product ──
-function detectBrand(name){return /^HT[\s\-–]/i.test(name.trim())||/^HT$/i.test(name.trim())?'HT':'CT';}
+function detectBrand(name){
+  const n=name.trim();
+  if(/^HT[\s\-–]/i.test(n)||/^HT$/i.test(n))return'HT';
+  if(/shidai/i.test(n))return'Shidai';
+  return'CT';
+}
 function detectProduct(name){
   const n=name.toLowerCase();
   if(/thần tài|ban thần tài/.test(n))return'Thần Tài';
@@ -489,13 +513,13 @@ function buildGroupedTable(rows,period){
             <td class="mono" style="color:var(--muted)">—</td>`;
   }
 
-  const byBrand={HT:[],CT:[]};
+  const byBrand={HT:[],Shidai:[],CT:[]};
   rows.forEach(r=>byBrand[detectBrand(r[COL.CAMPAIGN])].push(r));
-  ['HT','CT'].forEach(br=>{
+  ['HT','Shidai','CT'].forEach(br=>{
     if(!byBrand[br].length)return;
     const bkpi=calcKPIRows(byBrand[br]);
-    const bc=br==='HT'?'row-brand-ht':'row-brand-ct';
-    const bl=br==='HT'?'<span class="brand-ht">Hiền Thuỷ</span>':'<span class="brand-ct">Chánh Tâm</span>';
+    const bc=br==='HT'?'row-brand-ht':br==='Shidai'?'row-brand-sd':'row-brand-ct';
+    const bl=br==='HT'?'<span class="brand-ht">Hiền Thuỷ</span>':br==='Shidai'?'<span class="brand-sd">Shidai</span>':'<span class="brand-ct">Chánh Tâm</span>';
     html+=`<tr class="${bc}" style="font-size:13px"><td style="padding-left:13px">${bl}</td>${rowCells(bkpi)}</tr>`;
     const byProd={};
     byBrand[br].forEach(r=>{const p=detectProduct(r[COL.CAMPAIGN]);if(!byProd[p])byProd[p]=[];byProd[p].push(r);});
@@ -517,7 +541,8 @@ function renderDetail(camps,period,now){
     const bp=(g.spend/maxSpend*100).toFixed(1);
     const st=(g.status||'').toLowerCase();
     const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
-    const bb=detectBrand(g.name)==='HT'?'<span class="brand-ht">HT</span>':'<span class="brand-ct">CT</span>';
+    const _b=detectBrand(g.name);
+    const bb=_b==='HT'?'<span class="brand-ht">HT</span>':_b==='Shidai'?'<span class="brand-sd">SD</span>':'<span class="brand-ct">CT</span>';
     const safeId=encodeURIComponent(g.name);
     return`<tr class="camp-row" onclick="toggleAds('${safeId}')" style="cursor:pointer">
       <td style="width:32px;text-align:center;font-size:11px;color:var(--muted)" id="arrow-${safeId}">▶</td>
@@ -601,7 +626,8 @@ function toggleAds(safeId){
           const st=(r[COL.STATUS]||'').toLowerCase();
           const bp=(spend/maxSpend*100).toFixed(1);
           const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
-          const bb=detectBrand(r[COL.CAMPAIGN])==='HT'?'<span class="brand-ht">HT</span>':'<span class="brand-ct">CT</span>';
+          const _b2=detectBrand(r[COL.CAMPAIGN]);
+          const bb=_b2==='HT'?'<span class="brand-ht">HT</span>':_b2==='Shidai'?'<span class="brand-sd">SD</span>':'<span class="brand-ct">CT</span>';
           html+=`<tr style="border-top:1px solid var(--border)">
             <td style="padding:8px 13px 8px 48px;font-family:JetBrains Mono,monospace;font-size:10.5px;color:var(--muted)">${r[1]||'—'}</td>
             <td style="padding:8px 13px">${bb}</td>
@@ -689,6 +715,31 @@ function toNum(v){
 function vnd(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n))+' ₫';}
 function num(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n));}
 function pct(n){return n>0?n.toFixed(2)+'%':'—';}
+
+function applyQuickFilter(){
+  const v=document.getElementById('quickFilter').value;
+  if(!v)return;
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const fmt=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  let from,to;
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(v==='today'){from=to=fmt(today);}
+  else if(v==='yesterday'){const y=new Date(today);y.setDate(y.getDate()-1);from=to=fmt(y);}
+  else if(v==='7days'){const s=new Date(today);s.setDate(s.getDate()-6);from=fmt(s);to=fmt(today);}
+  else if(v==='30days'){const s=new Date(today);s.setDate(s.getDate()-29);from=fmt(s);to=fmt(today);}
+  else if(v==='thismonth'){from=fmt(new Date(today.getFullYear(),today.getMonth(),1));to=fmt(today);}
+  else if(v==='lastmonth'){
+    const s=new Date(today.getFullYear(),today.getMonth()-1,1);
+    const e=new Date(today.getFullYear(),today.getMonth(),0);
+    from=fmt(s);to=fmt(e);
+  }
+  document.getElementById('dateFrom').value=from;
+  document.getElementById('dateTo').value=to;
+  applyFilter();
+  // Reset dropdown
+  setTimeout(()=>document.getElementById('quickFilter').value='',100);
+}
 
 window.onload=loadData;
 </script>
