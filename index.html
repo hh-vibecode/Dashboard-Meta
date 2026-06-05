@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,432 +9,182 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
-  --bg: #f0f2f8;
-  --bg2: #e8ebf5;
-  --surface: #ffffff;
-  --surface2: #f7f8fc;
-  --border: #e2e6f0;
-  --border2: #d0d5e8;
-  --text: #0f1629;
-  --text2: #4a5580;
-  --muted: #8892b0;
-  --accent: #4361ee;
-  --accent-light: #eef0fd;
-  --green: #0abf7a;
-  --green-light: #e6faf3;
-  --yellow: #f5a623;
-  --yellow-light: #fff8ec;
-  --red: #e84545;
-  --red-light: #fef0f0;
-  --purple: #7c3aed;
-  --purple-light: #f3eeff;
-  --teal: #0891b2;
-  --teal-light: #e0f7fa;
-  --shadow: 0 2px 12px rgba(67,97,238,.08);
-  --shadow-md: 0 4px 24px rgba(67,97,238,.12);
+  --bg:#f0f2f8;--bg2:#e8ebf5;--surface:#fff;--surface2:#f7f8fc;
+  --border:#e2e6f0;--border2:#d0d5e8;--text:#0f1629;--text2:#4a5580;--muted:#8892b0;
+  --accent:#4361ee;--accent-l:#eef0fd;
+  --green:#0abf7a;--green-l:#e6faf3;
+  --yellow:#f5a623;--yellow-l:#fff8ec;
+  --red:#e84545;--red-l:#fef0f0;
+  --purple:#7c3aed;--purple-l:#f3eeff;
+  --teal:#0891b2;--teal-l:#e0f7fa;
+  --orange:#f97316;--orange-l:#fff4ed;
+  --shadow:0 2px 12px rgba(67,97,238,.08);
+  --shadow-md:0 4px 24px rgba(67,97,238,.12);
 }
 [data-theme="dark"] {
-  --bg: #0d0f14;
-  --bg2: #141720;
-  --surface: #1a1d2e;
-  --surface2: #1e2235;
-  --border: #252a3a;
-  --border2: #2e3450;
-  --text: #e8eaf0;
-  --text2: #8892b0;
-  --muted: #4a5580;
-  --accent: #4f7dff;
-  --accent-light: #1a2040;
-  --green: #34d399;
-  --green-light: #0f2d1f;
-  --yellow: #fbbf24;
-  --yellow-light: #2a1f05;
-  --red: #f87171;
-  --red-light: #2d1515;
-  --purple: #a78bfa;
-  --purple-light: #1e1040;
-  --teal: #22d3ee;
-  --teal-light: #0a2030;
-  --shadow: 0 2px 12px rgba(0,0,0,.3);
-  --shadow-md: 0 4px 24px rgba(0,0,0,.4);
+  --bg:#0d0f14;--bg2:#141720;--surface:#1a1d2e;--surface2:#1e2235;
+  --border:#252a3a;--border2:#2e3450;--text:#e8eaf0;--text2:#8892b0;--muted:#4a5580;
+  --accent:#4f7dff;--accent-l:#1a2040;
+  --green:#34d399;--green-l:#0f2d1f;
+  --yellow:#fbbf24;--yellow-l:#2a1f05;
+  --red:#f87171;--red-l:#2d1515;
+  --purple:#a78bfa;--purple-l:#1e1040;
+  --teal:#22d3ee;--teal-l:#0a2030;
+  --orange:#fb923c;--orange-l:#2a1505;
+  --shadow:0 2px 12px rgba(0,0,0,.3);
+  --shadow-md:0 4px 24px rgba(0,0,0,.4);
 }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Be Vietnam Pro', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background .25s, color .25s; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .25s,color .25s}
 
 /* ── TOPBAR ── */
-.topbar {
-  background: var(--surface);
-  border-bottom: 1.5px solid var(--border);
-  padding: 0 28px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: var(--shadow);
-}
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--text);
-  white-space: nowrap;
-  letter-spacing: -.02em;
-}
-.logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(67,97,238,.15); }
-.logo span { color: var(--accent); }
-.divider { width: 1px; height: 22px; background: var(--border); }
+.topbar{background:var(--surface);border-bottom:1.5px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.logo{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:800;white-space:nowrap;letter-spacing:-.02em}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(67,97,238,.15)}
+.logo span{color:var(--accent)}
+.divider{width:1px;height:20px;background:var(--border);flex-shrink:0}
 
-.url-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  max-width: 500px;
-}
-.url-input {
-  flex: 1;
-  background: var(--bg);
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  padding: 7px 12px;
-  color: var(--text);
-  font-size: 11.5px;
-  font-family: 'JetBrains Mono', monospace;
-  outline: none;
-  transition: border-color .2s, box-shadow .2s;
-}
-.url-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(67,97,238,.1); }
+/* tabs */
+.tabs{display:flex;align-items:center;gap:2px;background:var(--bg2);border-radius:10px;padding:3px}
+.tab{padding:5px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:'Be Vietnam Pro',sans-serif;transition:all .2s;white-space:nowrap}
+.tab.active{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}
+.tab:hover:not(.active){color:var(--text2)}
 
-.btn {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 7px 16px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  transition: all .2s;
-  white-space: nowrap;
-  letter-spacing: .01em;
-}
-.btn:hover { background: #3451d1; box-shadow: 0 4px 12px rgba(67,97,238,.3); transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-.btn-ghost {
-  background: var(--surface2);
-  border: 1.5px solid var(--border);
-  color: var(--text2);
-  border-radius: 8px;
-  padding: 6px 13px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  transition: all .15s;
-  white-space: nowrap;
-}
-.btn-ghost:hover { background: var(--bg2); border-color: var(--border2); color: var(--text); }
+.url-bar{display:flex;align-items:center;gap:7px;flex:1;max-width:420px}
+.url-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 11px;color:var(--text);font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;transition:border-color .2s}
+.url-input:focus{border-color:var(--accent)}
+.btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .2s;white-space:nowrap}
+.btn:hover{background:#3451d1;transform:translateY(-1px);box-shadow:0 4px 12px rgba(67,97,238,.3)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-ghost{background:var(--surface2);border:1.5px solid var(--border);color:var(--text2);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;transition:all .15s;white-space:nowrap}
+.btn-ghost:hover{background:var(--bg2);color:var(--text)}
 
 /* date filter */
-.date-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  background: var(--bg);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  padding: 5px 12px;
-}
-.date-filter label { font-size: 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
-.date-sep { font-size: 12px; color: var(--muted); }
-input[type="date"] {
-  background: transparent;
-  border: none;
-  padding: 3px 6px;
-  color: var(--text);
-  font-size: 12px;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  outline: none;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: background .15s;
-  -webkit-appearance: none;
-  appearance: none;
-  min-width: 110px;
-}
-input[type="date"]:hover { background: var(--surface); }
-input[type="date"]:focus { background: var(--surface); box-shadow: 0 0 0 2px rgba(67,97,238,.15); }
-input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: .6;
-  filter: invert(30%) sepia(80%) saturate(500%) hue-rotate(210deg);
-}
-.filter-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+.date-filter{display:flex;align-items:center;gap:7px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:4px 11px}
+.date-filter label{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap}
+input[type="date"]{background:transparent;border:none;padding:3px 5px;color:var(--text);font-size:12px;font-family:'Be Vietnam Pro',sans-serif;outline:none;cursor:pointer;border-radius:6px;min-width:105px;transition:background .15s}
+input[type="date"]:hover{background:var(--surface)}
+input[type="date"]:focus{background:var(--surface);box-shadow:0 0 0 2px rgba(67,97,238,.15)}
+input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;filter:invert(30%) sepia(80%) saturate(500%) hue-rotate(210deg)}
+.filter-div{width:1px;height:16px;background:var(--border)}
+
+/* theme toggle */
+.theme-toggle{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1.5px solid var(--border);border-radius:20px;padding:4px 11px 4px 7px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);font-family:'Be Vietnam Pro',sans-serif;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.theme-toggle:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
+.toggle-track{width:30px;height:17px;background:var(--border2);border-radius:20px;position:relative;transition:background .25s;flex-shrink:0}
+[data-theme="dark"] .toggle-track{background:var(--accent)}
+.toggle-thumb{width:11px;height:11px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+[data-theme="dark"] .toggle-thumb{transform:translateX(13px)}
 
 /* ── MAIN ── */
-.main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
+.main{padding:20px 24px;max-width:1440px;margin:0 auto}
+.tab-content{display:none}.tab-content.active{display:block}
 
 /* period bar */
-.period-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.period-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--accent-light);
-  border: 1px solid rgba(67,97,238,.2);
-  border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-}
-.stat-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 5px 12px;
-  font-size: 11.5px;
-  color: var(--text2);
-}
-.refresh-btn {
-  margin-left: auto;
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  padding: 5px 12px;
-  font-size: 12px;
-  color: var(--text2);
-  cursor: pointer;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-weight: 600;
-  transition: all .15s;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.refresh-btn:hover { background: var(--bg2); color: var(--accent); border-color: var(--accent); }
+.period-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.period-chip{display:inline-flex;align-items:center;gap:5px;background:var(--accent-l);border:1px solid rgba(67,97,238,.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--accent)}
+.stat-chip{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:11.5px;color:var(--text2)}
+.refresh-btn{margin-left:auto;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:4px 11px;font-size:12px;color:var(--text2);cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;font-weight:600;transition:all .15s;display:flex;align-items:center;gap:5px}
+.refresh-btn:hover{background:var(--bg2);color:var(--accent);border-color:var(--accent)}
 
 /* section */
-.sec-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 24px 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-.sec-label:first-of-type { margin-top: 0; }
+.sec-label{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:22px 0 11px;display:flex;align-items:center;gap:8px}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--border)}
 
-/* ── KPI ── */
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
-.kpi {
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 18px 20px 16px;
-  position: relative;
-  overflow: hidden;
-  transition: all .2s;
-  box-shadow: var(--shadow);
-}
-.kpi:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border2); }
-.kpi-accent {
-  position: absolute;
-  top: 0; right: 0;
-  width: 80px; height: 80px;
-  border-radius: 0 14px 0 80px;
-  opacity: .08;
-}
-.kpi-icon {
-  width: 36px; height: 36px;
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  margin-bottom: 12px;
-}
-.kpi-lbl { font-size: 11px; color: var(--text2); font-weight: 600; margin-bottom: 5px; }
-.kpi-val { font-size: 21px; font-weight: 800; color: var(--text); font-family: 'JetBrains Mono', monospace; line-height: 1.1; letter-spacing: -.02em; }
-.kpi-sub { font-size: 10.5px; color: var(--muted); margin-top: 5px; }
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:16px 18px 14px;position:relative;overflow:hidden;transition:all .2s;box-shadow:var(--shadow)}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.kpi-accent{position:absolute;top:0;right:0;width:70px;height:70px;border-radius:0 14px 0 70px;opacity:.08}
+.kpi-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:10px}
+.kpi-lbl{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:4px}
+.kpi-val{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1.1;letter-spacing:-.02em}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:4px}
+.kpi-blue .kpi-accent{background:var(--accent)}.kpi-blue .kpi-icon{background:var(--accent-l);color:var(--accent)}.kpi-blue .kpi-val{color:var(--accent)}
+.kpi-green .kpi-accent{background:var(--green)}.kpi-green .kpi-icon{background:var(--green-l);color:var(--green)}.kpi-green .kpi-val{color:var(--green)}
+.kpi-yellow .kpi-accent{background:var(--yellow)}.kpi-yellow .kpi-icon{background:var(--yellow-l);color:var(--yellow)}.kpi-yellow .kpi-val{color:var(--yellow)}
+.kpi-red .kpi-accent{background:var(--red)}.kpi-red .kpi-icon{background:var(--red-l);color:var(--red)}.kpi-red .kpi-val{color:var(--red)}
+.kpi-purple .kpi-accent{background:var(--purple)}.kpi-purple .kpi-icon{background:var(--purple-l);color:var(--purple)}.kpi-purple .kpi-val{color:var(--purple)}
+.kpi-teal .kpi-accent{background:var(--teal)}.kpi-teal .kpi-icon{background:var(--teal-l);color:var(--teal)}.kpi-teal .kpi-val{color:var(--teal)}
+.kpi-orange .kpi-accent{background:var(--orange)}.kpi-orange .kpi-icon{background:var(--orange-l);color:var(--orange)}.kpi-orange .kpi-val{color:var(--orange)}
 
-/* color variants */
-.kpi-blue .kpi-accent  { background: var(--accent); }
-.kpi-blue .kpi-icon    { background: var(--accent-light); color: var(--accent); }
-.kpi-blue .kpi-val     { color: var(--accent); }
-.kpi-green .kpi-accent { background: var(--green); }
-.kpi-green .kpi-icon   { background: var(--green-light); color: var(--green); }
-.kpi-green .kpi-val    { color: var(--green); }
-.kpi-yellow .kpi-accent{ background: var(--yellow); }
-.kpi-yellow .kpi-icon  { background: var(--yellow-light); color: var(--yellow); }
-.kpi-yellow .kpi-val   { color: var(--yellow); }
-.kpi-red .kpi-accent   { background: var(--red); }
-.kpi-red .kpi-icon     { background: var(--red-light); color: var(--red); }
-.kpi-red .kpi-val      { color: var(--red); }
-.kpi-purple .kpi-accent{ background: var(--purple); }
-.kpi-purple .kpi-icon  { background: var(--purple-light); color: var(--purple); }
-.kpi-purple .kpi-val   { color: var(--purple); }
-.kpi-teal .kpi-accent  { background: var(--teal); }
-.kpi-teal .kpi-icon    { background: var(--teal-light); color: var(--teal); }
-.kpi-teal .kpi-val     { color: var(--teal); }
+/* Charts */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+.chart-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chart-title{font-size:13px;font-weight:700}
+.chart-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px}
+.chart-wrap{height:220px;position:relative}
 
-/* ── CHARTS ── */
-.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-.chart-card {
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: var(--shadow);
-}
-.chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.chart-title { font-size: 13px; font-weight: 700; color: var(--text); }
-.chart-badge { font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
-.chart-wrap { height: 230px; position: relative; }
+/* ── TỔNG QUAN TABLE: Ngày → Brand → Sản phẩm ── */
+.tov-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.tov-head{padding:14px 18px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--surface2) 0%,var(--bg2) 100%)}
+.tov-title{font-size:14px;font-weight:800}
+.tov-scroll{overflow-x:auto}
 
-/* ── TABLE ── */
-.tbl-card {
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
-}
-.tbl-head {
-  padding: 16px 20px;
-  border-bottom: 1.5px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2fb 100%);
-}
-.tbl-title { font-size: 14px; font-weight: 800; color: var(--text); }
-.tbl-count {
-  font-size: 11px; font-weight: 700;
-  background: var(--accent-light);
-  color: var(--accent);
-  padding: 3px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(67,97,238,.2);
-}
-.tbl-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-thead tr { background: var(--surface2); }
-thead th {
-  padding: 10px 14px;
-  text-align: left;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .09em;
-  text-transform: uppercase;
-  color: var(--muted);
-  white-space: nowrap;
-  border-bottom: 1.5px solid var(--border);
-}
-tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #f5f7ff; }
-td { padding: 11px 14px; white-space: nowrap; color: var(--text); }
-td.mono { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 500; }
-td.name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-weight: 700; font-size: 12.5px; }
+/* group table */
+.grp-table{width:100%;border-collapse:collapse;font-size:12px}
+.grp-table thead tr{background:var(--surface2)}
+.grp-table th{padding:9px 13px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap;border-bottom:1.5px solid var(--border)}
+.grp-table td{padding:9px 13px;white-space:nowrap;border-bottom:1px solid var(--border)}
+.grp-table tbody tr:last-child td{border-bottom:none}
+.grp-table tbody tr:hover{background:var(--bg2)}
 
-.badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 9px; border-radius: 20px;
-  font-size: 10px; font-weight: 700;
-}
-.badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
-.badge-active   { background: #e6faf3; color: #0abf7a; border: 1px solid #b6f0d8; }
-.badge-active::before { background: #0abf7a; }
-.badge-archived { background: #fff8ec; color: #d97706; border: 1px solid #fde68a; }
-.badge-archived::before { background: #f5a623; }
-.badge-other    { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
-.badge-other::before { background: var(--muted); }
+/* row levels */
+.row-date{background:linear-gradient(90deg,var(--accent-l),transparent);font-weight:800;font-size:12.5px}
+.row-date td:first-child{color:var(--accent)}
+.row-brand-ht{background:var(--orange-l)}
+.row-brand-ht td:first-child{color:var(--orange);font-weight:700;padding-left:24px}
+.row-brand-ct{background:var(--purple-l)}
+.row-brand-ct td:first-child{color:var(--purple);font-weight:700;padding-left:24px}
+.row-product td:first-child{padding-left:42px;color:var(--text2);font-size:11.5px}
+.row-product{opacity:.9}
 
-.bar-cell { display: flex; align-items: center; gap: 8px; }
-.bar-bg { flex: 1; height: 5px; background: var(--bg2); border-radius: 3px; min-width: 55px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 3px; }
+/* brand badge */
+.brand-ht{display:inline-flex;align-items:center;gap:4px;background:var(--orange-l);color:var(--orange);border:1px solid rgba(249,115,22,.2);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700}
+.brand-ct{display:inline-flex;align-items:center;gap:4px;background:var(--purple-l);color:var(--purple);border:1px solid rgba(124,58,237,.2);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700}
 
-/* loading / error */
-.loading { text-align: center; padding: 70px 20px; color: var(--muted); }
-.spin {
-  display: inline-block; width: 32px; height: 32px;
-  border: 3px solid var(--border); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 14px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.err-box {
-  background: var(--red-light); border: 1.5px solid #fecaca;
-  border-radius: 12px; padding: 20px 24px; color: var(--red);
-  font-size: 13px; margin: 16px 0;
-}
+/* ── CHI TIẾT TABLE ── */
+.tbl-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.tbl-head{padding:14px 18px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--surface2) 0%,var(--bg2) 100%)}
+.tbl-title{font-size:14px;font-weight:800}
+.tbl-count{font-size:11px;font-weight:700;background:var(--accent-l);color:var(--accent);padding:3px 10px;border-radius:20px;border:1px solid rgba(67,97,238,.2)}
+.tbl-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead tr{background:var(--surface2)}
+thead th{padding:9px 13px;text-align:left;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap;border-bottom:1.5px solid var(--border)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--bg2)}
+td{padding:10px 13px;white-space:nowrap}
+td.mono{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500}
+td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;font-size:12.5px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%}
+.badge-active{background:var(--green-l);color:var(--green);border:1px solid rgba(10,191,122,.25)}
+.badge-active::before{background:var(--green)}
+.badge-archived{background:var(--yellow-l);color:#d97706;border:1px solid #fde68a}
+.badge-archived::before{background:var(--yellow)}
+.badge-other{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.badge-other::before{background:var(--muted)}
+.bar-cell{display:flex;align-items:center;gap:7px}
+.bar-bg{flex:1;height:4px;background:var(--bg2);border-radius:3px;min-width:50px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px}
 
-/* ── DECORATIVE HEADER STRIP ── */
-.header-strip {
-  height: 4px;
-  background: linear-gradient(90deg, var(--accent) 0%, #7c3aed 40%, var(--teal) 70%, var(--green) 100%);
-}
+/* loading/err */
+.loading{text-align:center;padding:60px 20px;color:var(--muted)}
+.spin{display:inline-block;width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err-box{background:var(--red-l);border:1.5px solid #fecaca;border-radius:12px;padding:18px 22px;color:var(--red);font-size:13px;margin:16px 0}
 
-.theme-toggle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  background: var(--surface2);
-  border: 1.5px solid var(--border);
-  border-radius: 20px;
-  padding: 5px 12px 5px 8px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text2);
-  font-family: 'Be Vietnam Pro', sans-serif;
-  transition: all .2s;
-  white-space: nowrap;
-  margin-left: 8px;
-}
-.theme-toggle:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-.toggle-track {
-  width: 32px; height: 18px;
-  background: var(--border2);
-  border-radius: 20px;
-  position: relative;
-  transition: background .25s;
-}
-[data-theme="dark"] .toggle-track { background: var(--accent); }
-.toggle-thumb {
-  width: 12px; height: 12px;
-  background: #fff;
-  border-radius: 50%;
-  position: absolute;
-  top: 3px; left: 3px;
-  transition: transform .25s;
-  box-shadow: 0 1px 4px rgba(0,0,0,.2);
-}
-[data-theme="dark"] .toggle-thumb { transform: translateX(14px); }
-@media (max-width: 960px) {
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .charts-grid { grid-template-columns: 1fr; }
-  .date-filter { display: none; }
-  .main { padding: 16px; }
+/* strip */
+.header-strip{height:4px;background:linear-gradient(90deg,var(--accent) 0%,#7c3aed 40%,var(--teal) 70%,var(--green) 100%)}
+
+@media(max-width:960px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-grid{grid-template-columns:1fr}
+  .date-filter{display:none}
+  .main{padding:14px}
 }
 </style>
 </head>
@@ -442,360 +192,442 @@ td.name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-weig
 
 <div class="header-strip"></div>
 
-<!-- TOPBAR -->
 <div class="topbar">
-  <div class="logo">
-    <div class="logo-dot"></div>
-    Dashboard <span>MKT</span>
+  <div class="logo"><div class="logo-dot"></div>Dashboard <span>MKT</span></div>
+  <div class="divider"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')">📊 Tổng Quan</button>
+    <button class="tab" onclick="switchTab('detail')">📋 Chi Tiết</button>
   </div>
   <div class="divider"></div>
   <div class="url-bar">
-    <input class="url-input" id="sheetUrl" placeholder="Dán link Google Sheets publish (pubhtml / CSV)…" />
-    <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải data</button>
+    <input class="url-input" id="sheetUrl" placeholder="Link Google Sheets publish…"/>
+    <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải</button>
   </div>
-  <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">
-    <div class="toggle-track"><div class="toggle-thumb"></div></div>
-    <span id="themeLabel">Tối</span>
-  </button>
   <div class="date-filter">
     <label>Từ</label>
     <input type="date" id="dateFrom" onchange="applyFilter()">
-    <div class="filter-divider"></div>
+    <div class="filter-div"></div>
     <label>Đến</label>
     <input type="date" id="dateTo" onchange="applyFilter()">
-    <div class="filter-divider"></div>
+    <div class="filter-div"></div>
     <button class="btn-ghost" onclick="clearFilter()">Xoá</button>
   </div>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <div class="toggle-track"><div class="toggle-thumb"></div></div>
+    <span id="themeLabel">Tối</span>
+  </button>
 </div>
 
-<!-- MAIN -->
-<div class="main" id="app">
-  <div class="loading">
-    <div class="spin"></div>
-    <div style="font-size:14px;font-weight:600;color:var(--text2)">Đang tải dữ liệu…</div>
+<div class="main">
+  <!-- TỔNG QUAN -->
+  <div class="tab-content active" id="tab-overview">
+    <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:600;color:var(--text2)">Đang tải dữ liệu…</span></div>
+  </div>
+  <!-- CHI TIẾT -->
+  <div class="tab-content" id="tab-detail">
+    <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:600;color:var(--text2)">Đang tải dữ liệu…</span></div>
   </div>
 </div>
 
 <script>
-const COL = {
-  CAMPAIGN: 0, AD_ID: 1, STATUS: 3, LEVEL: 4,
-  REACH: 5, IMPRESSIONS: 6, FREQ: 7, SPEND: 8,
-  CPM: 9, MESSAGES: 10, RESULT_TYPE: 11, RESULTS: 12,
-  RESULT_RATE: 13, COST_RESULT: 14, CTR: 15, CPC: 16,
-  NOTE: 17, DATE_START: 18, DATE_END: 19
-};
+const COL={CAMPAIGN:0,AD_ID:1,STATUS:3,LEVEL:4,REACH:5,IMPRESSIONS:6,FREQ:7,SPEND:8,CPM:9,MESSAGES:10,RESULT_TYPE:11,RESULTS:12,RESULT_RATE:13,COST_RESULT:14,CTR:15,CPC:16,NOTE:17,DATE_START:18,DATE_END:19};
+let allRows=[],charts={},activeTab='overview';
 
-let allRows = [];
-let charts  = {};
+document.getElementById('sheetUrl').value='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
 
-// Pre-fill CSV URL
-document.getElementById('sheetUrl').value =
-  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
+// ── Tabs ──
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='overview')||(i===1&&tab==='detail')));
+  document.getElementById('tab-overview').classList.toggle('active', tab==='overview');
+  document.getElementById('tab-detail').classList.toggle('active', tab==='detail');
+}
+
+// ── Theme ──
+function toggleTheme() {
+  const html=document.documentElement;
+  const isDark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('themeLabel').textContent=isDark?'Tối':'Sáng';
+  localStorage.setItem('theme',isDark?'light':'dark');
+}
+(function(){
+  const saved=localStorage.getItem('theme')||'light';
+  document.documentElement.setAttribute('data-theme',saved);
+  window.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('themeLabel').textContent=saved==='dark'?'Sáng':'Tối';
+  });
+})();
 
 // ── Load ──
 async function loadData() {
-  const rawUrl = document.getElementById('sheetUrl').value.trim();
-  if (!rawUrl) return;
-  const csvUrl = toCsv(rawUrl);
+  const rawUrl=document.getElementById('sheetUrl').value.trim();
+  if(!rawUrl)return;
+  const csvUrl=toCsv(rawUrl);
   showLoading();
-  document.getElementById('btnLoad').disabled = true;
+  document.getElementById('btnLoad').disabled=true;
   try {
-    const proxy = 'https://corsproxy.io/?' + encodeURIComponent(csvUrl);
-    const res   = await fetch(proxy);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const text  = await res.text();
-    Papa.parse(text, {
-      skipEmptyLines: true,
-      complete: r => {
-        const rows = r.data;
-        allRows = rows.slice(1).filter(row => {
-          const lvl = (row[COL.LEVEL] || '').trim().toLowerCase();
-          return (lvl === 'campaign' || lvl === 'all') && row[COL.CAMPAIGN];
+    const res=await fetch('https://corsproxy.io/?'+encodeURIComponent(csvUrl));
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const text=await res.text();
+    Papa.parse(text,{
+      skipEmptyLines:true,
+      complete:r=>{
+        allRows=r.data.slice(1).filter(row=>{
+          const lvl=(row[COL.LEVEL]||'').trim().toLowerCase();
+          return(lvl==='campaign'||lvl==='all')&&row[COL.CAMPAIGN];
         });
-        document.getElementById('btnLoad').disabled = false;
+        document.getElementById('btnLoad').disabled=false;
         applyFilter();
       },
-      error: e => { showErr('Lỗi parse: ' + e.message); document.getElementById('btnLoad').disabled = false; }
+      error:e=>{showErr('Lỗi parse: '+e.message);document.getElementById('btnLoad').disabled=false;}
     });
-  } catch(e) {
-    showErr('Không tải được: ' + e.message);
-    document.getElementById('btnLoad').disabled = false;
-  }
+  } catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
 
-function toCsv(url) {
-  url = url.replace('/pubhtml', '/pub').replace('output=html','output=csv');
-  if (!url.includes('output=csv')) url += (url.includes('?') ? '&' : '?') + 'output=csv';
-  if (!url.includes('single='))   url += '&single=true';
+function toCsv(url){
+  url=url.replace('/pubhtml','/pub').replace('output=html','output=csv');
+  if(!url.includes('output=csv'))url+=(url.includes('?')?'&':'?')+'output=csv';
+  if(!url.includes('single='))url+='&single=true';
   return url;
 }
 
 // ── Filter ──
-function applyFilter() {
-  if (!allRows.length) return;
-  const from = document.getElementById('dateFrom').value;
-  const to   = document.getElementById('dateTo').value;
-  let rows = allRows;
-  if (from || to) {
-    rows = allRows.filter(r => {
-      const d = parseDate(r[COL.DATE_START]);
-      if (!d) return true;
-      if (from && d < new Date(from)) return false;
-      if (to   && d > new Date(to + 'T23:59:59')) return false;
+function applyFilter(){
+  if(!allRows.length)return;
+  const from=document.getElementById('dateFrom').value;
+  const to=document.getElementById('dateTo').value;
+  let rows=allRows;
+  if(from||to){
+    rows=allRows.filter(r=>{
+      const d=parseDate(r[COL.DATE_START]);
+      if(!d)return true;
+      if(from&&d<new Date(from))return false;
+      if(to&&d>new Date(to+'T23:59:59'))return false;
       return true;
     });
   }
-  render(rows);
+  renderAll(rows);
 }
-function clearFilter() {
-  document.getElementById('dateFrom').value = '';
-  document.getElementById('dateTo').value   = '';
-  if (allRows.length) render(allRows);
+function clearFilter(){
+  document.getElementById('dateFrom').value='';
+  document.getElementById('dateTo').value='';
+  if(allRows.length)renderAll(allRows);
 }
 
-// ── Render ──
-function render(rows) {
-  Object.values(charts).forEach(c => c.destroy());
-  charts = {};
+// ── Brand detect ──
+function detectBrand(name){
+  return /^HT[\s\-–]/i.test(name.trim())||/^HT$/i.test(name.trim())?'HT':'CT';
+}
 
-  if (!rows.length) {
-    document.getElementById('app').innerHTML = '<div class="err-box">⚠️ Không có dữ liệu trong khoảng thời gian này.</div>';
+// ── Product type: lấy phần sau brand prefix ──
+function detectProduct(name){
+  // Bỏ prefix brand, lấy tên sản phẩm chính
+  const n=name.trim()
+    .replace(/^(HT|Shidai)\s*[-–]\s*/i,'')
+    .replace(/\s*[-–]\s*(fix bài cũ|fix bai cu|mess tiềm năng|mess mua hàng).*$/i,'')
+    .replace(/\s*[-–]\s*\d{2}\/\d{2}.*$/,'')
+    .trim();
+  return n||name;
+}
+
+// ── Render All ──
+function renderAll(rows){
+  Object.values(charts).forEach(c=>c.destroy());
+  charts={};
+  if(!rows.length){
+    document.getElementById('tab-overview').innerHTML='<div class="err-box">⚠️ Không có dữ liệu trong khoảng thời gian này.</div>';
+    document.getElementById('tab-detail').innerHTML='<div class="err-box">⚠️ Không có dữ liệu.</div>';
     return;
   }
+  const kpi=calcKPI(rows);
+  const byCamp=groupByCamp(rows);
+  const camps=Object.values(byCamp).sort((a,b)=>b.spend-a.spend);
+  const dates=rows.map(r=>parseDate(r[COL.DATE_START])).filter(Boolean);
+  const minD=dates.length?new Date(Math.min(...dates)):null;
+  const maxD=dates.length?new Date(Math.max(...dates)):null;
+  const period=minD?(fmtDate(minD)===fmtDate(maxD)?fmtDate(minD):fmtDate(minD)+' → '+fmtDate(maxD)):'Toàn bộ';
+  const now=new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
 
-  const kpi    = calcKPI(rows);
-  const byCamp = groupByCamp(rows);
-  const camps  = Object.values(byCamp).sort((a,b) => b.spend - a.spend);
+  renderOverview(rows,kpi,camps,period,now,minD,maxD);
+  renderDetail(camps,period,now);
+}
 
-  // period
-  const dates  = rows.map(r => parseDate(r[COL.DATE_START])).filter(Boolean);
-  const minD   = dates.length ? new Date(Math.min(...dates)) : null;
-  const maxD   = dates.length ? new Date(Math.max(...dates)) : null;
-  const period = minD ? (fmtDate(minD) === fmtDate(maxD) ? fmtDate(minD) : fmtDate(minD) + ' → ' + fmtDate(maxD)) : 'Toàn bộ';
-  const now    = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'});
+// ── TAB TỔNG QUAN ──
+function renderOverview(rows,kpi,camps,period,now,minD,maxD){
+  const groupedTable=buildGroupedTable(rows,minD,maxD);
+  const htCamps=camps.filter(c=>detectBrand(c.name)==='HT');
+  const ctCamps=camps.filter(c=>detectBrand(c.name)==='CT');
+  const htSpend=htCamps.reduce((s,c)=>s+c.spend,0);
+  const ctSpend=ctCamps.reduce((s,c)=>s+c.spend,0);
 
-  document.getElementById('app').innerHTML = `
+  document.getElementById('tab-overview').innerHTML=`
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
-      <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
-      <div class="stat-chip">🕐 Cập nhật ${now}</div>
+      <div class="stat-chip"><span class="brand-ht">HT</span> ${vnd(htSpend)}</div>
+      <div class="stat-chip"><span class="brand-ct">CT</span> ${vnd(ctSpend)}</div>
+      <div class="stat-chip">🕐 ${now}</div>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
 
-    <div class="sec-label">Ads Performance</div>
+    <div class="sec-label">KPI Tổng</div>
     <div class="kpi-grid">
-      ${mkKpi('💰','Tổng Chi Phí Ads', vnd(kpi.totalSpend), '', 'blue')}
-      ${mkKpi('💬','Tổng Số Mess',      num(kpi.totalMess),  'lượt trò chuyện', 'green')}
-      ${mkKpi('📌','Chi Phí / Mess',    vnd(kpi.costPerMess),'trung bình/mess', 'yellow')}
-      ${mkKpi('🎯','Tổng Kết Quả',      num(kpi.totalResults),'tất cả chiến dịch','purple')}
+      ${mkKpi('💰','Tổng Chi Phí',vnd(kpi.totalSpend),'','blue')}
+      ${mkKpi('💬','Tổng Mess',num(kpi.totalMess),'lượt trò chuyện','green')}
+      ${mkKpi('📌','CP / Mess',vnd(kpi.costPerMess),'trung bình','yellow')}
+      ${mkKpi('🎯','Kết Quả',num(kpi.totalResults),'','purple')}
     </div>
     <div class="kpi-grid">
-      ${mkKpi('👥','Lượt Tiếp Cận',     num(kpi.totalReach),  '', 'teal')}
-      ${mkKpi('👁','Lượt Hiển Thị',     num(kpi.totalImpressions),'', 'blue')}
-      ${mkKpi('📈','CTR Trung Bình',    pct(kpi.avgCTR),      '', 'green')}
-      ${mkKpi('🏷','CPC Trung Bình',    vnd(kpi.avgCPC),      '', 'red')}
+      ${mkKpi('👥','Tiếp Cận',num(kpi.totalReach),'','teal')}
+      ${mkKpi('👁','Hiển Thị',num(kpi.totalImpressions),'','blue')}
+      ${mkKpi('📈','CTR TB',pct(kpi.avgCTR),'','green')}
+      ${mkKpi('🏷','CPC TB',vnd(kpi.avgCPC),'','red')}
     </div>
 
-    <div class="sec-label">Biểu đồ</div>
+    <div class="sec-label">Biểu Đồ</div>
     <div class="charts-grid">
       <div class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Chi Phí Theo Chiến Dịch</div>
-          <span class="chart-badge" style="background:var(--accent-light);color:var(--accent)">VND</span>
-        </div>
+        <div class="chart-head"><div class="chart-title">Chi Phí Theo Chiến Dịch</div><span class="chart-badge" style="background:var(--accent-l);color:var(--accent)">VND</span></div>
         <div class="chart-wrap"><canvas id="cSpend"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Số Mess Theo Chiến Dịch</div>
-          <span class="chart-badge" style="background:var(--green-light);color:var(--green)">Lượt</span>
-        </div>
-        <div class="chart-wrap"><canvas id="cMess"></canvas></div>
+        <div class="chart-head"><div class="chart-title">Ngân Sách: HT vs Chánh Tâm</div><span class="chart-badge" style="background:var(--purple-l);color:var(--purple)">Brand</span></div>
+        <div class="chart-wrap"><canvas id="cBrand"></canvas></div>
       </div>
     </div>
 
-    <div class="sec-label">Chi Tiết Chiến Dịch</div>
-    <div class="tbl-card">
-      <div class="tbl-head">
-        <div class="tbl-title">Bảng Chiến Dịch</div>
-        <div class="tbl-count">${camps.length} chiến dịch</div>
+    <div class="sec-label">Ngày → Brand → Loại Sản Phẩm</div>
+    <div class="tov-card">
+      <div class="tov-head">
+        <div class="tov-title">Bảng Tổng Quan</div>
+        <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
       </div>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr>
-            <th>Tên chiến dịch</th><th>Trạng thái</th>
-            <th>Chi phí (VND)</th><th>Số Mess</th>
-            <th>Chi phí/Mess</th><th>Kết quả</th>
-            <th>Loại kết quả</th><th>CTR</th><th>CPC</th>
-          </tr></thead>
-          <tbody>${buildRows(camps)}</tbody>
-        </table>
-      </div>
+      <div class="tov-scroll">${groupedTable}</div>
     </div>
   `;
-
-  buildCharts(camps);
+  buildOverviewCharts(camps,htSpend,ctSpend);
 }
 
-function mkKpi(icon, label, val, sub, color) {
-  return `<div class="kpi kpi-${color}">
-    <div class="kpi-accent"></div>
-    <div class="kpi-icon">${icon}</div>
-    <div class="kpi-lbl">${label}</div>
-    <div class="kpi-val">${val}</div>
-    ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}
-  </div>`;
+function buildGroupedTable(rows,minD,maxD){
+  // Gom theo ngày
+  const byDate={};
+  rows.forEach(r=>{
+    const d=parseDate(r[COL.DATE_START]);
+    const dateKey=d?fmtDate(d):'N/A';
+    if(!byDate[dateKey])byDate[dateKey]=[];
+    byDate[dateKey].push(r);
+  });
+
+  const cols=['Ngày / Brand / Sản phẩm','Chi phí','Mess','CP/Mess','Kết quả','CTR','CPC'];
+  let html=`<table class="grp-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+
+  // Sort ngày mới nhất lên trên
+  Object.keys(byDate).sort((a,b)=>{
+    const da=parseDate(a),db=parseDate(b);
+    return (db&&da)?db-da:0;
+  }).forEach(dateKey=>{
+    const dateRows=byDate[dateKey];
+    // Tính tổng ngày
+    const dayKpi=calcKPIFromRows(dateRows);
+    html+=`<tr class="row-date">
+      <td>📅 ${dateKey}</td>
+      <td class="mono">${vnd(dayKpi.spend)}</td>
+      <td class="mono">${num(dayKpi.mess)}</td>
+      <td class="mono">${dayKpi.mess>0?vnd(dayKpi.spend/dayKpi.mess):'—'}</td>
+      <td class="mono">${num(dayKpi.results)}</td>
+      <td class="mono">${pct(dayKpi.avgCTR)}</td>
+      <td class="mono">${vnd(dayKpi.avgCPC)}</td>
+    </tr>`;
+
+    // Gom theo brand
+    const byBrand={HT:[],CT:[]};
+    dateRows.forEach(r=>byBrand[detectBrand(r[COL.CAMPAIGN])].push(r));
+
+    ['HT','CT'].forEach(brand=>{
+      const brandRows=byBrand[brand];
+      if(!brandRows.length)return;
+      const bKpi=calcKPIFromRows(brandRows);
+      const brandClass=brand==='HT'?'row-brand-ht':'row-brand-ct';
+      const brandLabel=brand==='HT'?'<span class="brand-ht">Hiền Thuỷ</span>':'<span class="brand-ct">Chánh Tâm</span>';
+      html+=`<tr class="${brandClass}">
+        <td>${brandLabel}</td>
+        <td class="mono">${vnd(bKpi.spend)}</td>
+        <td class="mono">${num(bKpi.mess)}</td>
+        <td class="mono">${bKpi.mess>0?vnd(bKpi.spend/bKpi.mess):'—'}</td>
+        <td class="mono">${num(bKpi.results)}</td>
+        <td class="mono">${pct(bKpi.avgCTR)}</td>
+        <td class="mono">${vnd(bKpi.avgCPC)}</td>
+      </tr>`;
+
+      // Gom theo loại sản phẩm
+      const byProd={};
+      brandRows.forEach(r=>{
+        const prod=detectProduct(r[COL.CAMPAIGN]);
+        if(!byProd[prod])byProd[prod]=[];
+        byProd[prod].push(r);
+      });
+      Object.entries(byProd).sort((a,b)=>calcKPIFromRows(b[1]).spend-calcKPIFromRows(a[1]).spend).forEach(([prod,pRows])=>{
+        const pKpi=calcKPIFromRows(pRows);
+        html+=`<tr class="row-product">
+          <td style="color:var(--text2)">↳ ${prod}</td>
+          <td class="mono">${vnd(pKpi.spend)}</td>
+          <td class="mono">${num(pKpi.mess)}</td>
+          <td class="mono">${pKpi.mess>0?vnd(pKpi.spend/pKpi.mess):'—'}</td>
+          <td class="mono">${num(pKpi.results)}</td>
+          <td class="mono">${pct(pKpi.avgCTR)}</td>
+          <td class="mono">${vnd(pKpi.avgCPC)}</td>
+        </tr>`;
+      });
+    });
+  });
+
+  html+='</tbody></table>';
+  return html;
 }
 
-function buildRows(camps) {
-  const maxSpend = Math.max(...camps.map(c => c.spend), 1);
-  return camps.map(g => {
-    const cpm  = g.mess > 0 ? g.spend / g.mess : 0;
-    const actr = g.n    > 0 ? g.ctr   / g.n    : 0;  // đã là % rồi, không nhân thêm
-    const acpc = g.n    > 0 ? g.cpc   / g.n    : 0;
-    const bpct = (g.spend / maxSpend * 100).toFixed(1);
-    const st   = (g.status || '').toLowerCase();
-    const bdg  = st === 'active'   ? 'badge-active'
-               : st === 'archived' ? 'badge-archived'
-               : 'badge-other';
-    const stLbl = st || '—';
-    return `<tr>
+// ── TAB CHI TIẾT ──
+function renderDetail(camps,period,now){
+  const maxSpend=Math.max(...camps.map(c=>c.spend),1);
+  const rows=camps.map(g=>{
+    const cpm=g.mess>0?g.spend/g.mess:0;
+    const actr=g.n>0?g.ctr/g.n:0;
+    const acpc=g.n>0?g.cpc/g.n:0;
+    const bp=(g.spend/maxSpend*100).toFixed(1);
+    const st=(g.status||'').toLowerCase();
+    const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
+    const brand=detectBrand(g.name);
+    const brandBadge=brand==='HT'?'<span class="brand-ht">HT</span>':'<span class="brand-ct">CT</span>';
+    return`<tr>
       <td class="name" title="${g.name}">${g.name}</td>
-      <td><span class="badge ${bdg}">${stLbl}</span></td>
-      <td class="mono">
-        <div class="bar-cell">
-          <span>${vnd(g.spend)}</span>
-          <div class="bar-bg"><div class="bar-fill" style="width:${bpct}%;background:var(--accent)"></div></div>
-        </div>
-      </td>
+      <td>${brandBadge}</td>
+      <td><span class="badge ${bdg}">${st||'—'}</span></td>
+      <td class="mono"><div class="bar-cell"><span>${vnd(g.spend)}</span><div class="bar-bg"><div class="bar-fill" style="width:${bp}%;background:var(--accent)"></div></div></div></td>
       <td class="mono">${num(g.mess)}</td>
       <td class="mono">${vnd(cpm)}</td>
       <td class="mono">${num(g.results)}</td>
-      <td style="font-size:11.5px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${g.resultType || '—'}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis">${g.resultType||'—'}</td>
       <td class="mono">${pct(actr)}</td>
       <td class="mono">${vnd(acpc)}</td>
     </tr>`;
   }).join('');
+
+  document.getElementById('tab-detail').innerHTML=`
+    <div class="period-bar">
+      <div class="period-chip">📅 ${period}</div>
+      <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
+      <div class="stat-chip">🕐 ${now}</div>
+      <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><div class="tbl-title">Chi Tiết Theo Chiến Dịch</div><div class="tbl-count">${camps.length}</div></div>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Tên chiến dịch</th><th>Brand</th><th>Trạng thái</th><th>Chi phí</th><th>Mess</th><th>CP/Mess</th><th>Kết quả</th><th>Loại KQ</th><th>CTR</th><th>CPC</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
-function buildCharts(camps) {
-  const labels = camps.map(c => c.name.length > 22 ? c.name.substring(0,22)+'…' : c.name);
-  const baseOpt = {
-    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => '  ' + num(ctx.raw) } } },
-    scales: {
-      x: { grid: { color: '#eef0f8' }, ticks: { color: '#8892b0', font: { size: 10, family: 'JetBrains Mono' } } },
-      y: { grid: { display: false }, ticks: { color: '#4a5580', font: { size: 10, family: 'Be Vietnam Pro', weight: '600' } } }
+// ── Charts ──
+function buildOverviewCharts(camps,htSpend,ctSpend){
+  const baseOpt={
+    responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+num(ctx.raw)}}},
+    scales:{
+      x:{grid:{color:'var(--border)'},ticks:{color:'var(--muted)',font:{size:9,family:'JetBrains Mono'}}},
+      y:{grid:{display:false},ticks:{color:'var(--text2)',font:{size:9,family:'Be Vietnam Pro',weight:'600'}}}
     }
   };
 
-  charts.spend = new Chart(document.getElementById('cSpend'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ data: camps.map(c => c.spend), backgroundColor: 'rgba(67,97,238,.12)', borderColor: '#4361ee', borderWidth: 2, borderRadius: 5 }]
-    },
-    options: JSON.parse(JSON.stringify(baseOpt))
+  // Chi phí top 8 chiến dịch
+  const top=camps.slice(0,8);
+  charts.spend=new Chart(document.getElementById('cSpend'),{
+    type:'bar',
+    data:{labels:top.map(c=>c.name.length>20?c.name.substring(0,20)+'…':c.name),
+      datasets:[{data:top.map(c=>c.spend),backgroundColor:'rgba(67,97,238,.12)',borderColor:'#4361ee',borderWidth:2,borderRadius:5}]},
+    options:JSON.parse(JSON.stringify(baseOpt))
   });
 
-  charts.mess = new Chart(document.getElementById('cMess'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ data: camps.map(c => c.mess), backgroundColor: 'rgba(10,191,122,.12)', borderColor: '#0abf7a', borderWidth: 2, borderRadius: 5 }]
+  // Brand doughnut
+  charts.brand=new Chart(document.getElementById('cBrand'),{
+    type:'doughnut',
+    data:{
+      labels:['Hiền Thuỷ','Chánh Tâm'],
+      datasets:[{data:[htSpend,ctSpend],backgroundColor:['rgba(249,115,22,.8)','rgba(124,58,237,.8)'],borderColor:['#f97316','#7c3aed'],borderWidth:2,hoverOffset:8}]
     },
-    options: JSON.parse(JSON.stringify(baseOpt))
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom',labels:{color:'var(--text2)',font:{size:12,family:'Be Vietnam Pro',weight:'600'},padding:16}},
+        tooltip:{callbacks:{label:ctx=>' '+vnd(ctx.raw)+' ('+Math.round(ctx.raw/(htSpend+ctSpend)*100)+'%)'}}
+      },
+      cutout:'65%'
+    }
   });
 }
 
 // ── Calc ──
-function calcKPI(rows) {
-  let totalSpend=0,totalMess=0,totalResults=0,totalReach=0,totalImpressions=0;
-  let ctrSum=0,cpcSum=0,n=0;
-  rows.forEach(r => {
-    totalSpend       += toNum(r[COL.SPEND]);
-    totalMess        += toNum(r[COL.MESSAGES]);
-    totalResults     += toNum(r[COL.RESULTS]);
-    totalReach       += toNum(r[COL.REACH]);
-    totalImpressions += toNum(r[COL.IMPRESSIONS]);
-    ctrSum           += toNum(r[COL.CTR]);
-    cpcSum           += toNum(r[COL.CPC]);
-    n++;
+function calcKPI(rows){
+  let totalSpend=0,totalMess=0,totalResults=0,totalReach=0,totalImpressions=0,ctrSum=0,cpcSum=0,n=0;
+  rows.forEach(r=>{
+    totalSpend+=toNum(r[COL.SPEND]);totalMess+=toNum(r[COL.MESSAGES]);
+    totalResults+=toNum(r[COL.RESULTS]);totalReach+=toNum(r[COL.REACH]);
+    totalImpressions+=toNum(r[COL.IMPRESSIONS]);ctrSum+=toNum(r[COL.CTR]);cpcSum+=toNum(r[COL.CPC]);n++;
   });
-  return {
-    totalSpend, totalMess, totalResults, totalReach, totalImpressions,
-    costPerMess: totalMess > 0 ? totalSpend / totalMess : 0,
-    avgCTR: n > 0 ? ctrSum / n : 0,   // giữ nguyên, không nhân 100
-    avgCPC: n > 0 ? cpcSum / n : 0,
-  };
+  return{totalSpend,totalMess,totalResults,totalReach,totalImpressions,
+    costPerMess:totalMess>0?totalSpend/totalMess:0,
+    avgCTR:n>0?ctrSum/n:0,avgCPC:n>0?cpcSum/n:0};
 }
 
-function groupByCamp(rows) {
-  const g = {};
-  rows.forEach(r => {
-    const name = (r[COL.CAMPAIGN] || '').trim();
-    if (!g[name]) g[name] = { name, status: r[COL.STATUS], spend:0, mess:0, results:0, reach:0, impressions:0, ctr:0, cpc:0, n:0, resultType:'' };
-    g[name].spend       += toNum(r[COL.SPEND]);
-    g[name].mess        += toNum(r[COL.MESSAGES]);
-    g[name].results     += toNum(r[COL.RESULTS]);
-    g[name].reach       += toNum(r[COL.REACH]);
-    g[name].impressions += toNum(r[COL.IMPRESSIONS]);
-    g[name].ctr         += toNum(r[COL.CTR]);
-    g[name].cpc         += toNum(r[COL.CPC]);
-    g[name].n++;
-    if (!g[name].resultType && r[COL.RESULT_TYPE]) g[name].resultType = r[COL.RESULT_TYPE];
+function calcKPIFromRows(rows){
+  let spend=0,mess=0,results=0,ctr=0,cpc=0,n=0;
+  rows.forEach(r=>{spend+=toNum(r[COL.SPEND]);mess+=toNum(r[COL.MESSAGES]);results+=toNum(r[COL.RESULTS]);ctr+=toNum(r[COL.CTR]);cpc+=toNum(r[COL.CPC]);n++;});
+  return{spend,mess,results,avgCTR:n>0?ctr/n:0,avgCPC:n>0?cpc/n:0};
+}
+
+function groupByCamp(rows){
+  const g={};
+  rows.forEach(r=>{
+    const name=(r[COL.CAMPAIGN]||'').trim();
+    if(!g[name])g[name]={name,status:r[COL.STATUS],spend:0,mess:0,results:0,reach:0,impressions:0,ctr:0,cpc:0,n:0,resultType:''};
+    g[name].spend+=toNum(r[COL.SPEND]);g[name].mess+=toNum(r[COL.MESSAGES]);
+    g[name].results+=toNum(r[COL.RESULTS]);g[name].reach+=toNum(r[COL.REACH]);
+    g[name].impressions+=toNum(r[COL.IMPRESSIONS]);g[name].ctr+=toNum(r[COL.CTR]);g[name].cpc+=toNum(r[COL.CPC]);g[name].n++;
+    if(!g[name].resultType&&r[COL.RESULT_TYPE])g[name].resultType=r[COL.RESULT_TYPE];
   });
   return g;
 }
 
 // ── Utils ──
-function showLoading() {
-  document.getElementById('app').innerHTML = '<div class="loading"><div class="spin"></div><div style="font-size:14px;font-weight:600;color:var(--text2)">Đang tải dữ liệu…</div></div>';
+function mkKpi(icon,label,val,sub,color){
+  return`<div class="kpi kpi-${color}"><div class="kpi-accent"></div><div class="kpi-icon">${icon}</div><div class="kpi-lbl">${label}</div><div class="kpi-val">${val}</div>${sub?`<div class="kpi-sub">${sub}</div>`:''}</div>`;
 }
-function showErr(msg) {
-  document.getElementById('app').innerHTML = `<div class="err-box">❌ ${msg}<br><small>Kiểm tra link đã Publish to web chưa, hoặc thử refresh lại trang.</small></div>`;
+function showLoading(){
+  const l='<div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:600;color:var(--text2)">Đang tải dữ liệu…</span></div>';
+  document.getElementById('tab-overview').innerHTML=l;
+  document.getElementById('tab-detail').innerHTML=l;
 }
-function parseDate(v) {
-  if (!v) return null;
-  const s = String(v).trim();
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3]);
-  const vn = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (vn) return new Date(+vn[3], +vn[2]-1, +vn[1]);
-  const d = new Date(v); return isNaN(d) ? null : d;
+function showErr(msg){
+  const e=`<div class="err-box">❌ ${msg}</div>`;
+  document.getElementById('tab-overview').innerHTML=e;
+  document.getElementById('tab-detail').innerHTML=e;
 }
-function fmtDate(d) {
-  if (!d) return '';
-  return d.getDate().toString().padStart(2,'0') + '/' + (d.getMonth()+1).toString().padStart(2,'0') + '/' + d.getFullYear();
+function parseDate(v){
+  if(!v)return null;const s=String(v).trim();
+  const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(iso)return new Date(+iso[1],+iso[2]-1,+iso[3]);
+  const vn=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(vn)return new Date(+vn[3],+vn[2]-1,+vn[1]);
+  const d=new Date(v);return isNaN(d)?null:d;
 }
-function toNum(v) {
-  if (v === null || v === undefined || v === '') return 0;
-  const n = parseFloat(String(v).replace(/[^0-9.-]/g,''));
-  return isNaN(n) ? 0 : n;
-}
-function vnd(n) { return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' ₫'; }
-function num(n) { return new Intl.NumberFormat('vi-VN').format(Math.round(n)); }
-function pct(n) { return n > 0 ? n.toFixed(2) + '%' : '—'; }
+function fmtDate(d){if(!d)return'';return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();}
+function toNum(v){if(v===null||v===undefined||v==='')return 0;const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?0:n;}
+function vnd(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n))+' ₫';}
+function num(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n));}
+function pct(n){return n>0?n.toFixed(2)+'%':'—';}
 
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  document.getElementById('themeLabel').textContent = isDark ? 'Tối' : 'Sáng';
-  localStorage.setItem('theme', isDark ? 'light' : 'dark');
-}
-
-// Restore theme on load
-(function() {
-  const saved = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', saved);
-})();
-
-window.onload = function() {
-  const saved = localStorage.getItem('theme') || 'light';
-  document.getElementById('themeLabel').textContent = saved === 'dark' ? 'Sáng' : 'Tối';
-  loadData();
-};
+window.onload=loadData;
 </script>
 </body>
 </html>
