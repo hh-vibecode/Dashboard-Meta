@@ -927,8 +927,8 @@ function toggleUrlPanel(){
 }
 
 window.onload=function(){
-  // Pre-fill URL
-  // URL set in onload
+  const el=document.getElementById('sheetUrl');
+  if(el)el.value='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
   loadData();
 };
 </script>
