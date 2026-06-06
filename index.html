@@ -444,11 +444,7 @@ function renderAll(rows){
   if(chartBrand){chartBrand.destroy();chartBrand=null;}
   if(chartProd){chartProd.destroy();chartProd=null;}
   if(chartWave){chartWave.destroy();chartWave=null;}
-  if(!rows.length){
-    document.getElementById('page-overview').innerHTML='<div class="err-box">⚠️ Không có dữ liệu trong khoảng thời gian / brand đã chọn.</div>';
-    document.getElementById('page-detail').innerHTML='<div class="err-box">⚠️ Không có dữ liệu.</div>';
-    return;
-  }
+  // Không return khi rỗng - vẫn render với số 0
   const kpi=calcKPI(rows);
   const byCamp=groupByCamp(rows);
   const camps=Object.values(byCamp).sort((a,b)=>b.spend-a.spend);
