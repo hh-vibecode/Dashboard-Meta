@@ -196,7 +196,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="topbar">
   <button class="sb-toggle" onclick="toggleSidebar()">☰</button>
   <div class="top-logo">
-    <img src="logo.png" style="width:42px;height:42px;border-radius:10px;object-fit:cover">
+    <img src="logo.png" style="width:60px;height:60px;border-radius:12px;object-fit:cover">
   </div>
   <div class="topbar-right">
   <div class="date-filter">
@@ -304,7 +304,9 @@ async function loadData(){
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
-    const res=await fetch('https://corsproxy.io/?'+encodeURIComponent(toCsv(raw)));
+    const csvUrl=toCsv(raw);
+    const proxyUrl='https://api.allorigins.win/raw?url='+encodeURIComponent(csvUrl);
+    const res=await fetch(proxyUrl);
     if(!res.ok)throw new Error('HTTP '+res.status);
     const text=await res.text();
     Papa.parse(text,{
