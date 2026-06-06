@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard MKT 2026</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
@@ -21,7 +21,7 @@
   --shadow:0 2px 12px rgba(67,97,238,.08);
   --shadow-md:0 4px 24px rgba(67,97,238,.13);
   --sidebar-w:220px;--sidebar-w-col:56px;
-  --font:'Montserrat',sans-serif;
+  --font:'Poppins',sans-serif;
 }
 [data-theme="dark"]{
   --bg:#0d0f14;--bg2:#141720;--surface:#1a1d2e;--surface2:#1e2235;
@@ -121,7 +121,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .g-red{background:linear-gradient(135deg,#e84545,#ec4899)}
 
 /* CHARTS 3 COL */
-.charts-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px}
+.charts-2col-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
 .chart-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
 .chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .chart-title{font-size:13px;font-weight:700}
@@ -196,22 +196,17 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải</button>
   </div>
   <div class="top-div"></div>
-  <select class="top-select" id="brandFilter" onchange="applyFilter()">
-    <option value="all">Tất cả brand</option>
-    <option value="HT">Hiền Thuỷ</option>
-    <option value="Shidai">Shidai</option>
-    <option value="CT">Chánh Tâm</option>
-  </select>
-  <select class="top-select" id="quickFilter" onchange="applyQuickFilter()" style="min-width:115px">
-    <option value="">Chọn nhanh…</option>
-    <option value="today">Hôm nay</option>
-    <option value="yesterday">Hôm qua</option>
-    <option value="7days">7 ngày qua</option>
-    <option value="30days">30 ngày qua</option>
-    <option value="thismonth">Tháng này</option>
-    <option value="lastmonth">Tháng trước</option>
-  </select>
   <div class="date-filter">
+    <select style="background:transparent;border:none;color:var(--text2);font-size:11px;font-weight:600;font-family:'Poppins',sans-serif;cursor:pointer;outline:none;padding:2px 4px" id="quickFilter" onchange="applyQuickFilter()">
+      <option value="">Chọn nhanh…</option>
+      <option value="today">Hôm nay</option>
+      <option value="yesterday">Hôm qua</option>
+      <option value="7days">7 ngày qua</option>
+      <option value="30days">30 ngày qua</option>
+      <option value="thismonth">Tháng này</option>
+      <option value="lastmonth">Tháng trước</option>
+    </select>
+    <div class="fdiv"></div>
     <label>Từ</label>
     <input type="date" id="dateFrom" onchange="applyFilter()">
     <div class="fdiv"></div>
@@ -253,7 +248,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 
 <script>
 const COL={CAMPAIGN:0,AD_ID:1,STATUS:3,LEVEL:4,REACH:5,IMPRESSIONS:6,SPEND:8,MESSAGES:10,RESULT_TYPE:11,RESULTS:12,CTR:15,CPC:16};
-let allRows=[],chartBrand=null,chartProd=null,sbCollapsed=false;
+let allRows=[],chartBrand=null,chartProd=null,chartWave=null,sbCollapsed=false;
 
 document.getElementById('sheetUrl').value='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
 
@@ -336,7 +331,10 @@ function applyFilter(){
   if(!allRows.length)return;
   const from=document.getElementById('dateFrom').value;
   const to=document.getElementById('dateTo').value;
-  const brand=document.getElementById('brandFilter').value;
+  const brandEl=document.getElementById('brandFilter');
+  const brand=brandEl?brandEl.value:'all';
+  const prodEl=document.getElementById('prodFilter');
+  const prod=prodEl?prodEl.value:'all';
   let rows=allRows;
   if(from||to){
     const fromD=from?localDate(from):null;
@@ -349,13 +347,15 @@ function applyFilter(){
     });
   }
   if(brand!=='all')rows=rows.filter(r=>detectBrand(r[COL.CAMPAIGN])===brand);
+  if(prod!=='all')rows=rows.filter(r=>detectProduct(r[COL.CAMPAIGN])===prod);
   renderAll(rows);
 }
 function clearFilter(){
   document.getElementById('dateFrom').value='';
   document.getElementById('dateTo').value='';
-  document.getElementById('brandFilter').value='all';
   document.getElementById('quickFilter').value='';
+  const bf=document.getElementById('brandFilter');if(bf)bf.value='all';
+  const pf=document.getElementById('prodFilter');if(pf)pf.value='all';
   if(allRows.length)renderAll(allRows);
 }
 function localDate(str,end=false){
@@ -410,6 +410,7 @@ function getBrandBadge(name){
 function renderAll(rows){
   if(chartBrand){chartBrand.destroy();chartBrand=null;}
   if(chartProd){chartProd.destroy();chartProd=null;}
+  if(chartWave){chartWave.destroy();chartWave=null;}
   if(!rows.length){
     document.getElementById('page-overview').innerHTML='<div class="err-box">⚠️ Không có dữ liệu trong khoảng thời gian / brand đã chọn.</div>';
     document.getElementById('page-detail').innerHTML='<div class="err-box">⚠️ Không có dữ liệu.</div>';
@@ -452,7 +453,16 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
-      <div class="stat-chip">🕐 ${now}</div>
+      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px">
+        <option value="all">Tất cả brand</option>
+        <option value="HT">Hiền Thuỷ</option>
+        <option value="Shidai">Shidai</option>
+        <option value="CT">Chánh Tâm</option>
+      </select>
+      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
+        <option value="all">Tất cả SP</option>
+        ${allProds.map(p=>`<option value="${p}">${p}</option>`).join('')}
+      </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
 
@@ -472,7 +482,7 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
     </div>
 
     <div class="sec-label">Phân Tích</div>
-    <div class="charts-3col">
+    <div class="charts-2col-grid">
       <div class="chart-card">
         <div class="chart-head">
           <div class="chart-title">Ngân Sách Theo Brand</div>
@@ -487,14 +497,21 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
         </div>
         <div class="chart-wrap"><canvas id="cProd"></canvas></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-head">
+          <div class="chart-title">Chi Phí Ads vs Doanh Thu — 7 Ngày Gần Nhất</div>
+          <span class="chart-sub">Chi phí ads có data · Doanh thu chờ sheet 4.DATA DT</span>
+        </div>
+        <div class="chart-wrap" style="height:200px"><canvas id="cWave"></canvas></div>
+      </div>
+      <div class="chart-card" style="grid-column:1/-1">
         <div class="chart-head">
           <div class="chart-title">Top 5 ADS/DS</div>
           <span class="chart-sub">ADS/DS thấp = hiệu quả tốt</span>
         </div>
-        <div class="chart-empty">
+        <div class="chart-empty" style="height:120px">
           <div class="icon">📉</div>
-          <p>Chưa có dữ liệu doanh số<br>Kết nối sheet 4.DATA DT để hiển thị</p>
+          <p>Chưa có dữ liệu doanh số · Kết nối sheet 4.DATA DT để hiển thị</p>
         </div>
       </div>
     </div>
@@ -505,18 +522,7 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
         <div class="tov-title">Bảng Tổng Quan</div>
         <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
         <span class="period-chip" style="font-size:11px">📅 ${period}</span>
-        <div class="tov-filters">
-          <select class="tov-select" id="tovBrand" onchange="filterTov()">
-            <option value="all">Tất cả brand</option>
-            <option value="HT">Hiền Thuỷ</option>
-            <option value="Shidai">Shidai</option>
-            <option value="CT">Chánh Tâm</option>
-          </select>
-          <select class="tov-select" id="tovProd" onchange="filterTov()">
-            <option value="all">Tất cả SP</option>
-            ${allProds.map(p=>`<option value="${p}">${p}</option>`).join('')}
-          </select>
-        </div>
+
       </div>
       <div class="tov-scroll" id="tovBody">${buildGroupedTable(rows)}</div>
     </div>`;
@@ -525,15 +531,12 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
   window._tovRows=rows;
   buildBrandChart(htSpend,sdSpend,ctSpend,total);
   buildProdChart(prodCount);
+  buildWaveChart(rows);
 }
 
 function filterTov(){
-  const brand=document.getElementById('tovBrand').value;
-  const prod=document.getElementById('tovProd').value;
-  let rows=window._tovRows||[];
-  if(brand!=='all')rows=rows.filter(r=>detectBrand(r[COL.CAMPAIGN])===brand);
-  if(prod!=='all')rows=rows.filter(r=>detectProduct(r[COL.CAMPAIGN])===prod);
-  document.getElementById('tovBody').innerHTML=buildGroupedTable(rows);
+  // Table filter now handled by period bar dropdowns via applyFilter
+  // This function kept for compatibility
 }
 
 function buildGroupedTable(rows){
@@ -604,7 +607,16 @@ function renderDetail(camps,period,now){
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
-      <div class="stat-chip">🕐 ${now}</div>
+      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px">
+        <option value="all">Tất cả brand</option>
+        <option value="HT">Hiền Thuỷ</option>
+        <option value="Shidai">Shidai</option>
+        <option value="CT">Chánh Tâm</option>
+      </select>
+      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
+        <option value="all">Tất cả SP</option>
+        ${allProds.map(p=>`<option value="${p}">${p}</option>`).join('')}
+      </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
     <div class="tbl-card">
@@ -703,13 +715,13 @@ function buildBrandChart(htSpend,sdSpend,ctSpend,total){
         legend:{
           position:'right',
           labels:{
-            color:'var(--text)',font:{size:11,family:'Montserrat',weight:'600'},padding:14,
+            color:'var(--text)',font:{size:11,family:'Poppins',weight:'600'},padding:14,
             generateLabels:chart=>{
               const d=chart.data;
               return d.labels.map((label,i)=>{
                 const val=d.datasets[0].data[i];
                 const p=Math.round(val/total*100);
-                return{text:`${label}  ${vnd(val)}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:d.datasets[0].borderColor[i],lineWidth:2,hidden:false,index:i};
+                return{text:`${label}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:d.datasets[0].borderColor[i],lineWidth:2,hidden:false,index:i};
               });
             }
           }
@@ -736,18 +748,105 @@ function buildProdChart(prodCount){
         legend:{
           position:'right',
           labels:{
-            color:'var(--text)',font:{size:11,family:'Montserrat',weight:'600'},padding:12,
+            color:'var(--text)',font:{size:11,family:'Poppins',weight:'600'},padding:12,
             generateLabels:chart=>{
               const d=chart.data;
               return d.labels.map((label,i)=>{
                 const val=d.datasets[0].data[i];
                 const p=Math.round(val/total*100);
-                return{text:`${label}  ${val} chiến dịch  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],lineWidth:0,hidden:false,index:i};
+                return{text:`${label}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],lineWidth:0,hidden:false,index:i};
               });
             }
           }
         },
         tooltip:{callbacks:{label:ctx=>` ${ctx.raw} chiến dịch (${Math.round(ctx.raw/total*100)}%)`}}
+      }
+    }
+  });
+}
+
+// ── Wave Chart: Chi phí theo ngày ──
+function buildWaveChart(rows){
+  const ctx=document.getElementById('cWave');if(!ctx)return;
+
+  // Tính chi phí theo ngày từ data
+  const byDate={};
+  rows.forEach(r=>{
+    const d=parseDate(r[18]);
+    if(!d)return;
+    const k=fmtDate(d);
+    byDate[k]=(byDate[k]||0)+toNum(r[COL.SPEND]);
+  });
+
+  // Lấy 7 ngày gần nhất (có data)
+  const sortedDates=Object.keys(byDate).sort((a,b)=>{
+    const da=parseDate(a),db=parseDate(b);
+    return da&&db?da-db:0;
+  }).slice(-7);
+
+  const labels=sortedDates;
+  const spendData=sortedDates.map(d=>byDate[d]||0);
+
+  if(chartWave){chartWave.destroy();chartWave=null;}
+  chartWave=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'Chi phí Ads',
+          data:spendData,
+          borderColor:'#4361ee',
+          backgroundColor:'rgba(67,97,238,.12)',
+          borderWidth:2.5,
+          pointBackgroundColor:'#4361ee',
+          pointRadius:4,
+          pointHoverRadius:6,
+          fill:true,
+          tension:.4
+        },
+        {
+          label:'Doanh Thu',
+          data:sortedDates.map(()=>null), // placeholder
+          borderColor:'#0abf7a',
+          backgroundColor:'rgba(10,191,122,.1)',
+          borderWidth:2.5,
+          pointBackgroundColor:'#0abf7a',
+          pointRadius:4,
+          pointHoverRadius:6,
+          fill:true,
+          tension:.4,
+          borderDash:[5,5]
+        }
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{
+          position:'top',
+          labels:{color:'var(--text)',font:{size:11,family:'Poppins',weight:'600'},padding:16}
+        },
+        tooltip:{
+          callbacks:{
+            label:ctx=>` ${ctx.dataset.label}: ${ctx.raw!==null?vnd(ctx.raw):'Chưa có data'}`
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:'var(--border)'},
+          ticks:{color:'var(--muted)',font:{size:10,family:'Poppins'},maxRotation:0}
+        },
+        y:{
+          grid:{color:'var(--border)'},
+          ticks:{
+            color:'var(--muted)',
+            font:{size:10,family:'Poppins'},
+            callback:v=>new Intl.NumberFormat('vi-VN',{notation:'compact',maximumFractionDigits:1}).format(v)+'₫'
+          }
+        }
       }
     }
   });
