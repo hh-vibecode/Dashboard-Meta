@@ -461,7 +461,6 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
       </select>
       <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
         <option value="all">Tất cả SP</option>
-        ${allProds.map(p=>`<option value="${p}">${p}</option>`).join('')}
       </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
@@ -529,6 +528,13 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
 
   // Store rows for tov filter
   window._tovRows=rows;
+  // Fill prodFilter options dynamically
+  const pf=document.getElementById('prodFilter');
+  if(pf){
+    const cur=pf.value;
+    pf.innerHTML='<option value="all">Tất cả SP</option>'+allProds.map(p=>`<option value="${p}">${p}</option>`).join('');
+    if(allProds.includes(cur))pf.value=cur;
+  }
   buildBrandChart(htSpend,sdSpend,ctSpend,total);
   buildProdChart(prodCount);
   buildWaveChart(rows);
@@ -615,7 +621,6 @@ function renderDetail(camps,period,now){
       </select>
       <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
         <option value="all">Tất cả SP</option>
-        ${allProds.map(p=>`<option value="${p}">${p}</option>`).join('')}
       </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
