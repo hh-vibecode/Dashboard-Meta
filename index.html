@@ -90,7 +90,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .sidebar.collapsed .nav-label{opacity:0;width:0}
 .nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:20px;flex-shrink:0;transition:opacity .2s}
 .sidebar.collapsed .nav-badge{opacity:0}
-.main-content{margin-left:var(--sidebar-w);flex:1;padding:22px 24px;transition:margin-left .25s cubic-bezier(.4,0,.2,1);min-width:0}
+.main-content{margin-left:var(--sidebar-w);flex:1;padding:0 24px 24px;transition:margin-left .25s cubic-bezier(.4,0,.2,1);min-width:0}
 .main-content.collapsed{margin-left:var(--sidebar-w-col)}
 .tab-page{display:none}.tab-page.active{display:block}
 .page-title{font-size:18px;font-weight:800;margin-bottom:2px;letter-spacing:-.02em}
@@ -125,6 +125,12 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .g-orange{background:linear-gradient(135deg,#f97316,#f59e0b)}
 .g-pink{background:linear-gradient(135deg,#ec4899,#e84545)}
 .g-red{background:linear-gradient(135deg,#e84545,#ec4899)}
+/* KPI dark mode fix - giữ chữ trắng trên gradient */
+[data-theme="dark"] .kpi{color:#fff!important}
+[data-theme="dark"] .kpi .kpi-lbl{color:rgba(255,255,255,.85)!important}
+[data-theme="dark"] .kpi .kpi-val{color:#fff!important}
+[data-theme="dark"] .kpi .kpi-sub{color:rgba(255,255,255,.7)!important}
+[data-theme="dark"] .kpi .kpi-icon{color:#fff!important}
 
 /* CHARTS 3 COL */
 .charts-2col-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
@@ -180,6 +186,8 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 .bar-cell{display:flex;align-items:center;gap:7px}
 .bar-bg{flex:1;height:4px;background:var(--bg2);border-radius:3px;min-width:45px;overflow:hidden}
 .bar-fill{height:100%;border-radius:3px}
+[data-theme="light"] #logoImg{mix-blend-mode:multiply;filter:contrast(1.05)}
+[data-theme="dark"] #logoImg{mix-blend-mode:lighten;filter:brightness(1.1) contrast(1.05)}
 .tov-filters{display:flex;align-items:center;gap:8px;margin-left:auto}
 .tov-select{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;outline:none;transition:all .15s}
 .tov-select:focus{border-color:var(--accent)}
@@ -196,7 +204,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="topbar">
   <button class="sb-toggle" onclick="toggleSidebar()">☰</button>
   <div class="top-logo">
-    <img src="logo.png" style="width:60px;height:60px;object-fit:contain;mix-blend-mode:multiply">
+    <img src="logo.png" style="width:60px;height:60px;object-fit:contain" id="logoImg">
   </div>
   <div class="topbar-right">
   <div class="date-filter">
@@ -231,19 +239,6 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải</button>
 </div>
 
-<!-- Filter bar cố định - không bị re-render -->
-<div id="filterBar" style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 24px 8px calc(var(--sidebar-w) + 24px);display:flex;align-items:center;gap:10px;transition:padding-left .25s" id="filterBar">
-  <span style="font-size:11px;color:var(--muted);font-weight:600">Lọc:</span>
-  <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px">
-    <option value="all">Tất cả brand</option>
-    <option value="HT">Hiền Thuỷ</option>
-    <option value="Shidai">Shidai</option>
-    <option value="CT">Chánh Tâm</option>
-  </select>
-  <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
-    <option value="all">Tất cả SP</option>
-  </select>
-</div>
 <div class="app-body">
   <div class="sidebar" id="sidebar">
     <div class="sb-strip"></div>
@@ -260,6 +255,19 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   </div>
 
   <div class="main-content" id="mainContent">
+    <!-- Filter dropdowns - tĩnh, không bị re-render -->
+    <div style="display:flex;align-items:center;gap:10px;padding:16px 0 12px;border-bottom:1px solid var(--border);margin-bottom:16px">
+      <span style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase">Lọc:</span>
+      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:32px;font-size:12px;padding:4px 12px;font-weight:600">
+        <option value="all">Tất cả brand</option>
+        <option value="HT">Hiền Thuỷ</option>
+        <option value="Shidai">Shidai</option>
+        <option value="CT">Chánh Tâm</option>
+      </select>
+      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:32px;font-size:12px;padding:4px 12px;min-width:140px;font-weight:600">
+        <option value="all">Tất cả SP</option>
+      </select>
+    </div>
     <div class="tab-page active" id="page-overview">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
@@ -293,8 +301,7 @@ function toggleSidebar(){
   sbCollapsed=!sbCollapsed;
   document.getElementById('sidebar').classList.toggle('collapsed',sbCollapsed);
   document.getElementById('mainContent').classList.toggle('collapsed',sbCollapsed);
-  const fb=document.getElementById('filterBar');
-  if(fb)fb.style.paddingLeft=(sbCollapsed?'calc(var(--sidebar-w-col) + 24px)':'calc(var(--sidebar-w) + 24px)');
+
   localStorage.setItem('sb',sbCollapsed?'1':'0');
 }
 (function(){
