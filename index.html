@@ -76,7 +76,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 [data-theme="dark"] .toggle-thumb{transform:translateX(12px)}
 
 /* LAYOUT */
-.app-body{display:flex;margin-top:54px;min-height:calc(100vh - 54px)}
+.filter-bar-wrap{position:sticky;top:54px;z-index:99}.app-body{display:flex;margin-top:0;min-height:calc(100vh - 54px)}
 .sidebar{position:fixed;left:0;top:54px;bottom:0;width:var(--sidebar-w);background:var(--surface);border-right:1.5px solid var(--border);display:flex;flex-direction:column;transition:width .25s cubic-bezier(.4,0,.2,1);z-index:100;overflow:hidden}
 .sidebar.collapsed{width:var(--sidebar-w-col)}
 .sb-strip{height:4px;background:linear-gradient(90deg,var(--accent),#7c3aed,var(--teal),var(--green));flex-shrink:0}
@@ -196,7 +196,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="topbar">
   <button class="sb-toggle" onclick="toggleSidebar()">☰</button>
   <div class="top-logo">
-    <img src="logo.png" style="width:60px;height:60px;object-fit:contain">
+    <img src="logo.png" style="width:60px;height:60px;object-fit:contain;mix-blend-mode:multiply">
   </div>
   <div class="topbar-right">
   <div class="date-filter">
@@ -231,6 +231,19 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải</button>
 </div>
 
+<!-- Filter bar cố định - không bị re-render -->
+<div id="filterBar" style="background:var(--surface);border-bottom:1px solid var(--border);padding:8px 24px 8px calc(var(--sidebar-w) + 24px);display:flex;align-items:center;gap:10px;transition:padding-left .25s" id="filterBar">
+  <span style="font-size:11px;color:var(--muted);font-weight:600">Lọc:</span>
+  <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px">
+    <option value="all">Tất cả brand</option>
+    <option value="HT">Hiền Thuỷ</option>
+    <option value="Shidai">Shidai</option>
+    <option value="CT">Chánh Tâm</option>
+  </select>
+  <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
+    <option value="all">Tất cả SP</option>
+  </select>
+</div>
 <div class="app-body">
   <div class="sidebar" id="sidebar">
     <div class="sb-strip"></div>
@@ -280,6 +293,8 @@ function toggleSidebar(){
   sbCollapsed=!sbCollapsed;
   document.getElementById('sidebar').classList.toggle('collapsed',sbCollapsed);
   document.getElementById('mainContent').classList.toggle('collapsed',sbCollapsed);
+  const fb=document.getElementById('filterBar');
+  if(fb)fb.style.paddingLeft=(sbCollapsed?'calc(var(--sidebar-w-col) + 24px)':'calc(var(--sidebar-w) + 24px)');
   localStorage.setItem('sb',sbCollapsed?'1':'0');
 }
 (function(){
@@ -462,8 +477,8 @@ function renderAll(rows){
     prodCount[p]=(prodCount[p]||0)+1;
   });
 
-  // Auto detect all products for filter
-  const allProds=[...new Set(camps.map(c=>detectProduct(c.name)))].sort();
+  // Auto detect all products từ toàn bộ allRows (không filter)
+  const allProds=[...new Set(allRows.map(r=>detectProduct(r[COL.CAMPAIGN])))].filter(Boolean).sort();
 
   renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,prodCount,allProds);
   renderDetail(camps,period,now);
@@ -477,15 +492,6 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
-      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px">
-        <option value="all">Tất cả brand</option>
-        <option value="HT">Hiền Thuỷ</option>
-        <option value="Shidai">Shidai</option>
-        <option value="CT">Chánh Tâm</option>
-      </select>
-      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
-        <option value="all">Tất cả SP</option>
-      </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
 
@@ -637,15 +643,6 @@ function renderDetail(camps,period,now){
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
-      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px">
-        <option value="all">Tất cả brand</option>
-        <option value="HT">Hiền Thuỷ</option>
-        <option value="Shidai">Shidai</option>
-        <option value="CT">Chánh Tâm</option>
-      </select>
-      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:4px 10px;min-width:130px">
-        <option value="all">Tất cả SP</option>
-      </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
     <div class="tbl-card">
@@ -820,11 +817,13 @@ function buildWaveChart(rows){
   // Gradient fill
   const canvasCtx=ctx.getContext('2d');
   const gradBlue=canvasCtx.createLinearGradient(0,0,0,220);
-  gradBlue.addColorStop(0,'rgba(67,97,238,.35)');
-  gradBlue.addColorStop(1,'rgba(67,97,238,.02)');
+  gradBlue.addColorStop(0,'rgba(67,97,238,.55)');
+  gradBlue.addColorStop(0.5,'rgba(67,97,238,.2)');
+  gradBlue.addColorStop(1,'rgba(67,97,238,0)');
   const gradGreen=canvasCtx.createLinearGradient(0,0,0,220);
-  gradGreen.addColorStop(0,'rgba(10,191,122,.25)');
-  gradGreen.addColorStop(1,'rgba(10,191,122,.02)');
+  gradGreen.addColorStop(0,'rgba(10,191,122,.45)');
+  gradGreen.addColorStop(0.5,'rgba(10,191,122,.15)');
+  gradGreen.addColorStop(1,'rgba(10,191,122,0)');
 
   chartWave=new Chart(ctx,{
     type:'line',
@@ -852,8 +851,8 @@ function buildWaveChart(rows){
         }
       },
       scales:{
-        x:{grid:{color:'var(--border)'},ticks:{color:'var(--muted)',font:{size:10,family:'Inter'},maxRotation:0,padding:6}},
-        y:{grid:{color:'var(--border)'},ticks:{color:'var(--muted)',font:{size:10,family:'Inter'},padding:6,
+        x:{grid:{display:false},border:{display:false},ticks:{color:'var(--muted)',font:{size:10,family:'Inter',weight:'500'},maxRotation:0,padding:8}},
+        y:{grid:{display:false},border:{display:false},ticks:{color:'var(--muted)',font:{size:10,family:'Inter',weight:'500'},padding:8,
           callback:v=>new Intl.NumberFormat('vi-VN',{notation:'compact',maximumFractionDigits:1}).format(v)+'₫'}}
       }
     }
