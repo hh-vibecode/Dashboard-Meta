@@ -90,7 +90,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .sidebar.collapsed .nav-label{opacity:0;width:0}
 .nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:20px;flex-shrink:0;transition:opacity .2s}
 .sidebar.collapsed .nav-badge{opacity:0}
-.main-content{margin-left:var(--sidebar-w);flex:1;padding:0 24px 24px;transition:margin-left .25s cubic-bezier(.4,0,.2,1);min-width:0}
+.main-content{margin-left:var(--sidebar-w);flex:1;padding:16px 24px 24px;transition:margin-left .25s cubic-bezier(.4,0,.2,1);min-width:0}
 .main-content.collapsed{margin-left:var(--sidebar-w-col)}
 .tab-page{display:none}.tab-page.active{display:block}
 .page-title{font-size:18px;font-weight:800;margin-bottom:2px;letter-spacing:-.02em}
@@ -256,7 +256,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 
   <div class="main-content" id="mainContent">
     <!-- Filter dropdowns - tĩnh, không bị re-render -->
-    <div style="display:flex;align-items:center;gap:10px;padding:16px 0 12px;border-bottom:1px solid var(--border);margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
       <span style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase">Lọc:</span>
       <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:32px;font-size:12px;padding:4px 12px;font-weight:600">
         <option value="all">Tất cả brand</option>
