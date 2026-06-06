@@ -196,7 +196,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="topbar">
   <button class="sb-toggle" onclick="toggleSidebar()">☰</button>
   <div class="top-logo">
-    <img src="logo.png" style="width:60px;height:60px;border-radius:12px;object-fit:cover">
+    <img src="logo.png" style="width:60px;height:60px;object-fit:contain">
   </div>
   <div class="topbar-right">
   <div class="date-filter">
@@ -305,8 +305,20 @@ async function loadData(){
   document.getElementById('btnLoad').disabled=true;
   try{
     const csvUrl=toCsv(raw);
-    const proxyUrl='https://api.allorigins.win/raw?url='+encodeURIComponent(csvUrl);
-    const res=await fetch(proxyUrl);
+    // Thử lần lượt các proxy cho đến khi có cái hoạt động
+    const proxies=[
+      'https://corsproxy.io/?',
+      'https://api.allorigins.win/raw?url=',
+      'https://thingproxy.freeboard.io/fetch/',
+    ];
+    let res=null;
+    for(const proxy of proxies){
+      try{
+        res=await fetch(proxy+encodeURIComponent(csvUrl),{signal:AbortSignal.timeout(8000)});
+        if(res.ok)break;
+      }catch(e){continue;}
+    }
+    if(!res||!res.ok)throw new Error('Không kết nối được proxy. Thử lại sau!');
     if(!res.ok)throw new Error('HTTP '+res.status);
     const text=await res.text();
     Papa.parse(text,{
