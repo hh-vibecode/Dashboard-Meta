@@ -76,7 +76,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 [data-theme="dark"] .toggle-thumb{transform:translateX(12px)}
 
 /* LAYOUT */
-.filter-bar-wrap{position:sticky;top:54px;z-index:99}.app-body{display:flex;margin-top:0;min-height:calc(100vh - 54px)}
+.app-body{display:flex;margin-top:54px;min-height:calc(100vh - 54px)}
 .sidebar{position:fixed;left:0;top:54px;bottom:0;width:var(--sidebar-w);background:var(--surface);border-right:1.5px solid var(--border);display:flex;flex-direction:column;transition:width .25s cubic-bezier(.4,0,.2,1);z-index:100;overflow:hidden}
 .sidebar.collapsed{width:var(--sidebar-w-col)}
 .sb-strip{height:4px;background:linear-gradient(90deg,var(--accent),#7c3aed,var(--teal),var(--green));flex-shrink:0}
@@ -90,7 +90,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .sidebar.collapsed .nav-label{opacity:0;width:0}
 .nav-badge{margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:20px;flex-shrink:0;transition:opacity .2s}
 .sidebar.collapsed .nav-badge{opacity:0}
-.main-content{margin-left:var(--sidebar-w);flex:1;padding:16px 24px 24px;transition:margin-left .25s cubic-bezier(.4,0,.2,1);min-width:0}
+.main-content{margin-left:var(--sidebar-w);flex:1;padding:22px 24px 24px;transition:margin-left .25s cubic-bezier(.4,0,.2,1);min-width:0}
 .main-content.collapsed{margin-left:var(--sidebar-w-col)}
 .tab-page{display:none}.tab-page.active{display:block}
 .page-title{font-size:18px;font-weight:800;margin-bottom:2px;letter-spacing:-.02em}
@@ -186,8 +186,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 .bar-cell{display:flex;align-items:center;gap:7px}
 .bar-bg{flex:1;height:4px;background:var(--bg2);border-radius:3px;min-width:45px;overflow:hidden}
 .bar-fill{height:100%;border-radius:3px}
-[data-theme="light"] #logoImg{mix-blend-mode:multiply;filter:contrast(1.05)}
-[data-theme="dark"] #logoImg{mix-blend-mode:lighten;filter:brightness(1.1) contrast(1.05)}
+
 .tov-filters{display:flex;align-items:center;gap:8px;margin-left:auto}
 .tov-select{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;outline:none;transition:all .15s}
 .tov-select:focus{border-color:var(--accent)}
@@ -255,19 +254,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   </div>
 
   <div class="main-content" id="mainContent">
-    <!-- Filter dropdowns - tĩnh, không bị re-render -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-      <span style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase">Lọc:</span>
-      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:32px;font-size:12px;padding:4px 12px;font-weight:600">
-        <option value="all">Tất cả brand</option>
-        <option value="HT">Hiền Thuỷ</option>
-        <option value="Shidai">Shidai</option>
-        <option value="CT">Chánh Tâm</option>
-      </select>
-      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:32px;font-size:12px;padding:4px 12px;min-width:140px;font-weight:600">
-        <option value="all">Tất cả SP</option>
-      </select>
-    </div>
+
     <div class="tab-page active" id="page-overview">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
@@ -487,7 +474,17 @@ function renderAll(rows){
   // Auto detect all products từ toàn bộ allRows (không filter)
   const allProds=[...new Set(allRows.map(r=>detectProduct(r[COL.CAMPAIGN])))].filter(Boolean).sort();
 
+  // Lưu giá trị dropdown trước khi re-render
+  const _bf=document.getElementById('brandFilter');
+  const _pf=document.getElementById('prodFilter');
+  const _bv=_bf?_bf.value:'all';
+  const _pv=_pf?_pf.value:'all';
   renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,prodCount,allProds);
+  // Restore sau khi render
+  const bf2=document.getElementById('brandFilter');
+  const pf2=document.getElementById('prodFilter');
+  if(bf2)bf2.value=_bv;
+  if(pf2&&allProds.includes(_pv))pf2.value=_pv;
   renderDetail(camps,period,now);
 }
 
@@ -499,6 +496,15 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
+      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;font-weight:600">
+        <option value="all">Tất cả brand</option>
+        <option value="HT">Hiền Thuỷ</option>
+        <option value="Shidai">Shidai</option>
+        <option value="CT">Chánh Tâm</option>
+      </select>
+      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;min-width:130px;font-weight:600">
+        <option value="all">Tất cả SP</option>
+      </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
 
@@ -650,6 +656,15 @@ function renderDetail(camps,period,now){
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
+      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;font-weight:600">
+        <option value="all">Tất cả brand</option>
+        <option value="HT">Hiền Thuỷ</option>
+        <option value="Shidai">Shidai</option>
+        <option value="CT">Chánh Tâm</option>
+      </select>
+      <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;min-width:130px;font-weight:600">
+        <option value="all">Tất cả SP</option>
+      </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
     <div class="tbl-card">
