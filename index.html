@@ -619,7 +619,7 @@ function buildGroupedTable(rows){
 }
 
 // ── CHI TIẾT ──
-function renderDetail(camps,period,now,rows){
+function renderDetail(camps,period,now,filteredRows){
   const maxSpend=Math.max(...camps.map(c=>c.spend),1);
   const rows=camps.map(g=>{
     const cpm=g.mess>0?g.spend/g.mess:0;
@@ -669,7 +669,7 @@ function renderDetail(camps,period,now,rows){
         <div class="tov-title">Theo Ngày & Loại Sản Phẩm</div>
         <span class="stat-chip" style="font-size:11px">📅 ${period}</span>
       </div>
-      <div class="tov-scroll">${buildDailyProdTable(rows)}</div>
+      <div class="tov-scroll">${buildDailyProdTable(filteredRows)}</div>
     </div>
 
     <div class="tbl-card">
