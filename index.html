@@ -481,7 +481,7 @@ function renderAll(rows){
   const pf2=document.getElementById('prodFilter');
   if(bf2)bf2.value=_bv;
   if(pf2&&allProds.includes(_pv))pf2.value=_pv;
-  renderDetail(camps,period,now);
+  renderDetail(camps,period,now,rows);
 }
 
 // ── TỔNG QUAN ──
@@ -619,7 +619,7 @@ function buildGroupedTable(rows){
 }
 
 // ── CHI TIẾT ──
-function renderDetail(camps,period,now){
+function renderDetail(camps,period,now,rows){
   const maxSpend=Math.max(...camps.map(c=>c.spend),1);
   const rows=camps.map(g=>{
     const cpm=g.mess>0?g.spend/g.mess:0;
@@ -664,6 +664,14 @@ function renderDetail(camps,period,now){
       </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
+    <div class="tov-card" style="margin-bottom:20px">
+      <div class="tov-head">
+        <div class="tov-title">Theo Ngày & Loại Sản Phẩm</div>
+        <span class="stat-chip" style="font-size:11px">📅 ${period}</span>
+      </div>
+      <div class="tov-scroll">${buildDailyProdTable(rows)}</div>
+    </div>
+
     <div class="tbl-card">
       <div class="tbl-head"><div class="tbl-title">Chi Tiết Theo Chiến Dịch</div><div class="tbl-count">${camps.length}</div></div>
       <div class="tbl-scroll"><table>
@@ -676,6 +684,82 @@ function renderDetail(camps,period,now){
         <tbody>${rows}</tbody>
       </table></div>
     </div>`;
+}
+
+// ── Bảng Ngày → Loại SP ──
+function buildDailyProdTable(rows){
+  if(!rows||!rows.length)return '<div style="padding:16px;color:var(--muted);font-size:12px">Không có dữ liệu</div>';
+
+  const cols=['Ngày','Loại SP','Ngân sách Ads','Số Mess','Số Comment','CP/Mess','ADS/DS','Doanh số','Đơn chốt','DS TB/đơn','Tỷ lệ chốt'];
+  let html=`<table class="grp-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+
+  // Gom theo ngày → loại SP
+  const byDate={};
+  rows.forEach(r=>{
+    const d=parseDate(r[18]);
+    const dateKey=d?fmtDate(d):'N/A';
+    const prod=detectProduct(r[COL.CAMPAIGN]);
+    const key=dateKey+'||'+prod;
+    if(!byDate[dateKey])byDate[dateKey]={};
+    if(!byDate[dateKey][prod])byDate[dateKey][prod]={spend:0,mess:0,results:0,comments:0,ctr:0,cpc:0,n:0};
+    const g=byDate[dateKey][prod];
+    g.spend+=toNum(r[COL.SPEND]);
+    g.mess+=toNum(r[COL.MESSAGES]);
+    g.results+=toNum(r[COL.RESULTS]);
+    g.comments+=toNum(r[COL.COMMENTS]);
+    g.ctr+=toNum(r[COL.CTR]);
+    g.cpc+=toNum(r[COL.CPC]);
+    g.n++;
+  });
+
+  // Sort ngày mới nhất lên đầu
+  const sortedDates=Object.keys(byDate).sort((a,b)=>{
+    const da=parseDate(a),db=parseDate(b);
+    return(db&&da)?db-da:0;
+  });
+
+  sortedDates.forEach(dateKey=>{
+    const prods=byDate[dateKey];
+    const prodEntries=Object.entries(prods).sort((a,b)=>b[1].spend-a[1].spend);
+    const isFirst={};
+
+    prodEntries.forEach(([prod,g],i)=>{
+      const cpm=g.mess>0?g.spend/g.mess:0;
+      const actr=g.n>0?g.ctr/g.n:0;
+      html+=`<tr style="${i%2===0?'background:var(--surface)':'background:var(--surface2)'}">
+        <td style="font-weight:700;color:var(--accent);font-size:12px;white-space:nowrap">${i===0?'📅 '+dateKey:''}</td>
+        <td style="font-weight:600;padding-left:${i===0?'13':'24'}px;font-size:12px">${prod}</td>
+        <td class="num-cell">${vnd(g.spend)}</td>
+        <td class="num-cell">${num(g.mess)}</td>
+        <td class="num-cell">${g.comments>0?num(g.comments):'—'}</td>
+        <td class="num-cell">${cpm>0?vnd(cpm):'—'}</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+      </tr>`;
+    });
+
+    // Subtotal cho ngày
+    const dayTotal=prodEntries.reduce((acc,[,g])=>({
+      spend:acc.spend+g.spend,mess:acc.mess+g.mess,
+      comments:acc.comments+g.comments,n:acc.n+g.n,
+      ctr:acc.ctr+g.ctr,cpc:acc.cpc+g.cpc
+    }),{spend:0,mess:0,comments:0,n:0,ctr:0,cpc:0});
+    const dayCpm=dayTotal.mess>0?dayTotal.spend/dayTotal.mess:0;
+    html+=`<tr style="background:linear-gradient(90deg,var(--accent-l),transparent);border-top:1.5px solid var(--border2)">
+      <td style="font-weight:800;color:var(--accent);font-size:11px">Tổng ${dateKey}</td>
+      <td></td>
+      <td class="num-cell" style="font-weight:800">${vnd(dayTotal.spend)}</td>
+      <td class="num-cell" style="font-weight:800">${num(dayTotal.mess)}</td>
+      <td class="num-cell" style="font-weight:800">${dayTotal.comments>0?num(dayTotal.comments):'—'}</td>
+      <td class="num-cell" style="font-weight:800">${dayCpm>0?vnd(dayCpm):'—'}</td>
+      <td colspan="5"></td>
+    </tr>`;
+  });
+
+  return html+'</tbody></table>';
 }
 
 // ── Expand ad con ──
