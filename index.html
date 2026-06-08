@@ -265,7 +265,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 </div>
 
 <script>
-const COL={CAMPAIGN:0,AD_ID:1,STATUS:3,LEVEL:4,REACH:5,IMPRESSIONS:6,SPEND:8,MESSAGES:10,RESULT_TYPE:11,RESULTS:12,CTR:15,CPC:16};
+const COL={CAMPAIGN:0,AD_ID:1,STATUS:3,LEVEL:4,REACH:5,IMPRESSIONS:6,SPEND:8,MESSAGES:10,RESULT_TYPE:11,RESULTS:12,CTR:15,CPC:16,COMMENTS:17};
 let allRows=[],chartBrand=null,chartProd=null,chartWave=null,sbCollapsed=false;
 
 // URL set in onload
@@ -591,7 +591,7 @@ function buildGroupedTable(rows){
   function rowCells(kpi){
     return `<td class="num-cell">${vnd(kpi.spend)}</td>
             <td class="num-cell">${num(kpi.mess)}</td>
-            <td class="num-cell">—</td>
+            <td class="num-cell">${kpi.comments>0?num(kpi.comments):'—'}</td>
             <td class="num-cell">${kpi.mess>0?vnd(kpi.spend/kpi.mess):'—'}</td>
             <td style="color:var(--muted);font-weight:500">—</td>
             <td style="color:var(--muted);font-weight:500">—</td>
@@ -636,6 +636,7 @@ function renderDetail(camps,period,now){
       <td><span class="badge ${bdg}">${st||'—'}</span></td>
       <td class="num"><div class="bar-cell"><span>${vnd(g.spend)}</span><div class="bar-bg"><div class="bar-fill" style="width:${bp}%;background:var(--accent)"></div></div></div></td>
       <td class="num">${num(g.mess)}</td>
+      <td class="num">${g.comments>0?num(g.comments):'—'}</td>
       <td class="num">${vnd(cpm)}</td>
       <td class="num">${num(g.results)}</td>
       <td class="num">${pct(actr)}</td>
@@ -669,7 +670,7 @@ function renderDetail(camps,period,now){
         <thead><tr>
           <th style="width:32px"></th>
           <th>Tên chiến dịch</th><th>Brand</th><th>Trạng thái</th>
-          <th>Chi phí</th><th>Mess</th><th>CP/Mess</th>
+          <th>Chi phí</th><th>Mess</th><th>Comment</th><th>CP/Mess</th>
           <th>Kết quả</th><th>CTR</th><th>CPC</th>
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -884,17 +885,18 @@ function calcKPI(rows){
   return{totalSpend:ts,totalMess:tm,totalResults:tr,totalReach:treach,totalImpressions:timp,costPerMess:tm>0?ts/tm:0,avgCTR:n>0?ctrS/n:0,avgCPC:n>0?cpcS/n:0,roas:0};
 }
 function calcKPIRows(rows){
-  let spend=0,mess=0,results=0,ctrS=0,cpcS=0,n=0;
-  rows.forEach(r=>{spend+=toNum(r[COL.SPEND]);mess+=toNum(r[COL.MESSAGES]);results+=toNum(r[COL.RESULTS]);ctrS+=toNum(r[COL.CTR]);cpcS+=toNum(r[COL.CPC]);n++;});
-  return{spend,mess,results,avgCTR:n>0?ctrS/n:0,avgCPC:n>0?cpcS/n:0};
+  let spend=0,mess=0,results=0,comments=0,ctrS=0,cpcS=0,n=0;
+  rows.forEach(r=>{spend+=toNum(r[COL.SPEND]);mess+=toNum(r[COL.MESSAGES]);results+=toNum(r[COL.RESULTS]);comments+=toNum(r[COL.COMMENTS]);ctrS+=toNum(r[COL.CTR]);cpcS+=toNum(r[COL.CPC]);n++;});
+  return{spend,mess,results,comments,avgCTR:n>0?ctrS/n:0,avgCPC:n>0?cpcS/n:0};
 }
 function groupByCamp(rows){
   const g={};
   rows.forEach(r=>{
     const name=(r[COL.CAMPAIGN]||'').trim();
-    if(!g[name])g[name]={name,status:r[COL.STATUS],spend:0,mess:0,results:0,reach:0,impressions:0,ctr:0,cpc:0,n:0};
+    if(!g[name])g[name]={name,status:r[COL.STATUS],spend:0,mess:0,results:0,reach:0,impressions:0,comments:0,ctr:0,cpc:0,n:0};
     g[name].spend+=toNum(r[COL.SPEND]);g[name].mess+=toNum(r[COL.MESSAGES]);g[name].results+=toNum(r[COL.RESULTS]);
     g[name].reach+=toNum(r[COL.REACH]);g[name].impressions+=toNum(r[COL.IMPRESSIONS]);
+    g[name].comments+=toNum(r[COL.COMMENTS]);
     g[name].ctr+=toNum(r[COL.CTR]);g[name].cpc+=toNum(r[COL.CPC]);g[name].n++;
   });
   return g;
