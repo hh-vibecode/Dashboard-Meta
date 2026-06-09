@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
 <title>Dashboard MKT 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -355,10 +356,19 @@ async function loadData(){
           else row[COL.CAMPAIGN]=lastCamp;
         });
         window.allRowsRaw=allData;
-        // Lấy dòng tổng campaign: cột C = "All" và có tên chiến dịch ở cột A
+        // Lấy dòng tổng campaign:
+        // - Cột A có tên chiến dịch (không trống)
+        // - Cột B = "Tất cả" / "All" (không phải mã số)
+        // - Cột C = "Tất cả" / "All"
+        // Chỉ lấy dòng campaign tổng:
+        // cột A có tên + cột B = "All"/"Tất cả" + cột C = "All"/"Tất cả"
         allRows=allData.filter(row=>{
-          const dateCol=(row[COL.DATE]||'').trim();
-          return dateCol.toLowerCase()==='all' && row[COL.CAMPAIGN];
+          const campName=(row[COL.CAMPAIGN]||'').trim();
+          const adId=(row[COL.AD_ID]||'').trim().toLowerCase();
+          const dateCol=(row[COL.DATE]||'').trim().toLowerCase();
+          return campName
+            && (adId==='all'||adId==='tất cả')
+            && (dateCol==='all'||dateCol==='tất cả');
         });
         document.getElementById('btnLoad').disabled=false;
         applyFilter();
