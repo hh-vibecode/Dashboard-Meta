@@ -265,7 +265,20 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 </div>
 
 <script>
-const COL={CAMPAIGN:0,AD_ID:1,STATUS:3,LEVEL:4,REACH:5,IMPRESSIONS:6,SPEND:8,MESSAGES:10,RESULT_TYPE:11,RESULTS:12,CTR:15,CPC:16,COMMENTS:17};
+const COL={
+  CAMPAIGN:0,   // A - Tên chiến dịch
+  AD_ID:1,      // B - Mã quảng cáo
+  DATE:2,       // C - Ngày (All = tổng, 2026-06-08 = theo ngày)
+  REACH:4,      // E - Người tiếp cận
+  IMPRESSIONS:5,// F - Lượt hiển thị
+  SPEND:8,      // I - Số tiền chi tiêu
+  MESSAGES:10,  // K - Lượt Mess
+  CTR:11,       // L - CTR
+  CPC:12,       // M - CPC
+  COMMENTS:13,  // N - Bình luận
+  RESULTS:null, // Không có trong data mới
+  RESULT_TYPE:null,
+};
 let allRows=[],chartBrand=null,chartProd=null,chartWave=null,sbCollapsed=false;
 
 // URL set in onload
@@ -335,15 +348,17 @@ async function loadData(){
       complete:r=>{
         const allData=r.data.slice(1).filter(row=>row.some(c=>c!==''));
         // Fill campaign name xuống dòng ad con
-        let lastCamp='',lastStatus='';
+        // Fill tên campaign xuống dòng con (cột A trống)
+        let lastCamp='';
         allData.forEach(row=>{
-          if(row[COL.CAMPAIGN]){lastCamp=row[COL.CAMPAIGN];lastStatus=row[COL.STATUS];}
-          else{row[COL.CAMPAIGN]=lastCamp;if(!row[COL.STATUS])row[COL.STATUS]=lastStatus;}
+          if(row[COL.CAMPAIGN])lastCamp=row[COL.CAMPAIGN];
+          else row[COL.CAMPAIGN]=lastCamp;
         });
         window.allRowsRaw=allData;
+        // Lấy dòng tổng campaign: cột C = "All" và có tên chiến dịch ở cột A
         allRows=allData.filter(row=>{
-          const lvl=(row[COL.LEVEL]||'').trim().toLowerCase();
-          return lvl==='campaign'&&row[COL.CAMPAIGN];
+          const dateCol=(row[COL.DATE]||'').trim();
+          return dateCol.toLowerCase()==='all' && row[COL.CAMPAIGN];
         });
         document.getElementById('btnLoad').disabled=false;
         applyFilter();
@@ -373,7 +388,7 @@ function applyFilter(){
     const fromD=from?localDate(from):null;
     const toD=to?localDate(to,true):null;
     rows=rows.filter(r=>{
-      const d=parseDate(r[18]);if(!d)return true;
+      const d=parseDate(r[COL.DATE]);if(!d)return true;
       if(fromD&&d<fromD)return false;
       if(toD&&d>toD)return false;
       return true;
@@ -423,7 +438,8 @@ function detectBrand(name){
   const n=(name||'').trim();
   if(/^HT[\s\-–]/i.test(n)||/^HT$/i.test(n))return'HT';
   if(/shidai/i.test(n))return'Shidai';
-  return'CT';
+  if(/chánh tâm|chanh tam|^CT[\s\-–]/i.test(n))return'CT';
+  return'CT'; // mặc định còn lại là Chánh Tâm
 }
 function detectProduct(name){
   const n=(name||'').toLowerCase();
@@ -448,7 +464,7 @@ function renderAll(rows){
   const kpi=calcKPI(rows);
   const byCamp=groupByCamp(rows);
   const camps=Object.values(byCamp).sort((a,b)=>b.spend-a.spend);
-  const dates=rows.map(r=>parseDate(r[18])).filter(Boolean);
+  const dates=rows.map(r=>parseDate(r[COL.DATE])).filter(Boolean);
   const minD=dates.length?new Date(Math.min(...dates)):null;
   const maxD=dates.length?new Date(Math.max(...dates)):null;
   const period=minD?(fmtDate(minD)===fmtDate(maxD)?fmtDate(minD):fmtDate(minD)+' → '+fmtDate(maxD)):'Toàn bộ';
@@ -638,7 +654,7 @@ function renderDetail(camps,period,now,filteredRows){
       <td class="num">${num(g.mess)}</td>
       <td class="num">${g.comments>0?num(g.comments):'—'}</td>
       <td class="num">${vnd(cpm)}</td>
-      <td class="num">${num(g.results)}</td>
+      <td class="num">—</td>
       <td class="num">${pct(actr)}</td>
       <td class="num">${vnd(acpc)}</td>
     </tr>
@@ -696,7 +712,7 @@ function buildDailyProdTable(rows){
   // Gom theo ngày → loại SP
   const byDate={};
   rows.forEach(r=>{
-    const d=parseDate(r[18]);
+    const d=parseDate(r[COL.DATE]);
     const dateKey=d?fmtDate(d):'N/A';
     const prod=detectProduct(r[COL.CAMPAIGN]);
     const key=dateKey+'||'+prod;
@@ -705,7 +721,7 @@ function buildDailyProdTable(rows){
     const g=byDate[dateKey][prod];
     g.spend+=toNum(r[COL.SPEND]);
     g.mess+=toNum(r[COL.MESSAGES]);
-    g.results+=toNum(r[COL.RESULTS]);
+    // results not in new data
     g.comments+=toNum(r[COL.COMMENTS]);
     g.ctr+=toNum(r[COL.CTR]);
     g.cpc+=toNum(r[COL.CPC]);
@@ -775,8 +791,9 @@ function toggleAds(safeId){
     if(!content.dataset.loaded){
       const campName=decodeURIComponent(safeId);
       const adRowsAll=(window.allRowsRaw||[]).filter(r=>{
-        const lvl=(r[COL.LEVEL]||'').trim().toLowerCase();
-        return r[COL.CAMPAIGN]===campName&&lvl==='ad';
+        const dateCol=(r[COL.DATE]||'').trim();
+        // Dòng ad con: có mã quảng cáo (cột B) và ngày cụ thể (không phải All)
+        return r[COL.CAMPAIGN]===campName && r[COL.AD_ID] && dateCol.toLowerCase()!=='all' && dateCol!=='';
       });
       if(!adRowsAll.length){
         content.innerHTML='<div style="padding:12px 20px;font-size:12px;color:var(--muted);font-weight:600">Không có ad con</div>';
@@ -784,9 +801,9 @@ function toggleAds(safeId){
         const byId={};
         adRowsAll.forEach(r=>{
           const id=r[1]||'unknown';
-          if(!byId[id])byId[id]={id,status:r[COL.STATUS]||'',spend:0,mess:0,results:0,ctr:0,cpc:0,n:0};
+          if(!byId[id])byId[id]={id,status:'active',spend:0,mess:0,results:0,ctr:0,cpc:0,n:0};
           byId[id].spend+=toNum(r[COL.SPEND]);byId[id].mess+=toNum(r[COL.MESSAGES]);
-          byId[id].results+=toNum(r[COL.RESULTS]);byId[id].ctr+=toNum(r[COL.CTR]);
+          byId[id].ctr+=toNum(r[COL.CTR]);
           byId[id].cpc+=toNum(r[COL.CPC]);byId[id].n++;
         });
         const ads=Object.values(byId).sort((a,b)=>b.spend-a.spend);
@@ -901,7 +918,7 @@ function buildWaveChart(rows){
   // Tính chi phí theo ngày từ data
   const byDate={};
   rows.forEach(r=>{
-    const d=parseDate(r[18]);
+    const d=parseDate(r[COL.DATE]);
     if(!d)return;
     const k=fmtDate(d);
     byDate[k]=(byDate[k]||0)+toNum(r[COL.SPEND]);
@@ -964,21 +981,30 @@ function buildWaveChart(rows){
 
 // ── Calc ──
 function calcKPI(rows){
-  let ts=0,tm=0,tr=0,treach=0,timp=0,ctrS=0,cpcS=0,n=0;
-  rows.forEach(r=>{ts+=toNum(r[COL.SPEND]);tm+=toNum(r[COL.MESSAGES]);tr+=toNum(r[COL.RESULTS]);treach+=toNum(r[COL.REACH]);timp+=toNum(r[COL.IMPRESSIONS]);ctrS+=toNum(r[COL.CTR]);cpcS+=toNum(r[COL.CPC]);n++;});
-  return{totalSpend:ts,totalMess:tm,totalResults:tr,totalReach:treach,totalImpressions:timp,costPerMess:tm>0?ts/tm:0,avgCTR:n>0?ctrS/n:0,avgCPC:n>0?cpcS/n:0,roas:0};
+  let ts=0,tm=0,treach=0,timp=0,ctrS=0,cpcS=0,n=0;
+  rows.forEach(r=>{
+    ts+=toNum(r[COL.SPEND]);tm+=toNum(r[COL.MESSAGES]);
+    treach+=toNum(r[COL.REACH]);timp+=toNum(r[COL.IMPRESSIONS]);
+    ctrS+=toNum(r[COL.CTR]);cpcS+=toNum(r[COL.CPC]);n++;
+  });
+  return{totalSpend:ts,totalMess:tm,totalResults:0,totalReach:treach,totalImpressions:timp,
+    costPerMess:tm>0?ts/tm:0,avgCTR:n>0?ctrS/n:0,avgCPC:n>0?cpcS/n:0,roas:0};
 }
 function calcKPIRows(rows){
-  let spend=0,mess=0,results=0,comments=0,ctrS=0,cpcS=0,n=0;
-  rows.forEach(r=>{spend+=toNum(r[COL.SPEND]);mess+=toNum(r[COL.MESSAGES]);results+=toNum(r[COL.RESULTS]);comments+=toNum(r[COL.COMMENTS]);ctrS+=toNum(r[COL.CTR]);cpcS+=toNum(r[COL.CPC]);n++;});
-  return{spend,mess,results,comments,avgCTR:n>0?ctrS/n:0,avgCPC:n>0?cpcS/n:0};
+  let spend=0,mess=0,comments=0,ctrS=0,cpcS=0,n=0;
+  rows.forEach(r=>{
+    spend+=toNum(r[COL.SPEND]);mess+=toNum(r[COL.MESSAGES]);
+    comments+=toNum(r[COL.COMMENTS]);
+    ctrS+=toNum(r[COL.CTR]);cpcS+=toNum(r[COL.CPC]);n++;
+  });
+  return{spend,mess,results:0,comments,avgCTR:n>0?ctrS/n:0,avgCPC:n>0?cpcS/n:0};
 }
 function groupByCamp(rows){
   const g={};
   rows.forEach(r=>{
     const name=(r[COL.CAMPAIGN]||'').trim();
-    if(!g[name])g[name]={name,status:r[COL.STATUS],spend:0,mess:0,results:0,reach:0,impressions:0,comments:0,ctr:0,cpc:0,n:0};
-    g[name].spend+=toNum(r[COL.SPEND]);g[name].mess+=toNum(r[COL.MESSAGES]);g[name].results+=toNum(r[COL.RESULTS]);
+    if(!g[name])g[name]={name,status:'active',spend:0,mess:0,results:0,reach:0,impressions:0,comments:0,ctr:0,cpc:0,n:0,resultType:''};
+    g[name].spend+=toNum(r[COL.SPEND]);g[name].mess+=toNum(r[COL.MESSAGES]);
     g[name].reach+=toNum(r[COL.REACH]);g[name].impressions+=toNum(r[COL.IMPRESSIONS]);
     g[name].comments+=toNum(r[COL.COMMENTS]);
     g[name].ctr+=toNum(r[COL.CTR]);g[name].cpc+=toNum(r[COL.CPC]);g[name].n++;
