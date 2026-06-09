@@ -360,15 +360,15 @@ async function loadData(){
         // - Cột A có tên chiến dịch (không trống)
         // - Cột B = "Tất cả" / "All" (không phải mã số)
         // - Cột C = "Tất cả" / "All"
-        // Chỉ lấy dòng campaign tổng:
-        // cột A có tên + cột B = "All"/"Tất cả" + cột C = "All"/"Tất cả"
+        // Lấy dòng campaign theo từng ngày cụ thể:
+        // cột A có tên + cột B = "All"/"Tất cả" + cột C = ngày cụ thể (không phải All)
         allRows=allData.filter(row=>{
           const campName=(row[COL.CAMPAIGN]||'').trim();
           const adId=(row[COL.AD_ID]||'').trim().toLowerCase();
-          const dateCol=(row[COL.DATE]||'').trim().toLowerCase();
-          return campName
-            && (adId==='all'||adId==='tất cả')
-            && (dateCol==='all'||dateCol==='tất cả');
+          const dateCol=(row[COL.DATE]||'').trim();
+          const isAllAdId=adId==='all'||adId==='tất cả';
+          const isSpecificDate=dateCol && dateCol.toLowerCase()!=='all' && dateCol.toLowerCase()!=='tất cả';
+          return campName && isAllAdId && isSpecificDate;
         });
         document.getElementById('btnLoad').disabled=false;
         applyFilter();
@@ -933,15 +933,9 @@ function buildProdChart(prodCount){
 function buildWaveChart(rows){
   const ctx=document.getElementById('cWave');if(!ctx)return;
 
-  // Lấy dòng theo ngày từ allRowsRaw (cột C = ngày cụ thể, cột B = "All")
+  // rows đã là dòng ngày cụ thể → dùng trực tiếp
   const byDate={};
-  const waveSource=(window.allRowsRaw||[]).filter(r=>{
-    const adId=(r[COL.AD_ID]||'').trim().toLowerCase();
-    const dateCol=(r[COL.DATE]||'').trim();
-    // Dòng tổng theo ngày: adId=All/Tất cả, dateCol=ngày cụ thể
-    return (adId==='all'||adId==='tất cả') && dateCol && dateCol.toLowerCase()!=='all' && dateCol.toLowerCase()!=='tất cả';
-  });
-  waveSource.forEach(r=>{
+  rows.forEach(r=>{
     const d=parseDate(r[COL.DATE]);
     if(!d)return;
     const k=fmtDate(d);
