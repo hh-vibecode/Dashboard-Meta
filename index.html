@@ -712,11 +712,11 @@ function buildDailyProdTable(rows){
     g.n++;
   });
 
-  // Sort ngày mới nhất lên đầu
+  // Sort ngày mới nhất lên đầu, giới hạn 7 ngày gần nhất
   const sortedDates=Object.keys(byDate).sort((a,b)=>{
     const da=parseDate(a),db=parseDate(b);
     return(db&&da)?db-da:0;
-  });
+  }).slice(0,7);
 
   sortedDates.forEach(dateKey=>{
     const prods=byDate[dateKey];
