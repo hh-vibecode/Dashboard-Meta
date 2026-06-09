@@ -360,15 +360,13 @@ async function loadData(){
         // - Cột A có tên chiến dịch (không trống)
         // - Cột B = "Tất cả" / "All" (không phải mã số)
         // - Cột C = "Tất cả" / "All"
-        // Lấy dòng campaign theo từng ngày cụ thể:
-        // cột A có tên + cột B = "All"/"Tất cả" + cột C = ngày cụ thể (không phải All)
+        // Lấy dòng ngày cụ thể: A=tên campaign, B=trống, C=ngày
         allRows=allData.filter(row=>{
-          const campName=(row[COL.CAMPAIGN]||'').trim();
-          const adId=(row[COL.AD_ID]||'').trim().toLowerCase();
-          const dateCol=(row[COL.DATE]||'').trim();
-          const isAllAdId=adId==='all'||adId==='tất cả';
-          const isSpecificDate=dateCol && dateCol.toLowerCase()!=='all' && dateCol.toLowerCase()!=='tất cả';
-          return campName && isAllAdId && isSpecificDate;
+          const campName=(row[COL.CAMPAIGN]||"").trim();
+          const adId=(row[COL.AD_ID]||"").trim();
+          const dateCol=(row[COL.DATE]||"").trim();
+          const isDate=dateCol&&dateCol.toLowerCase()!=="all"&&dateCol.toLowerCase()!=="tất cả";
+          return campName&&adId===""&&isDate;
         });
         document.getElementById('btnLoad').disabled=false;
         applyFilter();
