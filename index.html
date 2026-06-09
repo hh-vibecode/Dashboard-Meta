@@ -440,7 +440,6 @@ function applyQuickFilter(){
   document.getElementById('dateFrom').value=from;
   document.getElementById('dateTo').value=to;
   applyFilter();
-  setTimeout(()=>document.getElementById('quickFilter').value='',100);
 }
 
 // ── Brand & Product ──
@@ -477,7 +476,16 @@ function renderAll(rows){
   const dates=rows.map(r=>parseDate(r[COL.DATE])).filter(Boolean);
   const minD=dates.length?new Date(Math.min(...dates)):null;
   const maxD=dates.length?new Date(Math.max(...dates)):null;
-  const period=minD?(fmtDate(minD)===fmtDate(maxD)?fmtDate(minD):fmtDate(minD)+' → '+fmtDate(maxD)):'Toàn bộ';
+  const fromVal=document.getElementById('dateFrom')?document.getElementById('dateFrom').value:'';
+  const toVal=document.getElementById('dateTo')?document.getElementById('dateTo').value:'';
+  let period;
+  if(minD&&maxD){
+    period=fmtDate(minD)===fmtDate(maxD)?fmtDate(minD):fmtDate(minD)+' → '+fmtDate(maxD);
+  } else if(fromVal||toVal){
+    period=(fromVal?fromVal.split('-').reverse().join('/'):'...')+' → '+(toVal?toVal.split('-').reverse().join('/'):'...');
+  } else {
+    period='Toàn bộ';
+  }
   const now=new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
 
   // Brand totals
@@ -925,9 +933,15 @@ function buildProdChart(prodCount){
 function buildWaveChart(rows){
   const ctx=document.getElementById('cWave');if(!ctx)return;
 
-  // Tính chi phí theo ngày từ data
+  // Lấy dòng theo ngày từ allRowsRaw (cột C = ngày cụ thể, cột B = "All")
   const byDate={};
-  rows.forEach(r=>{
+  const waveSource=(window.allRowsRaw||[]).filter(r=>{
+    const adId=(r[COL.AD_ID]||'').trim().toLowerCase();
+    const dateCol=(r[COL.DATE]||'').trim();
+    // Dòng tổng theo ngày: adId=All/Tất cả, dateCol=ngày cụ thể
+    return (adId==='all'||adId==='tất cả') && dateCol && dateCol.toLowerCase()!=='all' && dateCol.toLowerCase()!=='tất cả';
+  });
+  waveSource.forEach(r=>{
     const d=parseDate(r[COL.DATE]);
     if(!d)return;
     const k=fmtDate(d);
