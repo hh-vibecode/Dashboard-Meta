@@ -108,7 +108,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .sec-label{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:22px 0 12px;display:flex;align-items:center;gap:8px}
 .sec-label::after{content:'';flex:1;height:1px;background:var(--border)}
 
-/* KPI STYLE C - Montserrat */
+/* KPI */
 .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
 .kpi{border-radius:14px;padding:18px 20px;color:#fff;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.13);transition:transform .2s,box-shadow .2s}
 .kpi:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.18)}
@@ -126,14 +126,13 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .g-orange{background:linear-gradient(135deg,#f97316,#f59e0b)}
 .g-pink{background:linear-gradient(135deg,#ec4899,#e84545)}
 .g-red{background:linear-gradient(135deg,#e84545,#ec4899)}
-/* KPI dark mode fix - giữ chữ trắng trên gradient */
 [data-theme="dark"] .kpi{color:#fff!important}
 [data-theme="dark"] .kpi .kpi-lbl{color:rgba(255,255,255,.85)!important}
 [data-theme="dark"] .kpi .kpi-val{color:#fff!important}
 [data-theme="dark"] .kpi .kpi-sub{color:rgba(255,255,255,.7)!important}
 [data-theme="dark"] .kpi .kpi-icon{color:#fff!important}
 
-/* CHARTS 3 COL */
+/* CHARTS */
 .charts-2col-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
 .chart-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
 .chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
@@ -144,7 +143,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .chart-empty .icon{font-size:28px;opacity:.4}
 .chart-empty p{font-size:11px;text-align:center;line-height:1.5;font-weight:500}
 
-/* GROUPED TABLE */
+/* TABLES */
 .tov-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
 .tov-head{padding:14px 18px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--surface2),var(--bg2));flex-wrap:wrap}
 .tov-title{font-size:14px;font-weight:800}
@@ -160,8 +159,6 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .row-brand-ct td:first-child{color:var(--purple);font-weight:800;padding-left:13px}
 .row-product td:first-child{padding-left:36px;color:var(--text2);font-size:11.5px;font-weight:600}
 .num-cell{font-family:var(--font);font-weight:700;font-size:12px}
-
-/* DETAIL TABLE */
 .tbl-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
 .tbl-head{padding:14px 18px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--surface2),var(--bg2))}
 .tbl-title{font-size:14px;font-weight:800}
@@ -187,10 +184,6 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 .bar-cell{display:flex;align-items:center;gap:7px}
 .bar-bg{flex:1;height:4px;background:var(--bg2);border-radius:3px;min-width:45px;overflow:hidden}
 .bar-fill{height:100%;border-radius:3px}
-
-.tov-filters{display:flex;align-items:center;gap:8px;margin-left:auto}
-.tov-select{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text);font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;outline:none;transition:all .15s}
-.tov-select:focus{border-color:var(--accent)}
 
 /* loading/err */
 .loading{text-align:center;padding:60px 20px;color:var(--muted)}
@@ -231,9 +224,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <span id="themeLabel">Tối</span>
   </button>
   <button class="settings-btn" id="settingsBtn" onclick="toggleUrlPanel()" title="Cài đặt nguồn dữ liệu">⚙️</button>
-  </div><!-- topbar-right -->
-</div><!-- topbar -->
-<!-- URL Panel (ẩn, click ⚙️ mới hiện) -->
+  </div>
+</div>
+
 <div class="url-panel" id="urlPanel">
   <input class="url-input" id="sheetUrl" placeholder="Link Google Sheets publish…" style="min-width:300px"/>
   <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải</button>
@@ -255,7 +248,6 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   </div>
 
   <div class="main-content" id="mainContent">
-
     <div class="tab-page active" id="page-overview">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
@@ -267,22 +259,18 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 
 <script>
 const COL={
-  CAMPAIGN:0,   // A - Tên chiến dịch
-  AD_ID:1,      // B - Mã quảng cáo
-  DATE:2,       // C - Ngày (All = tổng, 2026-06-08 = theo ngày)
-  REACH:4,      // E - Người tiếp cận
-  IMPRESSIONS:5,// F - Lượt hiển thị
-  SPEND:8,      // I - Số tiền chi tiêu
-  MESSAGES:10,  // K - Lượt Mess
-  CTR:11,       // L - CTR
-  CPC:12,       // M - CPC
-  COMMENTS:13,  // N - Bình luận
-  RESULTS:null, // Không có trong data mới
-  RESULT_TYPE:null,
+  CAMPAIGN:0,
+  AD_ID:1,
+  DATE:2,
+  REACH:4,
+  IMPRESSIONS:5,
+  SPEND:8,
+  MESSAGES:10,
+  CTR:11,
+  CPC:12,
+  COMMENTS:13,
 };
 let allRows=[],chartBrand=null,chartProd=null,chartWave=null,sbCollapsed=false;
-
-// URL set in onload
 
 // ── Theme ──
 (function(){
@@ -302,7 +290,6 @@ function toggleSidebar(){
   sbCollapsed=!sbCollapsed;
   document.getElementById('sidebar').classList.toggle('collapsed',sbCollapsed);
   document.getElementById('mainContent').classList.toggle('collapsed',sbCollapsed);
-
   localStorage.setItem('sb',sbCollapsed?'1':'0');
 }
 (function(){
@@ -327,8 +314,10 @@ async function loadData(){
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
-    const csvUrl=toCsv(raw);
-    // Thử lần lượt các proxy cho đến khi có cái hoạt động
+    // FIX 1: Thêm cache-bust timestamp để bypass cache proxy & Google
+    const csvUrl=toCsv(raw)+'&cachebust='+Date.now();
+    console.log('[Dashboard] Fetching:', csvUrl);
+
     const proxies=[
       'https://corsproxy.io/?',
       'https://api.allorigins.win/raw?url=',
@@ -337,37 +326,73 @@ async function loadData(){
     let res=null;
     for(const proxy of proxies){
       try{
+        console.log('[Dashboard] Trying proxy:', proxy);
         res=await fetch(proxy+encodeURIComponent(csvUrl),{signal:AbortSignal.timeout(8000)});
-        if(res.ok)break;
-      }catch(e){continue;}
+        if(res.ok){console.log('[Dashboard] Proxy OK:', proxy);break;}
+      }catch(e){console.warn('[Dashboard] Proxy failed:', proxy, e.message);continue;}
     }
     if(!res||!res.ok)throw new Error('Không kết nối được proxy. Thử lại sau!');
-    if(!res.ok)throw new Error('HTTP '+res.status);
     const text=await res.text();
+    console.log('[Dashboard] CSV received, length:', text.length, 'chars');
+
     Papa.parse(text,{
       skipEmptyLines:true,
       complete:r=>{
         const allData=r.data.slice(1).filter(row=>row.some(c=>c!==''));
-        // Fill campaign name xuống dòng ad con
-        // Fill tên campaign xuống dòng con (cột A trống)
+        console.log('[Dashboard] Total raw rows (bỏ header):', allData.length);
+
+        // Fill campaign name xuống dòng con
         let lastCamp='';
         allData.forEach(row=>{
-          if(row[COL.CAMPAIGN])lastCamp=row[COL.CAMPAIGN];
+          if(row[COL.CAMPAIGN]&&row[COL.CAMPAIGN].trim())lastCamp=row[COL.CAMPAIGN].trim();
           else row[COL.CAMPAIGN]=lastCamp;
         });
+
         window.allRowsRaw=allData;
-        // Lấy dòng tổng campaign:
-        // - Cột A có tên chiến dịch (không trống)
-        // - Cột B = "Tất cả" / "All" (không phải mã số)
-        // - Cột C = "Tất cả" / "All"
-        // Lấy dòng ngày cụ thể: A=tên campaign, B=trống, C=ngày
+        console.log('[Dashboard] allRowsRaw (sau fill-down):', allData.length);
+
+        // FIX 2: Filter allRows nới rộng hơn
+        // Dòng tổng ngày: cột A = tên campaign, cột B = TRỐNG hoặc ký tự không phải mã số, cột C = ngày cụ thể
         allRows=allData.filter(row=>{
-          const campName=(row[COL.CAMPAIGN]||"").trim();
-          const adId=(row[COL.AD_ID]||"").trim();
-          const dateCol=(row[COL.DATE]||"").trim();
-          const isDate=dateCol&&dateCol.toLowerCase()!=="all"&&dateCol.toLowerCase()!=="tất cả";
-          return campName&&adId===""&&isDate;
+          const campName=(row[COL.CAMPAIGN]||'').trim();
+          if(!campName)return false;
+
+          // Cột B: coi là "trống" nếu sau trim rỗng, là dash, hoặc không phải chuỗi số dài (mã QC FB thường 15+ số)
+          const adIdRaw=String(row[COL.AD_ID]||'');
+          const adId=adIdRaw.trim();
+          const adIdIsBlank=adId===''||adId==='-'||adId==='—'||adId==='0';
+          // Mã QC thường là chuỗi thuần số dài ≥ 10 ký tự
+          const adIdIsCode=/^\d{8,}$/.test(adId);
+          if(adIdIsCode)return false; // Là ad con → bỏ qua
+          if(!adIdIsBlank)return false; // Có gì đó không rõ → bỏ qua
+
+          // Cột C: phải là ngày cụ thể
+          const dateCol=(row[COL.DATE]||'').trim();
+          if(!dateCol)return false;
+          const dl=dateCol.toLowerCase().replace(/\s/g,'');
+          if(dl==='all'||dl==='tấtcả'||dl==='tatca')return false;
+
+          // Phải parse được thành ngày hợp lệ
+          const d=parseDate(dateCol);
+          return d!==null;
         });
+
+        console.log('[Dashboard] allRows (dòng ngày hợp lệ):', allRows.length);
+        if(allRows.length>0){
+          console.log('[Dashboard] Sample rows:', allRows.slice(0,5).map(r=>({
+            camp:r[0], adId:'"'+r[1]+'"', date:r[2], spend:r[8], mess:r[10]
+          })));
+          // In các ngày unique có trong data
+          const uniqueDates=[...new Set(allRows.map(r=>r[COL.DATE]))].sort();
+          console.log('[Dashboard] Ngày có data:', uniqueDates);
+        } else {
+          console.warn('[Dashboard] ⚠️ allRows rỗng! Check lại cột B và C trong sheet');
+          // Debug: in 10 dòng đầu để xem format
+          console.log('[Dashboard] Debug 10 dòng đầu allData:',
+            allData.slice(0,10).map(r=>({col_A:r[0], col_B:'"'+r[1]+'"', col_C:r[2]}))
+          );
+        }
+
         document.getElementById('btnLoad').disabled=false;
         applyFilter();
       },
@@ -375,6 +400,7 @@ async function loadData(){
     });
   }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
+
 function toCsv(u){
   u=u.replace('/pubhtml','/pub').replace('output=html','output=csv');
   if(!u.includes('output=csv'))u+=(u.includes('?')?'&':'?')+'output=csv';
@@ -446,7 +472,7 @@ function detectBrand(name){
   if(/^HT[\s\-–]/i.test(n)||/^HT$/i.test(n))return'HT';
   if(/shidai/i.test(n))return'Shidai';
   if(/chánh tâm|chanh tam|^CT[\s\-–]/i.test(n))return'CT';
-  return'CT'; // mặc định còn lại là Chánh Tâm
+  return'CT';
 }
 function detectProduct(name){
   const n=(name||'').toLowerCase();
@@ -467,7 +493,6 @@ function renderAll(rows){
   if(chartBrand){chartBrand.destroy();chartBrand=null;}
   if(chartProd){chartProd.destroy();chartProd=null;}
   if(chartWave){chartWave.destroy();chartWave=null;}
-  // Không return khi rỗng - vẫn render với số 0
   const kpi=calcKPI(rows);
   const byCamp=groupByCamp(rows);
   const camps=Object.values(byCamp).sort((a,b)=>b.spend-a.spend);
@@ -484,46 +509,41 @@ function renderAll(rows){
   } else {
     period='Toàn bộ';
   }
-  const now=new Date().toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
 
-  // Brand totals
   const htSpend=camps.filter(c=>detectBrand(c.name)==='HT').reduce((s,c)=>s+c.spend,0);
   const sdSpend=camps.filter(c=>detectBrand(c.name)==='Shidai').reduce((s,c)=>s+c.spend,0);
   const ctSpend=camps.filter(c=>detectBrand(c.name)==='CT').reduce((s,c)=>s+c.spend,0);
   const total=htSpend+sdSpend+ctSpend||1;
 
-  // Product counts (số chiến dịch)
   const prodCount={};
   camps.forEach(c=>{
     const p=detectProduct(c.name);
     prodCount[p]=(prodCount[p]||0)+1;
   });
 
-  // Auto detect all products từ toàn bộ allRows (không filter)
   const allProds=[...new Set(allRows.map(r=>detectProduct(r[COL.CAMPAIGN])))].filter(Boolean).sort();
 
-  // Lưu giá trị dropdown trước khi re-render
   const _bf=document.getElementById('brandFilter');
   const _pf=document.getElementById('prodFilter');
   const _bv=_bf?_bf.value:'all';
   const _pv=_pf?_pf.value:'all';
-  renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,prodCount,allProds);
-  // Restore sau khi render
+  renderOverview(rows,kpi,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds);
   const bf2=document.getElementById('brandFilter');
   const pf2=document.getElementById('prodFilter');
   if(bf2)bf2.value=_bv;
   if(pf2&&allProds.includes(_pv))pf2.value=_pv;
-  renderDetail(camps,period,now,rows);
+  renderDetail(camps,period,rows);
 }
 
 // ── TỔNG QUAN ──
-function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,prodCount,allProds){
+function renderOverview(rows,kpi,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds){
   document.getElementById('page-overview').innerHTML=`
     <div class="page-title">Tổng Quan</div>
     <div class="page-sub">Chọn brand & khoảng ngày trên topbar để lọc</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
+      <div class="stat-chip" title="Số dòng ngày load được từ sheet" style="cursor:help">🗂 ${rows.length} rows</div>
       <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;font-weight:600">
         <option value="all">Tất cả brand</option>
         <option value="HT">Hiền Thuỷ</option>
@@ -554,17 +574,11 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
     <div class="sec-label">Phân Tích</div>
     <div class="charts-2col-grid">
       <div class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Ngân Sách Theo Brand</div>
-          <span class="chart-sub">${vnd(total)}</span>
-        </div>
+        <div class="chart-head"><div class="chart-title">Ngân Sách Theo Brand</div><span class="chart-sub">${vnd(total)}</span></div>
         <div class="chart-wrap"><canvas id="cBrand"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Tỷ Trọng Sản Phẩm</div>
-          <span class="chart-sub">${camps.length} chiến dịch</span>
-        </div>
+        <div class="chart-head"><div class="chart-title">Tỷ Trọng Sản Phẩm</div><span class="chart-sub">${camps.length} chiến dịch</span></div>
         <div class="chart-wrap"><canvas id="cProd"></canvas></div>
       </div>
       <div class="chart-card">
@@ -575,10 +589,7 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
         <div class="chart-wrap" style="height:220px"><canvas id="cWave"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-head">
-          <div class="chart-title">Top 5 ADS/DS</div>
-          <span class="chart-sub">ADS/DS thấp = hiệu quả tốt</span>
-        </div>
+        <div class="chart-head"><div class="chart-title">Top 5 ADS/DS</div><span class="chart-sub">ADS/DS thấp = hiệu quả tốt</span></div>
         <div class="chart-empty" style="height:220px">
           <div class="icon">📉</div>
           <p>Chưa có dữ liệu doanh số<br>Kết nối sheet 4.DATA DT để hiển thị</p>
@@ -592,14 +603,11 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
         <div class="tov-title">Bảng Tổng Quan</div>
         <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
         <span class="period-chip" style="font-size:11px">📅 ${period}</span>
-
       </div>
       <div class="tov-scroll" id="tovBody">${buildGroupedTable(rows)}</div>
     </div>`;
 
-  // Store rows for tov filter
   window._tovRows=rows;
-  // Fill prodFilter options dynamically
   const pf=document.getElementById('prodFilter');
   if(pf){
     const cur=pf.value;
@@ -611,15 +619,9 @@ function renderOverview(rows,kpi,camps,period,now,htSpend,sdSpend,ctSpend,total,
   buildWaveChart(rows);
 }
 
-function filterTov(){
-  // Table filter now handled by period bar dropdowns via applyFilter
-  // This function kept for compatibility
-}
-
 function buildGroupedTable(rows){
   const cols=['Brand / Sản phẩm','Ngân sách Ads','Số Mess','Số Comment','CP/Mess','ADS/DS','Doanh số','Đơn chốt','DS TB/đơn','Tỷ lệ chốt'];
   let html=`<table class="grp-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
-
   function rowCells(kpi){
     return `<td class="num-cell">${vnd(kpi.spend)}</td>
             <td class="num-cell">${num(kpi.mess)}</td>
@@ -631,7 +633,6 @@ function buildGroupedTable(rows){
             <td style="color:var(--muted);font-weight:500">—</td>
             <td style="color:var(--muted);font-weight:500">—</td>`;
   }
-
   const byBrand={HT:[],Shidai:[],CT:[]};
   rows.forEach(r=>{const b=detectBrand(r[COL.CAMPAIGN]);if(byBrand[b])byBrand[b].push(r);});
   ['HT','Shidai','CT'].forEach(br=>{
@@ -651,12 +652,11 @@ function buildGroupedTable(rows){
 }
 
 // ── CHI TIẾT ──
-function renderDetail(camps,period,now,filteredRows){
+function renderDetail(camps,period,filteredRows){
   const maxSpend=Math.max(...camps.map(c=>c.spend),1);
   const rows=camps.map(g=>{
     const cpm=g.mess>0?g.spend/g.mess:0;
     const actr=g.n>0?g.ctr/g.n:0;
-    const acpc=g.n>0?g.cpc/g.n:0;
     const bp=(g.spend/maxSpend*100).toFixed(1);
     const st=(g.status||'').toLowerCase();
     const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
@@ -672,7 +672,6 @@ function renderDetail(camps,period,now,filteredRows){
       <td class="num">${vnd(cpm)}</td>
       <td class="num">—</td>
       <td class="num">${pct(actr)}</td>
-      <td class="num">${vnd(acpc)}</td>
     </tr>
     <tr id="ads-${safeId}" style="display:none"><td colspan="10" style="padding:0">
       <div style="background:var(--bg2);border-top:1px solid var(--border)" id="ads-content-${safeId}"></div>
@@ -685,6 +684,7 @@ function renderDetail(camps,period,now,filteredRows){
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
+      <div class="stat-chip" title="Số dòng ngày load được từ sheet" style="cursor:help">🗂 ${filteredRows.length} rows</div>
       <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;font-weight:600">
         <option value="all">Tất cả brand</option>
         <option value="HT">Hiền Thuỷ</option>
@@ -703,7 +703,6 @@ function renderDetail(camps,period,now,filteredRows){
       </div>
       <div class="tov-scroll">${buildDailyProdTable(filteredRows)}</div>
     </div>
-
     <div class="tbl-card">
       <div class="tbl-head"><div class="tbl-title">Chi Tiết Theo Chiến Dịch</div><div class="tbl-count">${camps.length}</div></div>
       <div class="tbl-scroll"><table>
@@ -711,7 +710,7 @@ function renderDetail(camps,period,now,filteredRows){
           <th style="width:32px"></th>
           <th>Tên chiến dịch</th><th>Brand</th><th>Trạng thái</th>
           <th>Chi phí</th><th>Mess</th><th>Comment</th><th>CP/Mess</th>
-          <th>Kết quả</th><th>CTR</th><th>CPC</th>
+          <th>Kết quả</th><th>CTR</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
@@ -721,43 +720,32 @@ function renderDetail(camps,period,now,filteredRows){
 // ── Bảng Ngày → Loại SP ──
 function buildDailyProdTable(rows){
   if(!rows||!rows.length)return '<div style="padding:16px;color:var(--muted);font-size:12px">Không có dữ liệu</div>';
-
   const cols=['Ngày','Loại SP','Ngân sách Ads','Số Mess','Số Comment','CP/Mess','ADS/DS','Doanh số','Đơn chốt','DS TB/đơn','Tỷ lệ chốt'];
   let html=`<table class="grp-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
-
-  // Gom theo ngày → loại SP
   const byDate={};
   rows.forEach(r=>{
     const d=parseDate(r[COL.DATE]);
     const dateKey=d?fmtDate(d):'N/A';
     const prod=detectProduct(r[COL.CAMPAIGN]);
-    const key=dateKey+'||'+prod;
     if(!byDate[dateKey])byDate[dateKey]={};
-    if(!byDate[dateKey][prod])byDate[dateKey][prod]={spend:0,mess:0,results:0,comments:0,ctr:0,cpc:0,n:0};
+    if(!byDate[dateKey][prod])byDate[dateKey][prod]={spend:0,mess:0,comments:0,ctr:0,cpc:0,n:0};
     const g=byDate[dateKey][prod];
     g.spend+=toNum(r[COL.SPEND]);
     g.mess+=toNum(r[COL.MESSAGES]);
-    // results not in new data
     g.comments+=toNum(r[COL.COMMENTS]);
     g.ctr+=toNum(r[COL.CTR]);
     g.cpc+=toNum(r[COL.CPC]);
     g.n++;
   });
-
-  // Sort ngày mới nhất lên đầu, giới hạn 7 ngày gần nhất
   const sortedDates=Object.keys(byDate).sort((a,b)=>{
     const da=parseDate(a),db=parseDate(b);
     return(db&&da)?db-da:0;
   }).slice(0,7);
-
   sortedDates.forEach(dateKey=>{
     const prods=byDate[dateKey];
     const prodEntries=Object.entries(prods).sort((a,b)=>b[1].spend-a[1].spend);
-    const isFirst={};
-
     prodEntries.forEach(([prod,g],i)=>{
       const cpm=g.mess>0?g.spend/g.mess:0;
-      const actr=g.n>0?g.ctr/g.n:0;
       html+=`<tr style="${i%2===0?'background:var(--surface)':'background:var(--surface2)'}">
         <td style="font-weight:700;color:var(--accent);font-size:12px;white-space:nowrap">${i===0?'📅 '+dateKey:''}</td>
         <td style="font-weight:600;padding-left:${i===0?'13':'24'}px;font-size:12px">${prod}</td>
@@ -772,13 +760,10 @@ function buildDailyProdTable(rows){
         <td class="num-cell" style="color:var(--muted)">—</td>
       </tr>`;
     });
-
-    // Subtotal cho ngày
     const dayTotal=prodEntries.reduce((acc,[,g])=>({
       spend:acc.spend+g.spend,mess:acc.mess+g.mess,
       comments:acc.comments+g.comments,n:acc.n+g.n,
-      ctr:acc.ctr+g.ctr,cpc:acc.cpc+g.cpc
-    }),{spend:0,mess:0,comments:0,n:0,ctr:0,cpc:0});
+    }),{spend:0,mess:0,comments:0,n:0});
     const dayCpm=dayTotal.mess>0?dayTotal.spend/dayTotal.mess:0;
     html+=`<tr style="background:linear-gradient(90deg,var(--accent-l),transparent);border-top:1.5px solid var(--border2)">
       <td style="font-weight:800;color:var(--accent);font-size:11px">Tổng ${dateKey}</td>
@@ -790,7 +775,6 @@ function buildDailyProdTable(rows){
       <td colspan="5"></td>
     </tr>`;
   });
-
   return html+'</tbody></table>';
 }
 
@@ -808,26 +792,29 @@ function toggleAds(safeId){
       const campName=decodeURIComponent(safeId);
       const adRowsAll=(window.allRowsRaw||[]).filter(r=>{
         const dateCol=(r[COL.DATE]||'').trim();
-        // Dòng ad con: có mã quảng cáo (cột B) và ngày cụ thể (không phải All)
-        return r[COL.CAMPAIGN]===campName && r[COL.AD_ID] && dateCol.toLowerCase()!=='all' && dateCol!=='';
+        const adId=String(r[COL.AD_ID]||'').trim();
+        // Ad con: có mã QC (chuỗi số dài), cùng campaign, ngày cụ thể
+        return r[COL.CAMPAIGN]===campName
+          && /^\d{8,}$/.test(adId)
+          && dateCol.toLowerCase()!=='all'
+          && dateCol!=='';
       });
       if(!adRowsAll.length){
         content.innerHTML='<div style="padding:12px 20px;font-size:12px;color:var(--muted);font-weight:600">Không có ad con</div>';
-      }else{
+      } else {
         const byId={};
         adRowsAll.forEach(r=>{
           const id=r[1]||'unknown';
-          if(!byId[id])byId[id]={id,status:'active',spend:0,mess:0,results:0,ctr:0,cpc:0,n:0};
+          if(!byId[id])byId[id]={id,status:'active',spend:0,mess:0,ctr:0,cpc:0,n:0};
           byId[id].spend+=toNum(r[COL.SPEND]);byId[id].mess+=toNum(r[COL.MESSAGES]);
-          byId[id].ctr+=toNum(r[COL.CTR]);
-          byId[id].cpc+=toNum(r[COL.CPC]);byId[id].n++;
+          byId[id].ctr+=toNum(r[COL.CTR]);byId[id].cpc+=toNum(r[COL.CPC]);byId[id].n++;
         });
         const ads=Object.values(byId).sort((a,b)=>b.spend-a.spend);
         const maxSp=Math.max(...ads.map(a=>a.spend),1);
         const bb=getBrandBadge(campName);
         let html='<table style="width:100%;border-collapse:collapse;font-size:11.5px">';
         html+='<thead><tr style="background:var(--surface2)">';
-        ['','Mã quảng cáo','Brand','Trạng thái','Chi phí','Mess','CP/Mess','Kết quả','CTR TB','CPC TB'].forEach(h=>{
+        ['','Mã quảng cáo','Brand','Trạng thái','Chi phí','Mess','CP/Mess','CTR TB','CPC TB'].forEach(h=>{
           html+=`<th style="padding:7px 13px;text-align:left;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap">${h}</th>`;
         });
         html+='</tr></thead><tbody>';
@@ -848,7 +835,6 @@ function toggleAds(safeId){
             </td>
             <td style="padding:8px 13px;font-weight:700;font-size:12px">${num(a.mess)}</td>
             <td style="padding:8px 13px;font-weight:700;font-size:12px">${vnd(cpm)}</td>
-            <td style="padding:8px 13px;font-weight:700;font-size:12px">${num(a.results)}</td>
             <td style="padding:8px 13px;font-weight:700;font-size:12px">${pct(actr)}</td>
             <td style="padding:8px 13px;font-weight:700;font-size:12px">${vnd(acpc)}</td>
           </tr>`;
@@ -874,20 +860,16 @@ function buildBrandChart(htSpend,sdSpend,ctSpend,total){
     options:{
       responsive:true,maintainAspectRatio:false,cutout:'60%',
       plugins:{
-        legend:{
-          position:'right',
-          labels:{
-            color:'var(--text)',font:{size:11,family:'Inter',weight:'600'},padding:14,
-            generateLabels:chart=>{
-              const d=chart.data;
-              return d.labels.map((label,i)=>{
-                const val=d.datasets[0].data[i];
-                const p=Math.round(val/total*100);
-                return{text:`${label}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:d.datasets[0].borderColor[i],lineWidth:2,hidden:false,index:i};
-              });
-            }
+        legend:{position:'right',labels:{color:'var(--text)',font:{size:11,family:'Inter',weight:'600'},padding:14,
+          generateLabels:chart=>{
+            const d=chart.data;
+            return d.labels.map((label,i)=>{
+              const val=d.datasets[0].data[i];
+              const p=Math.round(val/total*100);
+              return{text:`${label}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:d.datasets[0].borderColor[i],lineWidth:2,hidden:false,index:i};
+            });
           }
-        },
+        }},
         tooltip:{callbacks:{label:ctx=>' '+vnd(ctx.raw)+' ('+Math.round(ctx.raw/total*100)+'%)'}}
       }
     }
@@ -907,31 +889,24 @@ function buildProdChart(prodCount){
     options:{
       responsive:true,maintainAspectRatio:false,cutout:'60%',
       plugins:{
-        legend:{
-          position:'right',
-          labels:{
-            color:'var(--text)',font:{size:11,family:'Inter',weight:'600'},padding:12,
-            generateLabels:chart=>{
-              const d=chart.data;
-              return d.labels.map((label,i)=>{
-                const val=d.datasets[0].data[i];
-                const p=Math.round(val/total*100);
-                return{text:`${label}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],lineWidth:0,hidden:false,index:i};
-              });
-            }
+        legend:{position:'right',labels:{color:'var(--text)',font:{size:11,family:'Inter',weight:'600'},padding:12,
+          generateLabels:chart=>{
+            const d=chart.data;
+            return d.labels.map((label,i)=>{
+              const val=d.datasets[0].data[i];
+              const p=Math.round(val/total*100);
+              return{text:`${label}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],lineWidth:0,hidden:false,index:i};
+            });
           }
-        },
+        }},
         tooltip:{callbacks:{label:ctx=>` ${ctx.raw} chiến dịch (${Math.round(ctx.raw/total*100)}%)`}}
       }
     }
   });
 }
 
-// ── Wave Chart: Chi phí theo ngày ──
 function buildWaveChart(rows){
   const ctx=document.getElementById('cWave');if(!ctx)return;
-
-  // rows đã là dòng ngày cụ thể → dùng trực tiếp
   const byDate={};
   rows.forEach(r=>{
     const d=parseDate(r[COL.DATE]);
@@ -939,32 +914,21 @@ function buildWaveChart(rows){
     const k=fmtDate(d);
     byDate[k]=(byDate[k]||0)+toNum(r[COL.SPEND]);
   });
-
-  // Lấy 7 ngày gần nhất (có data)
   const sortedDates=Object.keys(byDate).sort((a,b)=>{
     const da=parseDate(a),db=parseDate(b);
     return da&&db?da-db:0;
   }).slice(-7);
-
-  const labels=sortedDates;
   const spendData=sortedDates.map(d=>byDate[d]||0);
-
   if(chartWave){chartWave.destroy();chartWave=null;}
-  // Gradient fill
   const canvasCtx=ctx.getContext('2d');
   const gradBlue=canvasCtx.createLinearGradient(0,0,0,220);
-  gradBlue.addColorStop(0,'rgba(67,97,238,.55)');
-  gradBlue.addColorStop(0.5,'rgba(67,97,238,.2)');
-  gradBlue.addColorStop(1,'rgba(67,97,238,0)');
+  gradBlue.addColorStop(0,'rgba(67,97,238,.55)');gradBlue.addColorStop(0.5,'rgba(67,97,238,.2)');gradBlue.addColorStop(1,'rgba(67,97,238,0)');
   const gradGreen=canvasCtx.createLinearGradient(0,0,0,220);
-  gradGreen.addColorStop(0,'rgba(10,191,122,.45)');
-  gradGreen.addColorStop(0.5,'rgba(10,191,122,.15)');
-  gradGreen.addColorStop(1,'rgba(10,191,122,0)');
-
+  gradGreen.addColorStop(0,'rgba(10,191,122,.45)');gradGreen.addColorStop(0.5,'rgba(10,191,122,.15)');gradGreen.addColorStop(1,'rgba(10,191,122,0)');
   chartWave=new Chart(ctx,{
     type:'line',
     data:{
-      labels,
+      labels:sortedDates,
       datasets:[
         {label:'Chi phí Ads',data:spendData,borderColor:'#4361ee',backgroundColor:gradBlue,borderWidth:2.5,
           pointBackgroundColor:'#fff',pointBorderColor:'#4361ee',pointBorderWidth:2,
@@ -1019,7 +983,7 @@ function groupByCamp(rows){
   const g={};
   rows.forEach(r=>{
     const name=(r[COL.CAMPAIGN]||'').trim();
-    if(!g[name])g[name]={name,status:'active',spend:0,mess:0,results:0,reach:0,impressions:0,comments:0,ctr:0,cpc:0,n:0,resultType:''};
+    if(!g[name])g[name]={name,status:'active',spend:0,mess:0,results:0,reach:0,impressions:0,comments:0,ctr:0,cpc:0,n:0};
     g[name].spend+=toNum(r[COL.SPEND]);g[name].mess+=toNum(r[COL.MESSAGES]);
     g[name].reach+=toNum(r[COL.REACH]);g[name].impressions+=toNum(r[COL.IMPRESSIONS]);
     g[name].comments+=toNum(r[COL.COMMENTS]);
@@ -1057,7 +1021,6 @@ function toggleUrlPanel(){
   const isOpen=panel.classList.contains('open');
   panel.classList.toggle('open',!isOpen);
   btn.classList.toggle('active',!isOpen);
-  // Click outside to close
   if(!isOpen){
     setTimeout(()=>{
       document.addEventListener('click',function handler(e){
