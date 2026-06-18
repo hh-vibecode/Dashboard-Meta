@@ -494,7 +494,7 @@ function filterSaleRows(from,to){
     const src=(r[COL_SALE.SOURCE]||'').trim().toLowerCase();
     const ch=(r[COL_SALE.CHANNEL]||'').trim().toLowerCase();
     const adId=(r[COL_SALE.AD_ID]||'').trim();
-    return src==='online'&&ch.includes('facebook')&&adId!=='';
+    return src==='online'&&ch.includes('facebook');
   });
   if(!from&&!to)return base;
   const fromD=from?localDate(from):null;
@@ -519,14 +519,17 @@ function calcSaleStats(saleFiltered){
   const totalLeads=saleFiltered.length;
   const byCamp={};
   saleFiltered.forEach(r=>{
-    const camp=adCampMap[(r[COL_SALE.AD_ID]||'').trim()];if(!camp)return;
-    if(!byCamp[camp])byCamp[camp]={leads:0,orders:0,revenue:0};
-    byCamp[camp].leads++;
-    if(isChot(r)){byCamp[camp].orders++;byCamp[camp].revenue+=toNum(r[COL_SALE.REVENUE]);}
+    const adId=(r[COL_SALE.AD_ID]||'').trim();
+    const camp=adId?adCampMap[adId]:'';
+    const key=camp||'__direct__';
+    if(!byCamp[key])byCamp[key]={leads:0,orders:0,revenue:0};
+    byCamp[key].leads++;
+    if(isChot(r)){byCamp[key].orders++;byCamp[key].revenue+=toNum(r[COL_SALE.REVENUE]);}
   });
   const byBrand={HT:{leads:0,orders:0,revenue:0},Shidai:{leads:0,orders:0,revenue:0},CT:{leads:0,orders:0,revenue:0}};
   const byProd={};
   Object.entries(byCamp).forEach(([camp,s])=>{
+    if(camp==='__direct__')return;
     const br=detectBrand(camp);if(byBrand[br]){byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;}
     const pr=detectProduct(camp);
     const key=br+'__'+pr;
@@ -815,6 +818,22 @@ function buildGroupedTable(rows,saleStats){
       html+=`<tr class="row-product"><td>↳ ${p}</td>${rowCells(pkpi,prSd)}</tr>`;
     });
   });
+  const direct=saleStats?saleStats.byCamp['__direct__']:null;
+  if(direct&&(direct.orders>0||direct.leads>0)){
+    const dsColor=direct.revenue>0?'var(--text)':'var(--muted)';
+    html+=`<tr class="row-product" style="border-top:2px solid var(--border)">
+      <td style="color:var(--muted);font-style:italic">📲 Mua hàng trực tiếp trên page</td>
+      <td class="num-cell" style="color:var(--muted)">—</td>
+      <td class="num-cell" style="color:var(--muted)">—</td>
+      <td class="num-cell" style="color:var(--muted)">—</td>
+      <td class="num-cell" style="color:var(--muted)">—</td>
+      <td class="num-cell" style="color:var(--muted)">—</td>
+      <td class="num-cell" style="color:${dsColor};font-weight:700">${vnd(direct.revenue)}</td>
+      <td class="num-cell" style="color:${dsColor}">${num(direct.orders)}</td>
+      <td class="num-cell" style="color:${dsColor}">${direct.orders>0?vnd(direct.revenue/direct.orders):'—'}</td>
+      <td class="num-cell" style="color:var(--muted)">—</td>
+    </tr>`;
+  }
   return html+'</tbody></table>';
 }
 
