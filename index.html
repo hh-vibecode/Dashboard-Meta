@@ -375,7 +375,8 @@ function parseMktCsv(text){
   COL.REACH      =ci(['phạm vi tiếp cận','reach'],4);
   COL.IMPRESSIONS=ci(['lượt hiển thị','impressions'],5);
   COL.SPEND      =ci(['số tiền đã chi','amount spent','chi phí','chi tiêu'],8);
-  COL.MESSAGES   =ci(['bắt đầu cuộc trò chuyện','conversations started','messaging conversations started','cuộc trò chuyện tin nhắn','tin nhắn bắt đầu'],10);
+  COL.MESSAGES   =headers.findIndex(h=>(h.includes('lượt bắt đầu cuộc trò chuyện')||h.includes('conversations started')||h.includes('messaging conversations started'))&&!h.startsWith('chi'));
+  if(COL.MESSAGES<0)COL.MESSAGES=12;
   COL.CTR        =ci(['ctr'],11);
   COL.CPC        =ci(['cpc'],12);
   COL.COMMENTS   =ci(['bình luận','comment'],13);
@@ -521,7 +522,17 @@ function calcSaleStats(saleFiltered){
   saleFiltered.forEach(r=>{
     const adId=(r[COL_SALE.AD_ID]||'').trim();
     const camp=adId?adCampMap[adId]:'';
-    const key=camp||'__direct__';
+    let key;
+    if(camp){
+      key=camp;
+    } else {
+      const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
+      let br=null;
+      if(/ht[\s\-–]|hiến thuỷ|hien thuy/i.test(text))br='HT';
+      else if(/shidai/i.test(text))br='Shidai';
+      else if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))br='CT';
+      key=br?(br+'__direct__'):'__direct__';
+    }
     if(!byCamp[key])byCamp[key]={leads:0,orders:0,revenue:0};
     byCamp[key].leads++;
     if(isChot(r)){byCamp[key].orders++;byCamp[key].revenue+=toNum(r[COL_SALE.REVENUE]);}
@@ -529,7 +540,7 @@ function calcSaleStats(saleFiltered){
   const byBrand={HT:{leads:0,orders:0,revenue:0},Shidai:{leads:0,orders:0,revenue:0},CT:{leads:0,orders:0,revenue:0}};
   const byProd={};
   Object.entries(byCamp).forEach(([camp,s])=>{
-    if(camp==='__direct__')return;
+    if(camp==='__direct__'||camp.endsWith('__direct__'))return;
     const br=detectBrand(camp);if(byBrand[br]){byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;}
     const pr=detectProduct(camp);
     const key=br+'__'+pr;
@@ -817,6 +828,20 @@ function buildGroupedTable(rows,saleStats){
       const prSd=saleStats?saleStats.byProd[br+'__'+p]:null;
       html+=`<tr class="row-product"><td>↳ ${p}</td>${rowCells(pkpi,prSd)}</tr>`;
     });
+    const brDirect=saleStats?saleStats.byCamp[br+'__direct__']:null;
+    if(brDirect&&(brDirect.orders>0||brDirect.leads>0)){
+      const dsColor=brDirect.revenue>0?'var(--text)':'var(--muted)';
+      html+=`<tr class="row-product" style="opacity:.85">
+        <td style="font-style:italic;color:var(--muted)">↳ 📲 Mua hàng trực tiếp trên page</td>
+        <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:${dsColor};font-weight:700">${vnd(brDirect.revenue)}</td>
+        <td class="num-cell" style="color:${dsColor}">${num(brDirect.orders)}</td>
+        <td class="num-cell" style="color:${dsColor}">${brDirect.orders>0?vnd(brDirect.revenue/brDirect.orders):'—'}</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+      </tr>`;
+    }
   });
   const direct=saleStats?saleStats.byCamp['__direct__']:null;
   if(direct&&(direct.orders>0||direct.leads>0)){
