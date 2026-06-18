@@ -320,33 +320,43 @@ async function loadData(){
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
-    const tasks=[fetchCsvWithProxy(mktRaw)];
-    if(saleRaw)tasks.push(fetchCsvWithProxy(saleRaw));
+    setStatus('Đang kết nối sheet MKT...');
+    const tasks=[fetchCsvWithProxy(mktRaw,0)];
+    if(saleRaw){setStatus('Đang kết nối MKT + SALE song song...');tasks.push(fetchCsvWithProxy(saleRaw,1));}
     const results=await Promise.allSettled(tasks);
     if(results[0].status==='rejected')throw new Error('MKT: '+results[0].reason.message);
+    setStatus('Nhận data MKT, đang parse...');
     parseMktCsv(results[0].value);
-    if(saleRaw&&results[1]&&results[1].status==='fulfilled')parseSaleCsv(results[1].value);
-    else if(saleRaw&&results[1]&&results[1].status==='rejected')console.warn('[SALE] Không tải được:',results[1].reason.message);
+    setStatus(`Parse xong MKT: ${allRows.length} chiến dịch / ${(window.allRowsRaw||[]).length} rows`);
+    if(saleRaw&&results[1]&&results[1].status==='fulfilled'){setStatus('Đang parse SALE...');parseSaleCsv(results[1].value);setStatus(`Parse xong SALE: ${saleRowsRaw.length} rows`);}
+    else if(saleRaw&&results[1]&&results[1].status==='rejected')setStatus('⚠️ SALE không tải được — chỉ hiện data MKT');
     document.getElementById('btnLoad').disabled=false;
+    setStatus('Đang render...');
     applyFilter();
   }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
 
-async function fetchCsvWithProxy(rawUrl){
+async function fetchCsvWithProxy(rawUrl,idx=0){
+  const labels=['MKT','SALE'];
+  const lbl=labels[idx]||'';
   const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now();
   const proxies=['https://corsproxy.io/?','https://api.allorigins.win/raw?url=','https://thingproxy.freeboard.io/fetch/'];
-  for(const proxy of proxies){
+  for(let i=0;i<proxies.length;i++){
+    const proxy=proxies[i];
+    setStatus(`[${lbl}] Thử proxy ${i+1}/3...`);
     try{
       const ctrl=new AbortController();
       const timer=setTimeout(()=>ctrl.abort(),15000);
       const res=await fetch(proxy+encodeURIComponent(csvUrl),{signal:ctrl.signal});
-      if(!res.ok){clearTimeout(timer);continue;}
+      if(!res.ok){clearTimeout(timer);setStatus(`[${lbl}] Proxy ${i+1} lỗi ${res.status}, thử tiếp...`);continue;}
+      setStatus(`[${lbl}] Proxy ${i+1} OK, đang tải data...`);
       const text=await res.text();
       clearTimeout(timer);
+      setStatus(`[${lbl}] Tải xong (${Math.round(text.length/1024)}KB)`);
       return text;
-    }catch(e){continue;}
+    }catch(e){setStatus(`[${lbl}] Proxy ${i+1} timeout/lỗi, thử tiếp...`);continue;}
   }
-  throw new Error('Không kết nối được proxy (đã thử 3 servers)');
+  throw new Error(`[${lbl}] Không kết nối được proxy (đã thử 3 servers)`);
 }
 
 function parseMktCsv(text){
@@ -1287,7 +1297,8 @@ function groupByCamp(rows){
 
 // ── Helpers ──
 function mkKpi(icon,label,val,sub,grad){return`<div class="kpi ${grad}"><div class="kpi-icon">${icon}</div><div class="kpi-lbl">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;}
-function showLoading(){const l='<div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải…</span></div>';document.getElementById('page-overview').innerHTML=l;document.getElementById('page-detail').innerHTML=l;}
+function showLoading(){const l='<div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải…</span><br><span id="loadStatus" style="font-size:11px;color:var(--muted);margin-top:6px;display:block"></span></div>';document.getElementById('page-overview').innerHTML=l;document.getElementById('page-detail').innerHTML=l;}
+function setStatus(msg){const el=document.getElementById('loadStatus');if(el)el.textContent=msg;console.log('[STATUS]',msg);}
 function showErr(msg){const e=`<div class="err-box">❌ ${msg}</div>`;document.getElementById('page-overview').innerHTML=e;document.getElementById('page-detail').innerHTML=e;}
 function parseDate(v){
   if(!v)return null;const s=String(v).trim();
