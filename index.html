@@ -604,7 +604,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       ${mkKpi('💰','Tổng Chi Phí',vnd(kpi.totalSpend),'ngân sách đã tiêu','g-blue')}
       ${mkKpi('💬','Tổng Mess',num(kpi.totalMess),'lượt trò chuyện','g-green')}
       ${mkKpi('📌','CP / Mess',vnd(kpi.costPerMess),'trung bình / mess','g-yellow')}
-      ${mkKpi('📊','ADS/DS',saleStats&&saleStats.totalRevenue>0?(kpi.totalSpend/saleStats.totalRevenue).toFixed(2)+'x':'—','chi phí / doanh số','g-purple')}
+      ${mkKpi('📊','ADS/DS',saleStats&&saleStats.totalRevenue>0?pct(kpi.totalSpend/saleStats.totalRevenue*100):'—','chi phí / doanh số','g-purple')}
     </div>
     <div class="sec-label">Sale Performance</div>
     <div class="kpi-grid">
@@ -667,7 +667,7 @@ function buildGroupedTable(rows,saleStats){
   const cols=['Brand / Sản phẩm','Ngân sách Ads','Số Mess','Số Comment','CP/Mess','ADS/DS','Doanh số','Đơn chốt','DS TB/đơn','Tỷ lệ chốt'];
   let html=`<table class="grp-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
   function rowCells(kpi,sd){
-    const adsDs=sd&&sd.revenue>0?(kpi.spend/sd.revenue).toFixed(2)+'x':'—';
+    const adsDs=sd&&sd.revenue>0?pct(kpi.spend/sd.revenue*100):'—';
     const dsColor=sd&&sd.revenue>0?'var(--text)':'var(--muted)';
     return `<td class="num-cell">${vnd(kpi.spend)}</td>
             <td class="num-cell">${num(kpi.mess)}</td>
@@ -708,7 +708,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
     const bp=(g.spend/maxSpend*100).toFixed(1);
     const safeId=encodeURIComponent(g.name);
     const cs=saleStats?saleStats.byCamp[g.name]:null;
-    const adsDs=cs&&cs.revenue>0?(g.spend/cs.revenue).toFixed(2)+'x':'—';
+    const adsDs=cs&&cs.revenue>0?pct(g.spend/cs.revenue*100):'—';
     const dsColor=cs&&cs.revenue>0?'color:var(--green);font-weight:800':'color:var(--muted)';
     return`<tr class="camp-row" onclick="toggleAds('${safeId}')" style="cursor:pointer">
       <td style="width:32px;text-align:center;font-size:11px;color:var(--muted)" id="arrow-${safeId}">▶</td>
@@ -823,7 +823,7 @@ function toggleAds(safeId){
         const actr=a.n>0?a.ctr/a.n:0;
         const bp=(a.spend/maxSp*100).toFixed(1);
         const cs=adCrm[a.id];
-        const adsDs=cs&&cs.revenue>0?(a.spend/cs.revenue).toFixed(2)+'x':'—';
+        const adsDs=cs&&cs.revenue>0?pct(a.spend/cs.revenue*100):'—';
         const dsc=cs&&cs.revenue>0?'color:var(--green);font-weight:800':'color:var(--muted)';
         html+=`<tr style="border-top:1px solid var(--border)">
           <td style="width:32px"></td>
