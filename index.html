@@ -236,10 +236,6 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">💰 SALE CRM</span>
     <input class="url-input" id="saleUrl" placeholder="Link Google Sheets SALE/CRM published CSV…"/>
   </div>
-  <div style="display:flex;align-items:center;gap:8px">
-    <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">👥 CRM HUB</span>
-    <input class="url-input" id="crmHubUrl" placeholder="Link Google Sheets Master Data Hub published CSV…"/>
-  </div>
   <div style="display:flex;justify-content:flex-end">
     <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải tất cả</button>
   </div>
@@ -327,8 +323,8 @@ function switchPage(p){
 async function loadData(){
   const mktRaw=document.getElementById('sheetUrl').value.trim();
   const saleRaw=document.getElementById('saleUrl').value.trim();
-  const crmRaw=document.getElementById('crmHubUrl').value.trim();
-  if(!mktRaw&&!crmRaw)return;
+  const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
+  if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
@@ -840,7 +836,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
 function renderSaleOverview(){
   const rows=crmHubRows;
   if(!rows.length){
-    document.getElementById('page-sale-overview').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Nhập link Master Data Hub ở ⚙️ để tải dữ liệu</div>';
+    document.getElementById('page-sale-overview').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';
     return;
   }
   const total=rows.length;
@@ -1041,7 +1037,7 @@ function renderSaleDetail(){
     return db&&da?db-da:0;
   });
   if(!rows.length){
-    document.getElementById('page-sale-detail').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Nhập link Master Data Hub ở ⚙️ để tải dữ liệu</div>';
+    document.getElementById('page-sale-detail').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';
     return;
   }
   const sourceBadge=r=>{
