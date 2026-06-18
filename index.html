@@ -667,12 +667,13 @@ function detectBrand(name){
 }
 function detectProduct(name){
   const n=(name||'').toLowerCase();
-  if(/thần tài|ban thần tài/.test(n))return'Thần Tài';
+  if(/thần tài|ban thần tài|tài địa|di lặc|quan lộc/.test(n))return'Thần Tài';
   if(/tượng phật/.test(n))return'Tượng Phật';
   if(/đèn thờ|đèn/.test(n))return'Đèn Thờ';
-  if(/ban thờ|bàn thờ/.test(n))return'Ban Thờ';
+  if(/ban thờ|bàn thờ|đồ thờ/.test(n))return'Ban Thờ';
   if(/dịch vụ/.test(n))return'Dịch Vụ';
-  return (name||'').trim().replace(/^(HT|Shidai)\s*[-–]\s*/i,'').replace(/\s*[-–]\s*(fix bài cũ|mess tiềm năng|mess mua hàng).*$/i,'').replace(/\s*[-–]\s*\d{2}\/\d{2}.*/,'').trim()||name;
+  const cleaned=(name||'').trim().replace(/^(HT|Shidai)\s*[-–]\s*/i,'').replace(/\s*[-–]\s*(fix bài cũ|mess tiềm năng|mess mua hàng).*$/i,'').replace(/\s*[-–]\s*\d{2}\/\d{2}.*/,'').trim();
+  return cleaned||'Khác';
 }
 function getBrandBadge(name){
   const b=detectBrand(name);
@@ -855,28 +856,34 @@ function buildGroupedTable(rows,saleStats){
     html+=`<tr class="${bc}"><td>${bl}</td>${rowCells(bkpi,brSd)}</tr>`;
     const byProd={};
     byBrand[br].forEach(r=>{const p=detectProduct(r[COL.CAMPAIGN]);if(!byProd[p])byProd[p]=[];byProd[p].push(r);});
+    const brDirectProds=saleStats&&saleStats.byDirectProd?saleStats.byDirectProd[br]:{};
+    const shownDirect=new Set();
+    function directRow(prod,sd){
+      if(!sd||(!sd.orders&&!sd.leads))return'';
+      shownDirect.add(prod);
+      const dsColor=sd.revenue>0?'var(--text)':'var(--muted)';
+      return`<tr class="row-product" style="opacity:.85">
+        <td style="font-style:italic;color:var(--muted);padding-left:28px">↳ ${prod} (trực tiếp trên page)</td>
+        <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+        <td class="num-cell" style="color:${dsColor};font-weight:700">${vnd(sd.revenue)}</td>
+        <td class="num-cell" style="color:${dsColor}">${num(sd.orders)}</td>
+        <td class="num-cell" style="color:${dsColor}">${sd.orders>0?vnd(sd.revenue/sd.orders):'—'}</td>
+        <td class="num-cell" style="color:var(--muted)">—</td>
+      </tr>`;
+    }
     Object.entries(byProd).sort((a,b)=>calcKPIRows(b[1]).spend-calcKPIRows(a[1]).spend).forEach(([p,pr])=>{
       const pkpi=calcKPIRows(pr);
       const prSd=saleStats?saleStats.byProd[br+'__'+p]:null;
       html+=`<tr class="row-product"><td>↳ ${p}</td>${rowCells(pkpi,prSd)}</tr>`;
+      html+=directRow(p,brDirectProds[p]);
     });
-    const brDirectProds=saleStats&&saleStats.byDirectProd?saleStats.byDirectProd[br]:null;
-    if(brDirectProds){
-      Object.entries(brDirectProds).sort((a,b)=>b[1].revenue-a[1].revenue).forEach(([prod,sd])=>{
-        if(!sd.orders&&!sd.leads)return;
-        const dsColor=sd.revenue>0?'var(--text)':'var(--muted)';
-        html+=`<tr class="row-product" style="opacity:.85">
-          <td style="font-style:italic;color:var(--muted)">↳ 📲 ${prod} (trực tiếp)</td>
-          <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
-          <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
-          <td class="num-cell" style="color:var(--muted)">—</td>
-          <td class="num-cell" style="color:${dsColor};font-weight:700">${vnd(sd.revenue)}</td>
-          <td class="num-cell" style="color:${dsColor}">${num(sd.orders)}</td>
-          <td class="num-cell" style="color:${dsColor}">${sd.orders>0?vnd(sd.revenue/sd.orders):'—'}</td>
-          <td class="num-cell" style="color:var(--muted)">—</td>
-        </tr>`;
-      });
-    }
+    // direct products that have no campaign counterpart
+    Object.entries(brDirectProds).sort((a,b)=>b[1].revenue-a[1].revenue).forEach(([prod,sd])=>{
+      if(shownDirect.has(prod))return;
+      html+=directRow(prod,sd);
+    });
   });
   return html+'</tbody></table>';
 }
