@@ -609,7 +609,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       ${mkKpi('💵','Doanh Số',saleStats?vnd(saleStats.totalRevenue):'—',saleStats?saleStats.totalOrders+' đơn đã chốt':'chưa có dữ liệu','g-teal')}
       ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' leads':'chưa có dữ liệu','g-orange')}
       ${mkKpi('📦','DS TB / Đơn',saleStats&&saleStats.totalOrders>0?vnd(saleStats.avgOrderValue):'—','trung bình / đơn chốt','g-pink')}
-      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&saleStats.totalLeads>0?pct(saleStats.convRate*100):'—',saleStats?'chốt / tổng leads FB':'chưa có dữ liệu','g-red')}
+      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&kpi.totalMess>0?pct(saleStats.totalOrders/kpi.totalMess*100):'—',saleStats?'đơn chốt / tổng mess':'chưa có dữ liệu','g-red')}
     </div>
 
     <div class="sec-label">Phân Tích</div>
@@ -674,7 +674,7 @@ function buildGroupedTable(rows,saleStats){
             <td class="num-cell" style="color:${dsColor};font-weight:700">${sd?vnd(sd.revenue):'—'}</td>
             <td class="num-cell" style="color:${dsColor}">${sd?num(sd.orders):'—'}</td>
             <td class="num-cell" style="color:${dsColor}">${sd&&sd.orders>0?vnd(sd.revenue/sd.orders):'—'}</td>
-            <td class="num-cell" style="color:${dsColor}">${sd&&sd.leads>0?pct(sd.orders/sd.leads*100):'—'}</td>`;
+            <td class="num-cell" style="color:${dsColor}">${sd&&kpi.mess>0?pct(sd.orders/kpi.mess*100):'—'}</td>`;
   }
   const byBrand={HT:[],Shidai:[],CT:[]};
   rows.forEach(r=>{const b=detectBrand(r[COL.CAMPAIGN]);if(byBrand[b])byBrand[b].push(r);});
@@ -703,24 +703,26 @@ function renderDetail(camps,period,filteredRows,saleStats){
     const cpm=g.mess>0?g.spend/g.mess:0;
     const actr=g.n>0?g.ctr/g.n:0;
     const bp=(g.spend/maxSpend*100).toFixed(1);
-    const st=(g.status||'').toLowerCase();
-    const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
     const safeId=encodeURIComponent(g.name);
-    const campSale=saleStats?saleStats.byCamp[g.name]:null;
-    const adsDs=campSale&&campSale.revenue>0?(g.spend/campSale.revenue).toFixed(2)+'x':'—';
+    const cs=saleStats?saleStats.byCamp[g.name]:null;
+    const adsDs=cs&&cs.revenue>0?(g.spend/cs.revenue).toFixed(2)+'x':'—';
+    const dsColor=cs&&cs.revenue>0?'color:var(--green);font-weight:800':'color:var(--muted)';
     return`<tr class="camp-row" onclick="toggleAds('${safeId}')" style="cursor:pointer">
       <td style="width:32px;text-align:center;font-size:11px;color:var(--muted)" id="arrow-${safeId}">▶</td>
       <td class="name" title="${g.name}">${g.name}</td>
       <td>${getBrandBadge(g.name)}</td>
-      <td><span class="badge ${bdg}">${st||'—'}</span></td>
       <td class="num"><div class="bar-cell"><span>${vnd(g.spend)}</span><div class="bar-bg"><div class="bar-fill" style="width:${bp}%;background:var(--accent)"></div></div></div></td>
       <td class="num">${num(g.mess)}</td>
       <td class="num">${g.comments>0?num(g.comments):'—'}</td>
       <td class="num">${vnd(cpm)}</td>
-      <td class="num" style="${campSale&&campSale.revenue>0?'color:var(--green);font-weight:800':'color:var(--muted)'}">${adsDs}</td>
+      <td class="num" style="${dsColor}">${adsDs}</td>
+      <td class="num" style="${dsColor}">${cs?vnd(cs.revenue):'—'}</td>
+      <td class="num" style="${dsColor}">${cs?num(cs.orders):'—'}</td>
+      <td class="num" style="${dsColor}">${cs&&cs.orders>0?vnd(cs.revenue/cs.orders):'—'}</td>
+      <td class="num" style="${dsColor}">${cs&&g.mess>0?pct(cs.orders/g.mess*100):'—'}</td>
       <td class="num">${pct(actr)}</td>
     </tr>
-    <tr id="ads-${safeId}" style="display:none"><td colspan="10" style="padding:0">
+    <tr id="ads-${safeId}" style="display:none"><td colspan="13" style="padding:0">
       <div style="background:var(--bg2);border-top:1px solid var(--border)" id="ads-content-${safeId}"></div>
     </td></tr>`;
   }).join('');
@@ -731,7 +733,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
-      <div class="stat-chip" title="Số dòng ngày load được từ sheet" style="cursor:help">🗂 ${filteredRows.length} rows</div>
+      <div class="stat-chip" style="cursor:help" title="Rows MKT">🗂 ${filteredRows.length} rows</div>
       <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;font-weight:600">
         <option value="all">Tất cả brand</option>
         <option value="HT">Hiền Thuỷ</option>
@@ -743,86 +745,18 @@ function renderDetail(camps,period,filteredRows,saleStats){
       </select>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
-    <div class="tov-card" style="margin-bottom:20px">
-      <div class="tov-head">
-        <div class="tov-title">Theo Ngày & Loại Sản Phẩm</div>
-        <span class="stat-chip" style="font-size:11px">📅 ${period}</span>
-      </div>
-      <div class="tov-scroll">${buildDailyProdTable(filteredRows)}</div>
-    </div>
     <div class="tbl-card">
       <div class="tbl-head"><div class="tbl-title">Chi Tiết Theo Chiến Dịch</div><div class="tbl-count">${camps.length}</div></div>
       <div class="tbl-scroll"><table>
         <thead><tr>
           <th style="width:32px"></th>
-          <th>Tên chiến dịch</th><th>Brand</th><th>Trạng thái</th>
+          <th>Tên chiến dịch</th><th>Brand</th>
           <th>Chi phí</th><th>Mess</th><th>Comment</th><th>CP/Mess</th>
-          <th>ADS/DS</th><th>CTR</th>
+          <th>ADS/DS</th><th>Doanh số</th><th>Đơn chốt</th><th>DS TB/Đơn</th><th>Tỷ lệ chốt</th><th>CTR</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </div>`;
-}
-
-// ── Bảng Ngày → Loại SP ──
-function buildDailyProdTable(rows){
-  if(!rows||!rows.length)return '<div style="padding:16px;color:var(--muted);font-size:12px">Không có dữ liệu</div>';
-  const cols=['Ngày','Loại SP','Ngân sách Ads','Số Mess','Số Comment','CP/Mess','ADS/DS','Doanh số','Đơn chốt','DS TB/đơn','Tỷ lệ chốt'];
-  let html=`<table class="grp-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
-  const byDate={};
-  rows.forEach(r=>{
-    const d=parseDate(r[COL.DATE]);
-    const dateKey=d?fmtDate(d):'N/A';
-    const prod=detectProduct(r[COL.CAMPAIGN]);
-    if(!byDate[dateKey])byDate[dateKey]={};
-    if(!byDate[dateKey][prod])byDate[dateKey][prod]={spend:0,mess:0,comments:0,ctr:0,cpc:0,n:0};
-    const g=byDate[dateKey][prod];
-    g.spend+=toNum(r[COL.SPEND]);
-    g.mess+=toNum(r[COL.MESSAGES]);
-    g.comments+=toNum(r[COL.COMMENTS]);
-    g.ctr+=toNum(r[COL.CTR]);
-    g.cpc+=toNum(r[COL.CPC]);
-    g.n++;
-  });
-  const sortedDates=Object.keys(byDate).sort((a,b)=>{
-    const da=parseDate(a),db=parseDate(b);
-    return(db&&da)?db-da:0;
-  }).slice(0,7);
-  sortedDates.forEach(dateKey=>{
-    const prods=byDate[dateKey];
-    const prodEntries=Object.entries(prods).sort((a,b)=>b[1].spend-a[1].spend);
-    prodEntries.forEach(([prod,g],i)=>{
-      const cpm=g.mess>0?g.spend/g.mess:0;
-      html+=`<tr style="${i%2===0?'background:var(--surface)':'background:var(--surface2)'}">
-        <td style="font-weight:700;color:var(--accent);font-size:12px;white-space:nowrap">${i===0?'📅 '+dateKey:''}</td>
-        <td style="font-weight:600;padding-left:${i===0?'13':'24'}px;font-size:12px">${prod}</td>
-        <td class="num-cell">${vnd(g.spend)}</td>
-        <td class="num-cell">${num(g.mess)}</td>
-        <td class="num-cell">${g.comments>0?num(g.comments):'—'}</td>
-        <td class="num-cell">${cpm>0?vnd(cpm):'—'}</td>
-        <td class="num-cell" style="color:var(--muted)">—</td>
-        <td class="num-cell" style="color:var(--muted)">—</td>
-        <td class="num-cell" style="color:var(--muted)">—</td>
-        <td class="num-cell" style="color:var(--muted)">—</td>
-        <td class="num-cell" style="color:var(--muted)">—</td>
-      </tr>`;
-    });
-    const dayTotal=prodEntries.reduce((acc,[,g])=>({
-      spend:acc.spend+g.spend,mess:acc.mess+g.mess,
-      comments:acc.comments+g.comments,n:acc.n+g.n,
-    }),{spend:0,mess:0,comments:0,n:0});
-    const dayCpm=dayTotal.mess>0?dayTotal.spend/dayTotal.mess:0;
-    html+=`<tr style="background:linear-gradient(90deg,var(--accent-l),transparent);border-top:1.5px solid var(--border2)">
-      <td style="font-weight:800;color:var(--accent);font-size:11px">Tổng ${dateKey}</td>
-      <td></td>
-      <td class="num-cell" style="font-weight:800">${vnd(dayTotal.spend)}</td>
-      <td class="num-cell" style="font-weight:800">${num(dayTotal.mess)}</td>
-      <td class="num-cell" style="font-weight:800">${dayTotal.comments>0?num(dayTotal.comments):'—'}</td>
-      <td class="num-cell" style="font-weight:800">${dayCpm>0?vnd(dayCpm):'—'}</td>
-      <td colspan="5"></td>
-    </tr>`;
-  });
-  return html+'</tbody></table>';
 }
 
 // ── Expand ad con ──
