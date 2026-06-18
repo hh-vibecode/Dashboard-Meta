@@ -379,7 +379,7 @@ function parseMktCsv(text){
   COL.CTR        =ci(['ctr'],11);
   COL.CPC        =ci(['cpc'],12);
   COL.COMMENTS   =ci(['bình luận','comment'],13);
-  COL.ADSET_NAME =ci(['tên nhóm quảng cáo','ad set name'],-1); // NOTE: 'nhóm quảng cáo' removed — too generic, matches 'mã nhóm quảng cáo'
+  COL.ADSET_NAME =ci(['tên nhóm quảng cáo','ad set name','tên nhóm'],-1);
   COL.AD_NAME    =ci(['tên quảng cáo','ad name'],-1);
   console.log('[MKT] COL detected:',JSON.stringify(COL));
   const allData=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
@@ -404,14 +404,26 @@ function parseMktCsv(text){
   window.allRowsRaw=allData;
   allRows=allData.filter(row=>{
     const campName=(row[COL.CAMPAIGN]||'').trim();
-    if(!campName||campName.toLowerCase()==='all')return false; // skip empty + grand-total rows
+    if(!campName||campName.toLowerCase()==='all')return false;
     const adId=String(row[COL.AD_ID]||'').trim();
-    if(/^\d{8,}$/.test(adId))return false; // skip numeric ad-level rows
-    // Treat blank, dash, zero, OR "all/tất cả" as campaign-level rows
+    if(/^\d{8,}$/.test(adId))return false; // ad-level rows
     const adIdIsBlank=!adId||adId==='-'||adId==='—'||adId==='0'||adId.toLowerCase()==='all'||adId==='tất cả';
     if(!adIdIsBlank)return false;
-    // Exclude ad-set level rows
-    if(COL.ADSET_NAME>=0&&(row[COL.ADSET_NAME]||'').trim())return false;
+    // Exclude ad-set level rows:
+    // 1. If ADSET_NAME col detected: exclude rows with specific (non-All) adset value
+    if(COL.ADSET_NAME>=0){
+      const as=(row[COL.ADSET_NAME]||'').trim();
+      if(as&&as.toLowerCase()!=='all')return false;
+    } else if(COL.AD_ID>COL.CAMPAIGN){
+      // 2. No ADSET col: scan columns between CAMPAIGN and AD_ID —
+      //    campaign-level rows have all these empty or "All";
+      //    ad-set/ad-level rows have at least one specific value
+      for(let c=COL.CAMPAIGN+1;c<COL.AD_ID;c++){
+        if(c===COL.DATE)continue;
+        const v=(row[c]||'').trim();
+        if(v&&v.toLowerCase()!=='all')return false;
+      }
+    }
     const dateCol=(row[COL.DATE]||'').trim();if(!dateCol)return false;
     const dl=dateCol.toLowerCase().replace(/\s/g,'');
     if(dl==='all'||dl==='tấtcả'||dl==='tatca')return false;
@@ -428,6 +440,13 @@ function parseMktCsv(text){
       if(/^\d{8,}$/.test(adId))return false;
       const adIdIsBlank=!adId||adId==='-'||adId==='—'||adId==='0'||adId.toLowerCase()==='all'||adId==='tất cả';
       if(!adIdIsBlank)return false;
+      if(COL.AD_ID>COL.CAMPAIGN){
+        for(let c=COL.CAMPAIGN+1;c<COL.AD_ID;c++){
+          if(c===COL.DATE)continue;
+          const v=(row[c]||'').trim();
+          if(v&&v.toLowerCase()!=='all')return false;
+        }
+      }
       const dateCol=(row[COL.DATE]||'').trim();if(!dateCol)return false;
       const dl=dateCol.toLowerCase().replace(/\s/g,'');
       if(dl==='all'||dl==='tấtcả'||dl==='tatca')return false;
