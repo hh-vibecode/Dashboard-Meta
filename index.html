@@ -49,7 +49,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .top-logo-text span{color:var(--accent)}
 .top-div{width:1px;height:20px;background:var(--border);flex-shrink:0}
 .topbar-right{display:flex;align-items:center;gap:10px;margin-left:auto}
-.url-panel{position:absolute;top:54px;right:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow-md);display:none;align-items:center;gap:8px;z-index:300;min-width:420px}
+.url-panel{position:absolute;top:54px;right:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow-md);display:none;flex-direction:column;gap:10px;z-index:300;min-width:540px}
 .url-panel.open{display:flex}
 .url-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:11px;font-family:monospace;outline:none;transition:border-color .2s}
 .url-input:focus{border-color:var(--accent)}
@@ -228,8 +228,17 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 </div>
 
 <div class="url-panel" id="urlPanel">
-  <input class="url-input" id="sheetUrl" placeholder="Link Google Sheets publish…" style="min-width:300px"/>
-  <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải</button>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">📊 MKT ADS</span>
+    <input class="url-input" id="sheetUrl" placeholder="Link Google Sheets MKT published CSV…"/>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">💰 SALE CRM</span>
+    <input class="url-input" id="saleUrl" placeholder="Link Google Sheets SALE/CRM published CSV…"/>
+  </div>
+  <div style="display:flex;justify-content:flex-end">
+    <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải cả hai</button>
+  </div>
 </div>
 
 <div class="app-body">
@@ -259,18 +268,14 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 
 <script>
 const COL={
-  CAMPAIGN:0,
-  AD_ID:1,
-  DATE:2,
-  REACH:4,
-  IMPRESSIONS:5,
-  SPEND:8,
-  MESSAGES:10,
-  CTR:11,
-  CPC:12,
-  COMMENTS:13,
+  CAMPAIGN:0,AD_ID:1,DATE:2,REACH:4,IMPRESSIONS:5,SPEND:8,MESSAGES:10,CTR:11,CPC:12,COMMENTS:13,
 };
-let allRows=[],chartBrand=null,chartProd=null,chartWave=null,sbCollapsed=false;
+const COL_SALE={
+  DATE_CREATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,
+  SALES_PERSON:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,
+  CONTENT:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,CUSTOMER_ID:16,
+};
+let allRows=[],saleRowsRaw=[],chartBrand=null,chartProd=null,chartWave=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -309,96 +314,123 @@ function switchPage(p){
 
 // ── Load ──
 async function loadData(){
-  const raw=document.getElementById('sheetUrl').value.trim();
-  if(!raw)return;
+  const mktRaw=document.getElementById('sheetUrl').value.trim();
+  const saleRaw=document.getElementById('saleUrl').value.trim();
+  if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
-    // FIX 1: Thêm cache-bust timestamp để bypass cache proxy & Google
-    const csvUrl=toCsv(raw)+'&cachebust='+Date.now();
-    console.log('[Dashboard] Fetching:', csvUrl);
-
-    const proxies=[
-      'https://corsproxy.io/?',
-      'https://api.allorigins.win/raw?url=',
-      'https://thingproxy.freeboard.io/fetch/',
-    ];
-    let res=null;
-    for(const proxy of proxies){
-      try{
-        console.log('[Dashboard] Trying proxy:', proxy);
-        res=await fetch(proxy+encodeURIComponent(csvUrl),{signal:AbortSignal.timeout(8000)});
-        if(res.ok){console.log('[Dashboard] Proxy OK:', proxy);break;}
-      }catch(e){console.warn('[Dashboard] Proxy failed:', proxy, e.message);continue;}
-    }
-    if(!res||!res.ok)throw new Error('Không kết nối được proxy. Thử lại sau!');
-    const text=await res.text();
-    console.log('[Dashboard] CSV received, length:', text.length, 'chars');
-
-    Papa.parse(text,{
-      skipEmptyLines:true,
-      complete:r=>{
-        const allData=r.data.slice(1).filter(row=>row.some(c=>c!==''));
-        console.log('[Dashboard] Total raw rows (bỏ header):', allData.length);
-
-        // Fill campaign name xuống dòng con
-        let lastCamp='';
-        allData.forEach(row=>{
-          if(row[COL.CAMPAIGN]&&row[COL.CAMPAIGN].trim())lastCamp=row[COL.CAMPAIGN].trim();
-          else row[COL.CAMPAIGN]=lastCamp;
-        });
-
-        window.allRowsRaw=allData;
-        console.log('[Dashboard] allRowsRaw (sau fill-down):', allData.length);
-
-        // FIX 2: Filter allRows nới rộng hơn
-        // Dòng tổng ngày: cột A = tên campaign, cột B = TRỐNG hoặc ký tự không phải mã số, cột C = ngày cụ thể
-        allRows=allData.filter(row=>{
-          const campName=(row[COL.CAMPAIGN]||'').trim();
-          if(!campName)return false;
-
-          // Cột B: coi là "trống" nếu sau trim rỗng, là dash, hoặc không phải chuỗi số dài (mã QC FB thường 15+ số)
-          const adIdRaw=String(row[COL.AD_ID]||'');
-          const adId=adIdRaw.trim();
-          const adIdIsBlank=adId===''||adId==='-'||adId==='—'||adId==='0';
-          // Mã QC thường là chuỗi thuần số dài ≥ 10 ký tự
-          const adIdIsCode=/^\d{8,}$/.test(adId);
-          if(adIdIsCode)return false; // Là ad con → bỏ qua
-          if(!adIdIsBlank)return false; // Có gì đó không rõ → bỏ qua
-
-          // Cột C: phải là ngày cụ thể
-          const dateCol=(row[COL.DATE]||'').trim();
-          if(!dateCol)return false;
-          const dl=dateCol.toLowerCase().replace(/\s/g,'');
-          if(dl==='all'||dl==='tấtcả'||dl==='tatca')return false;
-
-          // Phải parse được thành ngày hợp lệ
-          const d=parseDate(dateCol);
-          return d!==null;
-        });
-
-        console.log('[Dashboard] allRows (dòng ngày hợp lệ):', allRows.length);
-        if(allRows.length>0){
-          console.log('[Dashboard] Sample rows:', allRows.slice(0,5).map(r=>({
-            camp:r[0], adId:'"'+r[1]+'"', date:r[2], spend:r[8], mess:r[10]
-          })));
-          // In các ngày unique có trong data
-          const uniqueDates=[...new Set(allRows.map(r=>r[COL.DATE]))].sort();
-          console.log('[Dashboard] Ngày có data:', uniqueDates);
-        } else {
-          console.warn('[Dashboard] ⚠️ allRows rỗng! Check lại cột B và C trong sheet');
-          // Debug: in 10 dòng đầu để xem format
-          console.log('[Dashboard] Debug 10 dòng đầu allData:',
-            allData.slice(0,10).map(r=>({col_A:r[0], col_B:'"'+r[1]+'"', col_C:r[2]}))
-          );
-        }
-
-        document.getElementById('btnLoad').disabled=false;
-        applyFilter();
-      },
-      error:e=>{showErr('Lỗi parse: '+e.message);document.getElementById('btnLoad').disabled=false;}
-    });
+    const tasks=[fetchCsvWithProxy(mktRaw)];
+    if(saleRaw)tasks.push(fetchCsvWithProxy(saleRaw));
+    const results=await Promise.allSettled(tasks);
+    if(results[0].status==='rejected')throw new Error('MKT: '+results[0].reason.message);
+    parseMktCsv(results[0].value);
+    if(saleRaw&&results[1]&&results[1].status==='fulfilled')parseSaleCsv(results[1].value);
+    else if(saleRaw&&results[1]&&results[1].status==='rejected')console.warn('[SALE] Không tải được:',results[1].reason.message);
+    document.getElementById('btnLoad').disabled=false;
+    applyFilter();
   }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
+}
+
+async function fetchCsvWithProxy(rawUrl){
+  const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now();
+  const proxies=['https://corsproxy.io/?','https://api.allorigins.win/raw?url=','https://thingproxy.freeboard.io/fetch/'];
+  for(const proxy of proxies){
+    try{
+      const res=await fetch(proxy+encodeURIComponent(csvUrl),{signal:AbortSignal.timeout(10000)});
+      if(res.ok)return await res.text();
+    }catch(e){continue;}
+  }
+  throw new Error('Không kết nối được proxy');
+}
+
+function parseMktCsv(text){
+  let parsed;
+  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  const allData=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
+  let lastCamp='';
+  allData.forEach(row=>{
+    if(row[COL.CAMPAIGN]&&row[COL.CAMPAIGN].trim())lastCamp=row[COL.CAMPAIGN].trim();
+    else row[COL.CAMPAIGN]=lastCamp;
+  });
+  window.allRowsRaw=allData;
+  allRows=allData.filter(row=>{
+    const campName=(row[COL.CAMPAIGN]||'').trim();if(!campName)return false;
+    const adId=String(row[COL.AD_ID]||'').trim();
+    if(/^\d{8,}$/.test(adId))return false;
+    const adIdIsBlank=adId===''||adId==='-'||adId==='—'||adId==='0';
+    if(!adIdIsBlank)return false;
+    const dateCol=(row[COL.DATE]||'').trim();if(!dateCol)return false;
+    const dl=dateCol.toLowerCase().replace(/\s/g,'');
+    if(dl==='all'||dl==='tấtcả'||dl==='tatca')return false;
+    return parseDate(dateCol)!==null;
+  });
+  console.log('[MKT] allRows:',allRows.length,'/ raw:',allData.length);
+}
+
+function parseSaleCsv(text){
+  let parsed;
+  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  saleRowsRaw=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
+  console.log('[SALE] Rows parsed:',saleRowsRaw.length);
+}
+
+function buildAdCampMap(){
+  const map={};
+  (window.allRowsRaw||[]).forEach(r=>{
+    const adId=String(r[COL.AD_ID]||'').trim();
+    const camp=(r[COL.CAMPAIGN]||'').trim();
+    if(/^\d{8,}$/.test(adId)&&camp)map[adId]=camp;
+  });
+  return map;
+}
+
+function filterSaleRows(from,to){
+  const base=saleRowsRaw.filter(r=>{
+    const src=(r[COL_SALE.SOURCE]||'').trim().toLowerCase();
+    const ch=(r[COL_SALE.CHANNEL]||'').trim().toLowerCase();
+    const adId=(r[COL_SALE.AD_ID]||'').trim();
+    return src==='online'&&ch.includes('facebook')&&adId!=='';
+  });
+  if(!from&&!to)return base;
+  const fromD=from?localDate(from):null;
+  const toD=to?localDate(to,true):null;
+  return base.filter(r=>{
+    const isClosed=/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+    const dateCol=isClosed?r[COL_SALE.DATE_CLOSE]:r[COL_SALE.DATE_CREATE];
+    const d=parseDate(dateCol);if(!d)return false;
+    if(fromD&&d<fromD)return false;
+    if(toD&&d>toD)return false;
+    return true;
+  });
+}
+
+function calcSaleStats(saleFiltered){
+  if(!saleFiltered||!saleFiltered.length)return null;
+  const adCampMap=buildAdCampMap();
+  const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+  const closedRows=saleFiltered.filter(isChot);
+  const totalRevenue=closedRows.reduce((s,r)=>s+toNum(r[COL_SALE.REVENUE]),0);
+  const totalOrders=closedRows.length;
+  const totalLeads=saleFiltered.length;
+  const byCamp={};
+  saleFiltered.forEach(r=>{
+    const camp=adCampMap[(r[COL_SALE.AD_ID]||'').trim()];if(!camp)return;
+    if(!byCamp[camp])byCamp[camp]={leads:0,orders:0,revenue:0};
+    byCamp[camp].leads++;
+    if(isChot(r)){byCamp[camp].orders++;byCamp[camp].revenue+=toNum(r[COL_SALE.REVENUE]);}
+  });
+  const byBrand={HT:{leads:0,orders:0,revenue:0},Shidai:{leads:0,orders:0,revenue:0},CT:{leads:0,orders:0,revenue:0}};
+  const byProd={};
+  Object.entries(byCamp).forEach(([camp,s])=>{
+    const br=detectBrand(camp);if(byBrand[br]){byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;}
+    const pr=detectProduct(camp);if(!byProd[pr])byProd[pr]={leads:0,orders:0,revenue:0};
+    byProd[pr].leads+=s.leads;byProd[pr].orders+=s.orders;byProd[pr].revenue+=s.revenue;
+  });
+  return{totalRevenue,totalOrders,totalLeads,
+    avgOrderValue:totalOrders>0?totalRevenue/totalOrders:0,
+    convRate:totalLeads>0?totalOrders/totalLeads:0,
+    byCamp,byBrand,byProd};
 }
 
 function toCsv(u){
@@ -430,7 +462,18 @@ function applyFilter(){
   }
   if(brand!=='all')rows=rows.filter(r=>detectBrand(r[COL.CAMPAIGN])===brand);
   if(prod!=='all')rows=rows.filter(r=>detectProduct(r[COL.CAMPAIGN])===prod);
-  renderAll(rows);
+
+  let saleFiltered=filterSaleRows(from,to);
+  if(saleFiltered.length&&(brand!=='all'||prod!=='all')){
+    const adCampMap=buildAdCampMap();
+    saleFiltered=saleFiltered.filter(r=>{
+      const camp=adCampMap[(r[COL_SALE.AD_ID]||'').trim()];if(!camp)return false;
+      if(brand!=='all'&&detectBrand(camp)!==brand)return false;
+      if(prod!=='all'&&detectProduct(camp)!==prod)return false;
+      return true;
+    });
+  }
+  renderAll(rows,saleFiltered);
 }
 function clearFilter(){
   document.getElementById('dateFrom').value='';
@@ -489,11 +532,12 @@ function getBrandBadge(name){
 }
 
 // ── Render All ──
-function renderAll(rows){
+function renderAll(rows,saleFiltered){
   if(chartBrand){chartBrand.destroy();chartBrand=null;}
   if(chartProd){chartProd.destroy();chartProd=null;}
   if(chartWave){chartWave.destroy();chartWave=null;}
   const kpi=calcKPI(rows);
+  const saleStats=calcSaleStats(saleFiltered||[]);
   const byCamp=groupByCamp(rows);
   const camps=Object.values(byCamp).sort((a,b)=>b.spend-a.spend);
   const dates=rows.map(r=>parseDate(r[COL.DATE])).filter(Boolean);
@@ -516,10 +560,7 @@ function renderAll(rows){
   const total=htSpend+sdSpend+ctSpend||1;
 
   const prodCount={};
-  camps.forEach(c=>{
-    const p=detectProduct(c.name);
-    prodCount[p]=(prodCount[p]||0)+1;
-  });
+  camps.forEach(c=>{const p=detectProduct(c.name);prodCount[p]=(prodCount[p]||0)+1;});
 
   const allProds=[...new Set(allRows.map(r=>detectProduct(r[COL.CAMPAIGN])))].filter(Boolean).sort();
 
@@ -527,16 +568,16 @@ function renderAll(rows){
   const _pf=document.getElementById('prodFilter');
   const _bv=_bf?_bf.value:'all';
   const _pv=_pf?_pf.value:'all';
-  renderOverview(rows,kpi,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds);
+  renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds,saleFiltered||[]);
   const bf2=document.getElementById('brandFilter');
   const pf2=document.getElementById('prodFilter');
   if(bf2)bf2.value=_bv;
   if(pf2&&allProds.includes(_pv))pf2.value=_pv;
-  renderDetail(camps,period,rows);
+  renderDetail(camps,period,rows,saleStats);
 }
 
 // ── TỔNG QUAN ──
-function renderOverview(rows,kpi,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds){
+function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds,saleFiltered){
   document.getElementById('page-overview').innerHTML=`
     <div class="page-title">Tổng Quan</div>
     <div class="page-sub">Chọn brand & khoảng ngày trên topbar để lọc</div>
@@ -561,14 +602,14 @@ function renderOverview(rows,kpi,camps,period,htSpend,sdSpend,ctSpend,total,prod
       ${mkKpi('💰','Tổng Chi Phí',vnd(kpi.totalSpend),'ngân sách đã tiêu','g-blue')}
       ${mkKpi('💬','Tổng Mess',num(kpi.totalMess),'lượt trò chuyện','g-green')}
       ${mkKpi('📌','CP / Mess',vnd(kpi.costPerMess),'trung bình / mess','g-yellow')}
-      ${mkKpi('📊','ADS/DS',kpi.roas>0?kpi.roas.toFixed(2)+'x':'—','chi phí / doanh số','g-purple')}
+      ${mkKpi('📊','ADS/DS',saleStats&&saleStats.totalRevenue>0?(kpi.totalSpend/saleStats.totalRevenue).toFixed(2)+'x':'—','chi phí / doanh số','g-purple')}
     </div>
     <div class="sec-label">Sale Performance</div>
     <div class="kpi-grid">
-      ${mkKpi('💵','Doanh Số','—','chưa có dữ liệu','g-teal')}
-      ${mkKpi('🛍️','Số Đơn Chốt','—','chưa có dữ liệu','g-orange')}
-      ${mkKpi('📦','DS TB / Đơn','—','chưa có dữ liệu','g-pink')}
-      ${mkKpi('🎯','Tỷ Lệ Chốt','—','chưa có dữ liệu','g-red')}
+      ${mkKpi('💵','Doanh Số',saleStats?vnd(saleStats.totalRevenue):'—',saleStats?saleStats.totalOrders+' đơn đã chốt':'chưa có dữ liệu','g-teal')}
+      ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' leads':'chưa có dữ liệu','g-orange')}
+      ${mkKpi('📦','DS TB / Đơn',saleStats&&saleStats.totalOrders>0?vnd(saleStats.avgOrderValue):'—','trung bình / đơn chốt','g-pink')}
+      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&saleStats.totalLeads>0?pct(saleStats.convRate):'—',saleStats?'chốt / tổng leads FB':'chưa có dữ liệu','g-red')}
     </div>
 
     <div class="sec-label">Phân Tích</div>
@@ -604,7 +645,7 @@ function renderOverview(rows,kpi,camps,period,htSpend,sdSpend,ctSpend,total,prod
         <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
         <span class="period-chip" style="font-size:11px">📅 ${period}</span>
       </div>
-      <div class="tov-scroll" id="tovBody">${buildGroupedTable(rows)}</div>
+      <div class="tov-scroll" id="tovBody">${buildGroupedTable(rows,saleStats)}</div>
     </div>`;
 
   window._tovRows=rows;
@@ -616,43 +657,47 @@ function renderOverview(rows,kpi,camps,period,htSpend,sdSpend,ctSpend,total,prod
   }
   buildBrandChart(htSpend,sdSpend,ctSpend,total);
   buildProdChart(prodCount);
-  buildWaveChart(rows);
+  buildWaveChart(rows,saleFiltered);
 }
 
-function buildGroupedTable(rows){
+function buildGroupedTable(rows,saleStats){
   const cols=['Brand / Sản phẩm','Ngân sách Ads','Số Mess','Số Comment','CP/Mess','ADS/DS','Doanh số','Đơn chốt','DS TB/đơn','Tỷ lệ chốt'];
   let html=`<table class="grp-table"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
-  function rowCells(kpi){
+  function rowCells(kpi,sd){
+    const adsDs=sd&&sd.revenue>0?(kpi.spend/sd.revenue).toFixed(2)+'x':'—';
+    const dsColor=sd&&sd.revenue>0?'var(--text)':'var(--muted)';
     return `<td class="num-cell">${vnd(kpi.spend)}</td>
             <td class="num-cell">${num(kpi.mess)}</td>
             <td class="num-cell">${kpi.comments>0?num(kpi.comments):'—'}</td>
             <td class="num-cell">${kpi.mess>0?vnd(kpi.spend/kpi.mess):'—'}</td>
-            <td style="color:var(--muted);font-weight:500">—</td>
-            <td style="color:var(--muted);font-weight:500">—</td>
-            <td style="color:var(--muted);font-weight:500">—</td>
-            <td style="color:var(--muted);font-weight:500">—</td>
-            <td style="color:var(--muted);font-weight:500">—</td>`;
+            <td class="num-cell" style="color:${sd&&sd.revenue>0?'var(--green)':'var(--muted)'};font-weight:700">${adsDs}</td>
+            <td class="num-cell" style="color:${dsColor};font-weight:700">${sd?vnd(sd.revenue):'—'}</td>
+            <td class="num-cell" style="color:${dsColor}">${sd?num(sd.orders):'—'}</td>
+            <td class="num-cell" style="color:${dsColor}">${sd&&sd.orders>0?vnd(sd.revenue/sd.orders):'—'}</td>
+            <td class="num-cell" style="color:${dsColor}">${sd&&sd.leads>0?pct(sd.orders/sd.leads):'—'}</td>`;
   }
   const byBrand={HT:[],Shidai:[],CT:[]};
   rows.forEach(r=>{const b=detectBrand(r[COL.CAMPAIGN]);if(byBrand[b])byBrand[b].push(r);});
   ['HT','Shidai','CT'].forEach(br=>{
     if(!byBrand[br].length)return;
     const bkpi=calcKPIRows(byBrand[br]);
+    const brSd=saleStats?saleStats.byBrand[br]:null;
     const bc=br==='HT'?'row-brand-ht':br==='Shidai'?'row-brand-sd':'row-brand-ct';
     const bl=br==='HT'?'<span class="brand-ht">Hiền Thuỷ</span>':br==='Shidai'?'<span class="brand-sd">Shidai</span>':'<span class="brand-ct">Chánh Tâm</span>';
-    html+=`<tr class="${bc}"><td>${bl}</td>${rowCells(bkpi)}</tr>`;
+    html+=`<tr class="${bc}"><td>${bl}</td>${rowCells(bkpi,brSd)}</tr>`;
     const byProd={};
     byBrand[br].forEach(r=>{const p=detectProduct(r[COL.CAMPAIGN]);if(!byProd[p])byProd[p]=[];byProd[p].push(r);});
     Object.entries(byProd).sort((a,b)=>calcKPIRows(b[1]).spend-calcKPIRows(a[1]).spend).forEach(([p,pr])=>{
       const pkpi=calcKPIRows(pr);
-      html+=`<tr class="row-product"><td>↳ ${p}</td>${rowCells(pkpi)}</tr>`;
+      const prSd=saleStats?saleStats.byProd[p]:null;
+      html+=`<tr class="row-product"><td>↳ ${p}</td>${rowCells(pkpi,prSd)}</tr>`;
     });
   });
   return html+'</tbody></table>';
 }
 
 // ── CHI TIẾT ──
-function renderDetail(camps,period,filteredRows){
+function renderDetail(camps,period,filteredRows,saleStats){
   const maxSpend=Math.max(...camps.map(c=>c.spend),1);
   const rows=camps.map(g=>{
     const cpm=g.mess>0?g.spend/g.mess:0;
@@ -661,6 +706,8 @@ function renderDetail(camps,period,filteredRows){
     const st=(g.status||'').toLowerCase();
     const bdg=st==='active'?'badge-active':st==='archived'?'badge-archived':'badge-other';
     const safeId=encodeURIComponent(g.name);
+    const campSale=saleStats?saleStats.byCamp[g.name]:null;
+    const adsDs=campSale&&campSale.revenue>0?(g.spend/campSale.revenue).toFixed(2)+'x':'—';
     return`<tr class="camp-row" onclick="toggleAds('${safeId}')" style="cursor:pointer">
       <td style="width:32px;text-align:center;font-size:11px;color:var(--muted)" id="arrow-${safeId}">▶</td>
       <td class="name" title="${g.name}">${g.name}</td>
@@ -670,7 +717,7 @@ function renderDetail(camps,period,filteredRows){
       <td class="num">${num(g.mess)}</td>
       <td class="num">${g.comments>0?num(g.comments):'—'}</td>
       <td class="num">${vnd(cpm)}</td>
-      <td class="num">—</td>
+      <td class="num" style="${campSale&&campSale.revenue>0?'color:var(--green);font-weight:800':'color:var(--muted)'}">${adsDs}</td>
       <td class="num">${pct(actr)}</td>
     </tr>
     <tr id="ads-${safeId}" style="display:none"><td colspan="10" style="padding:0">
@@ -710,7 +757,7 @@ function renderDetail(camps,period,filteredRows){
           <th style="width:32px"></th>
           <th>Tên chiến dịch</th><th>Brand</th><th>Trạng thái</th>
           <th>Chi phí</th><th>Mess</th><th>Comment</th><th>CP/Mess</th>
-          <th>Kết quả</th><th>CTR</th>
+          <th>ADS/DS</th><th>CTR</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
@@ -905,20 +952,25 @@ function buildProdChart(prodCount){
   });
 }
 
-function buildWaveChart(rows){
+function buildWaveChart(rows,saleFiltered){
   const ctx=document.getElementById('cWave');if(!ctx)return;
   const byDate={};
   rows.forEach(r=>{
-    const d=parseDate(r[COL.DATE]);
-    if(!d)return;
-    const k=fmtDate(d);
-    byDate[k]=(byDate[k]||0)+toNum(r[COL.SPEND]);
+    const d=parseDate(r[COL.DATE]);if(!d)return;
+    const k=fmtDate(d);byDate[k]=(byDate[k]||0)+toNum(r[COL.SPEND]);
   });
-  const sortedDates=Object.keys(byDate).sort((a,b)=>{
-    const da=parseDate(a),db=parseDate(b);
-    return da&&db?da-db:0;
+  const byDateRev={};
+  (saleFiltered||[]).filter(r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'')).forEach(r=>{
+    const d=parseDate(r[COL_SALE.DATE_CLOSE]);if(!d)return;
+    const k=fmtDate(d);byDateRev[k]=(byDateRev[k]||0)+toNum(r[COL_SALE.REVENUE]);
+  });
+  const allDates=[...new Set([...Object.keys(byDate),...Object.keys(byDateRev)])].sort((a,b)=>{
+    const da=parseDate(a),db=parseDate(b);return da&&db?da-db:0;
   }).slice(-7);
+  const sortedDates=allDates.length?allDates:Object.keys(byDate).sort((a,b)=>{const da=parseDate(a),db=parseDate(b);return da&&db?da-db:0;}).slice(-7);
   const spendData=sortedDates.map(d=>byDate[d]||0);
+  const hasRevData=Object.keys(byDateRev).length>0;
+  const revData=sortedDates.map(d=>byDateRev[d]!==undefined?byDateRev[d]:null);
   if(chartWave){chartWave.destroy();chartWave=null;}
   const canvasCtx=ctx.getContext('2d');
   const gradBlue=canvasCtx.createLinearGradient(0,0,0,220);
@@ -933,9 +985,9 @@ function buildWaveChart(rows){
         {label:'Chi phí Ads',data:spendData,borderColor:'#4361ee',backgroundColor:gradBlue,borderWidth:2.5,
           pointBackgroundColor:'#fff',pointBorderColor:'#4361ee',pointBorderWidth:2,
           pointRadius:4,pointHoverRadius:7,fill:true,tension:.4},
-        {label:'Doanh Thu',data:sortedDates.map(()=>null),borderColor:'#0abf7a',backgroundColor:gradGreen,
+        {label:'Doanh Thu',data:hasRevData?revData:sortedDates.map(()=>null),borderColor:'#0abf7a',backgroundColor:gradGreen,
           borderWidth:2.5,pointBackgroundColor:'#fff',pointBorderColor:'#0abf7a',pointBorderWidth:2,
-          pointRadius:4,pointHoverRadius:7,fill:true,tension:.4,borderDash:[6,4]}
+          pointRadius:4,pointHoverRadius:7,fill:true,tension:.4,borderDash:hasRevData?[]:[6,4]}
       ]
     },
     options:{
@@ -1037,6 +1089,8 @@ function toggleUrlPanel(){
 window.onload=function(){
   const el=document.getElementById('sheetUrl');
   if(el)el.value='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
+  const sl=document.getElementById('saleUrl');
+  if(sl)sl.value='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pubhtml?gid=2107421092&single=true';
   loadData();
 };
 </script>
