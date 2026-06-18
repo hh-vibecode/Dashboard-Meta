@@ -383,26 +383,34 @@ function parseMktCsv(text){
   COL.AD_NAME    =ci(['tên quảng cáo','ad name'],-1);
   console.log('[MKT] COL detected:',JSON.stringify(COL));
   const allData=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
-  // Fill-down: campaign name resets ad-set tracker; ad set name fills within campaign
-  let lastCamp='',lastAdSet='';
+  // Fill-down: date, campaign, ad-set (FB report only puts values on first row of each group)
+  let lastCamp='',lastAdSet='',lastDate='';
   allData.forEach(row=>{
+    // Fill-down date (skip 'all' rows — those are grand-total rows)
+    const dv=(row[COL.DATE]||'').trim();
+    if(dv&&dv.toLowerCase()!=='all')lastDate=dv;
+    else if(!dv)row[COL.DATE]=lastDate;
+    // Fill-down campaign
     const camp=(row[COL.CAMPAIGN]||'').trim();
-    if(camp){lastCamp=camp;lastAdSet='';}
-    else row[COL.CAMPAIGN]=lastCamp;
+    if(camp&&camp.toLowerCase()!=='all'){lastCamp=camp;lastAdSet='';}
+    else if(!camp)row[COL.CAMPAIGN]=lastCamp;
+    // Fill-down ad-set
     if(COL.ADSET_NAME>=0){
       const as=(row[COL.ADSET_NAME]||'').trim();
-      if(as)lastAdSet=as;
-      else row[COL.ADSET_NAME]=lastAdSet;
+      if(as&&as.toLowerCase()!=='all')lastAdSet=as;
+      else if(!as)row[COL.ADSET_NAME]=lastAdSet;
     }
   });
   window.allRowsRaw=allData;
   allRows=allData.filter(row=>{
-    const campName=(row[COL.CAMPAIGN]||'').trim();if(!campName)return false;
+    const campName=(row[COL.CAMPAIGN]||'').trim();
+    if(!campName||campName.toLowerCase()==='all')return false; // skip empty + grand-total rows
     const adId=String(row[COL.AD_ID]||'').trim();
-    if(/^\d{8,}$/.test(adId))return false;
-    const adIdIsBlank=adId===''||adId==='-'||adId==='—'||adId==='0';
+    if(/^\d{8,}$/.test(adId))return false; // skip numeric ad-level rows
+    // Treat blank, dash, zero, OR "all/tất cả" as campaign-level rows
+    const adIdIsBlank=!adId||adId==='-'||adId==='—'||adId==='0'||adId.toLowerCase()==='all'||adId==='tất cả';
     if(!adIdIsBlank)return false;
-    // Exclude ad-set and ad level rows (have non-empty ad set name after fill-down)
+    // Exclude ad-set level rows
     if(COL.ADSET_NAME>=0&&(row[COL.ADSET_NAME]||'').trim())return false;
     const dateCol=(row[COL.DATE]||'').trim();if(!dateCol)return false;
     const dl=dateCol.toLowerCase().replace(/\s/g,'');
@@ -414,10 +422,11 @@ function parseMktCsv(text){
     console.warn('[MKT] ADSET_NAME col excluded all rows — disabling, retrying filter');
     COL.ADSET_NAME=-1;
     allRows=allData.filter(row=>{
-      const campName=(row[COL.CAMPAIGN]||'').trim();if(!campName)return false;
+      const campName=(row[COL.CAMPAIGN]||'').trim();
+      if(!campName||campName.toLowerCase()==='all')return false;
       const adId=String(row[COL.AD_ID]||'').trim();
       if(/^\d{8,}$/.test(adId))return false;
-      const adIdIsBlank=adId===''||adId==='-'||adId==='—'||adId==='0';
+      const adIdIsBlank=!adId||adId==='-'||adId==='—'||adId==='0'||adId.toLowerCase()==='all'||adId==='tất cả';
       if(!adIdIsBlank)return false;
       const dateCol=(row[COL.DATE]||'').trim();if(!dateCol)return false;
       const dl=dateCol.toLowerCase().replace(/\s/g,'');
