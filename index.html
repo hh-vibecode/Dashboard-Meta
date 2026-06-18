@@ -275,7 +275,7 @@ const COL_SALE={
   SALES_PERSON:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,
   CONTENT:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,CUSTOMER_ID:16,
 };
-let allRows=[],saleRowsRaw=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,sbCollapsed=false;
+let allRows=[],saleRowsRaw=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -538,6 +538,7 @@ function renderAll(rows,saleFiltered){
   if(chartProd){chartProd.destroy();chartProd=null;}
   if(chartWave){chartWave.destroy();chartWave=null;}
   if(chartProdRev){chartProdRev.destroy();chartProdRev=null;}
+  if(chartBrandRev){chartBrandRev.destroy();chartBrandRev=null;}
   const kpi=calcKPI(rows);
   const saleStats=calcSaleStats(saleFiltered||[]);
   const byCamp=groupByCamp(rows);
@@ -621,8 +622,11 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
         <div class="chart-wrap"><canvas id="cBrand"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-head"><div class="chart-title">Tỷ Trọng Sản Phẩm</div><span class="chart-sub">${camps.length} chiến dịch</span></div>
-        <div class="chart-wrap"><canvas id="cProd"></canvas></div>
+        <div class="chart-head"><div class="chart-title">Doanh Số Theo Brand</div><span class="chart-sub">${saleStats&&saleStats.totalRevenue>0?vnd(saleStats.totalRevenue)+' tổng':'từ CRM đã chốt'}</span></div>
+        ${saleStats&&Object.values(saleStats.byBrand).some(b=>b.revenue>0)
+          ?'<div class="chart-wrap"><canvas id="cBrandRev"></canvas></div>'
+          :'<div class="chart-empty"><div class="icon">💰</div><p>Chưa có dữ liệu doanh số<br>Tải SALE/CRM để hiển thị</p></div>'
+        }
       </div>
       <div class="chart-card">
         <div class="chart-head">
@@ -658,7 +662,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     if(allProds.includes(cur))pf.value=cur;
   }
   buildBrandChart(htSpend,sdSpend,ctSpend,total);
-  buildProdChart(prodCount);
+  buildBrandRevChart(saleStats);
   buildWaveChart(rows,saleFiltered);
   buildProdRevChart(saleStats);
 }
@@ -778,7 +782,9 @@ function toggleAds(safeId){
     const fromD=fromVal?localDate(fromVal):null;
     const toD=toVal?localDate(toVal,true):null;
 
-    const adRowsAll=(window.allRowsRaw||[]).filter(r=>{
+    const _rawAll=window.allRowsRaw||[];
+    // Try dated rows within filter range first
+    let adRowsAll=_rawAll.filter(r=>{
       if((r[COL.CAMPAIGN]||'').trim()!==campName)return false;
       const adId=String(r[COL.AD_ID]||'').trim();
       if(!/^\d{8,}$/.test(adId))return false;
@@ -789,6 +795,14 @@ function toggleAds(safeId){
       if(toD&&d>toD)return false;
       return true;
     });
+    // Fallback: rows with no date or "all" (cumulative campaign totals per ad)
+    if(!adRowsAll.length){
+      adRowsAll=_rawAll.filter(r=>{
+        if((r[COL.CAMPAIGN]||'').trim()!==campName)return false;
+        const adId=String(r[COL.AD_ID]||'').trim();
+        return /^\d{8,}$/.test(adId);
+      });
+    }
 
     // Per-ad CRM stats
     const adCrm={};
@@ -870,6 +884,38 @@ function buildBrandChart(htSpend,sdSpend,ctSpend,total){
           }
         }},
         tooltip:{callbacks:{label:ctx=>' '+vnd(ctx.raw)+' ('+Math.round(ctx.raw/total*100)+'%)'}}
+      }
+    }
+  });
+}
+
+function buildBrandRevChart(saleStats){
+  const ctx=document.getElementById('cBrandRev');if(!ctx)return;
+  if(!saleStats)return;
+  const labels=[],data=[],bgC=[],bdC=[];
+  const totalRev=Object.values(saleStats.byBrand).reduce((s,b)=>s+b.revenue,0);
+  if(!totalRev)return;
+  if(saleStats.byBrand.HT.revenue>0){labels.push('Hiền Thuỷ');data.push(saleStats.byBrand.HT.revenue);bgC.push('rgba(249,115,22,.85)');bdC.push('#f97316');}
+  if(saleStats.byBrand.Shidai.revenue>0){labels.push('Shidai');data.push(saleStats.byBrand.Shidai.revenue);bgC.push('rgba(8,145,178,.85)');bdC.push('#0891b2');}
+  if(saleStats.byBrand.CT.revenue>0){labels.push('Chánh Tâm');data.push(saleStats.byBrand.CT.revenue);bgC.push('rgba(124,58,237,.85)');bdC.push('#7c3aed');}
+  if(chartBrandRev){chartBrandRev.destroy();chartBrandRev=null;}
+  chartBrandRev=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,hoverOffset:8}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{
+        legend:{position:'right',labels:{color:'var(--text)',font:{size:11,family:'Inter',weight:'600'},padding:14,
+          generateLabels:c=>{
+            const d=c.data;
+            return d.labels.map((label,i)=>{
+              const val=d.datasets[0].data[i];
+              const p=Math.round(val/totalRev*100);
+              return{text:`${label}  ${p}%`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:d.datasets[0].borderColor[i],lineWidth:2,hidden:false,index:i};
+            });
+          }
+        }},
+        tooltip:{callbacks:{label:c=>' '+vnd(c.raw)+' ('+Math.round(c.raw/totalRev*100)+'%)'}}
       }
     }
   });
