@@ -244,15 +244,15 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="app-body">
   <div class="sidebar" id="sidebar">
     <div class="sb-strip"></div>
-    <div class="sb-section">Menu</div>
+    <div class="sb-section">Marketing</div>
     <nav>
       <div class="nav-item active" onclick="switchPage('overview')" id="nav-overview"><span class="nav-icon">📊</span><span class="nav-label">Tổng Quan</span></div>
       <div class="nav-item" onclick="switchPage('detail')" id="nav-detail"><span class="nav-icon">📋</span><span class="nav-label">Chi Tiết</span></div>
     </nav>
-    <div class="sb-section" style="margin-top:12px">Sắp có</div>
+    <div class="sb-section" style="margin-top:12px">Sale</div>
     <nav>
-      <div class="nav-item" style="opacity:.4;cursor:default"><span class="nav-icon">💰</span><span class="nav-label">Sale & Doanh Thu</span><span class="nav-badge">Soon</span></div>
-      <div class="nav-item" style="opacity:.4;cursor:default"><span class="nav-icon">⚙️</span><span class="nav-label">Cài Đặt</span><span class="nav-badge">Soon</span></div>
+      <div class="nav-item" onclick="switchPage('sale-overview')" id="nav-sale-overview"><span class="nav-icon">💰</span><span class="nav-label">Tổng Quan</span></div>
+      <div class="nav-item" onclick="switchPage('sale-detail')" id="nav-sale-detail"><span class="nav-icon">📑</span><span class="nav-label">Chi Tiết</span></div>
     </nav>
   </div>
 
@@ -261,6 +261,12 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
     <div class="tab-page" id="page-detail">
+      <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
+    </div>
+    <div class="tab-page" id="page-sale-overview">
+      <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
+    </div>
+    <div class="tab-page" id="page-sale-detail">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
   </div>
@@ -306,7 +312,7 @@ function toggleSidebar(){
 })();
 
 function switchPage(p){
-  ['overview','detail'].forEach(x=>{
+  ['overview','detail','sale-overview','sale-detail'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     document.getElementById('nav-'+x).classList.toggle('active',x===p);
   });
@@ -718,6 +724,7 @@ function renderAll(rows,saleFiltered){
   if(bf2)bf2.value=_bv;
   if(pf2&&allProds.includes(_pv))pf2.value=_pv;
   renderDetail(camps,period,rows,saleStats);
+  renderSaleDetail(saleFiltered||[]);
 }
 
 // ── TỔNG QUAN ──
@@ -748,14 +755,6 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       ${mkKpi('📌','CP / Mess',vnd(kpi.costPerMess),'trung bình / mess','g-yellow')}
       ${mkKpi('📊','ADS/DS',saleStats&&saleStats.totalRevenue>0?pct(kpi.totalSpend/saleStats.totalRevenue*100):'—','chi phí / doanh số','g-purple')}
     </div>
-    <div class="sec-label">Sale Performance</div>
-    <div class="kpi-grid">
-      ${mkKpi('💵','Doanh Số',saleStats?vnd(saleStats.totalRevenue):'—',saleStats?saleStats.totalOrders+' đơn đã chốt':'chưa có dữ liệu','g-teal')}
-      ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' leads':'chưa có dữ liệu','g-orange')}
-      ${mkKpi('📦','DS TB / Đơn',saleStats&&saleStats.totalOrders>0?vnd(saleStats.avgOrderValue):'—','trung bình / đơn chốt','g-pink')}
-      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&kpi.totalMess>0?pct(saleStats.totalOrders/kpi.totalMess*100):'—',saleStats?'đơn chốt / tổng mess':'chưa có dữ liệu','g-red')}
-    </div>
-
     <div class="sec-label">Phân Tích</div>
     <div class="charts-2col-grid">
       <div class="chart-card">
@@ -763,36 +762,12 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
         <div class="chart-wrap"><canvas id="cBrand"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-head"><div class="chart-title">Doanh Số Theo Brand</div><span class="chart-sub">${saleStats&&saleStats.totalRevenue>0?vnd(saleStats.totalRevenue)+' tổng':'từ CRM đã chốt'}</span></div>
-        ${saleStats&&Object.values(saleStats.byBrand).some(b=>b.revenue>0)
-          ?'<div class="chart-wrap"><canvas id="cBrandRev"></canvas></div>'
-          :'<div class="chart-empty"><div class="icon">💰</div><p>Chưa có dữ liệu doanh số<br>Tải SALE/CRM để hiển thị</p></div>'
-        }
-      </div>
-      <div class="chart-card">
         <div class="chart-head">
           <div class="chart-title">Chi Phí Ads — 7 Ngày</div>
-          <span class="chart-sub">Chi phí ads có data · DS chờ sheet 4.DATA DT</span>
+          <span class="chart-sub">7 ngày gần nhất</span>
         </div>
         <div class="chart-wrap" style="height:220px"><canvas id="cWave"></canvas></div>
       </div>
-      <div class="chart-card">
-        <div class="chart-head"><div class="chart-title">Doanh Số Theo Nhóm SP</div><span class="chart-sub">${saleStats&&saleStats.totalRevenue>0?vnd(saleStats.totalRevenue)+' tổng':'từ CRM đã chốt'}</span></div>
-        ${saleStats&&Object.values(saleStats.byProd).some(p=>p.revenue>0)
-          ?'<div class="chart-wrap" style="height:220px"><canvas id="cProdRev"></canvas></div>'
-          :'<div class="chart-empty" style="height:220px"><div class="icon">📊</div><p>Chưa có dữ liệu doanh số<br>Tải SALE/CRM để hiển thị</p></div>'
-        }
-      </div>
-    </div>
-
-    <div class="sec-label">Brand → Loại Sản Phẩm</div>
-    <div class="tov-card">
-      <div class="tov-head">
-        <div class="tov-title">Bảng Tổng Quan</div>
-        <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
-        <span class="period-chip" style="font-size:11px">📅 ${period}</span>
-      </div>
-      <div class="tov-scroll" id="tovBody">${buildGroupedTable(rows,saleStats)}</div>
     </div>`;
 
   window._tovRows=rows;
@@ -803,8 +778,53 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     if(allProds.includes(cur))pf.value=cur;
   }
   buildBrandChart(htSpend,sdSpend,ctSpend,total);
-  buildBrandRevChart(saleStats);
   buildWaveChart(rows,saleFiltered);
+  renderSaleOverview(saleStats,camps,period,rows,saleFiltered);
+}
+
+function renderSaleOverview(saleStats,camps,period,rows,saleFiltered){
+  document.getElementById('page-sale-overview').innerHTML=`
+    <div class="page-title">Sale — Tổng Quan</div>
+    <div class="page-sub">Dữ liệu từ CRM · Facebook Online</div>
+    <div class="period-bar">
+      <div class="period-chip">📅 ${period}</div>
+      <div class="stat-chip">🛍️ ${saleStats?saleStats.totalOrders:0} đơn chốt</div>
+      <div class="stat-chip">👥 ${saleStats?saleStats.totalLeads:0} leads</div>
+    </div>
+    <div class="sec-label">Sale Performance</div>
+    <div class="kpi-grid">
+      ${mkKpi('💵','Doanh Số',saleStats?vnd(saleStats.totalRevenue):'—',saleStats?saleStats.totalOrders+' đơn đã chốt':'chưa có dữ liệu','g-teal')}
+      ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' leads':'chưa có dữ liệu','g-orange')}
+      ${mkKpi('📦','DS TB / Đơn',saleStats&&saleStats.totalOrders>0?vnd(saleStats.avgOrderValue):'—','trung bình / đơn chốt','g-pink')}
+      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&saleStats.totalLeads>0?pct(saleStats.totalOrders/saleStats.totalLeads*100):'—',saleStats?'đơn chốt / leads':'chưa có dữ liệu','g-red')}
+    </div>
+    <div class="sec-label">Phân Tích Doanh Số</div>
+    <div class="charts-2col-grid">
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">Doanh Số Theo Brand</div><span class="chart-sub">${saleStats&&saleStats.totalRevenue>0?vnd(saleStats.totalRevenue)+' tổng':'từ CRM đã chốt'}</span></div>
+        ${saleStats&&Object.values(saleStats.byBrand).some(b=>b.revenue>0)
+          ?'<div class="chart-wrap"><canvas id="cBrandRev"></canvas></div>'
+          :'<div class="chart-empty"><div class="icon">💰</div><p>Chưa có dữ liệu doanh số<br>Tải SALE/CRM để hiển thị</p></div>'
+        }
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">Doanh Số Theo Nhóm SP</div><span class="chart-sub">${saleStats&&saleStats.totalRevenue>0?vnd(saleStats.totalRevenue)+' tổng':'từ CRM đã chốt'}</span></div>
+        ${saleStats&&Object.values(saleStats.byProd).some(p=>p.revenue>0)
+          ?'<div class="chart-wrap" style="height:220px"><canvas id="cProdRev"></canvas></div>'
+          :'<div class="chart-empty" style="height:220px"><div class="icon">📊</div><p>Chưa có dữ liệu doanh số<br>Tải SALE/CRM để hiển thị</p></div>'
+        }
+      </div>
+    </div>
+    <div class="sec-label">Brand → Loại Sản Phẩm</div>
+    <div class="tov-card">
+      <div class="tov-head">
+        <div class="tov-title">Bảng Tổng Quan Sale</div>
+        <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
+        <span class="period-chip" style="font-size:11px">📅 ${period}</span>
+      </div>
+      <div class="tov-scroll">${buildGroupedTable(rows,saleStats)}</div>
+    </div>`;
+  buildBrandRevChart(saleStats);
   buildProdRevChart(saleStats);
 }
 
@@ -920,6 +940,61 @@ function renderDetail(camps,period,filteredRows,saleStats){
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
+    </div>`;
+}
+
+// ── SALE CHI TIẾT ──
+function renderSaleDetail(saleFiltered){
+  const adCampMap=buildAdCampMap();
+  const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+  const rows=[...saleFiltered].sort((a,b)=>{
+    const da=parseDate(a[COL_SALE.DATE_CREATE]),db=parseDate(b[COL_SALE.DATE_CREATE]);
+    return db&&da?db-da:0;
+  });
+  const statusBadge=r=>{
+    const s=(r[COL_SALE.STATUS]||'').trim();
+    if(isChot(r))return`<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700">✓ Chốt</span>`;
+    if(/tiềm năng/i.test(s))return`<span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Tiềm năng</span>`;
+    if(/chăm sóc/i.test(s))return`<span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">Chăm sóc</span>`;
+    return`<span style="color:var(--muted);font-size:11px">${s||'—'}</span>`;
+  };
+  const tableRows=rows.map(r=>{
+    const adId=(r[COL_SALE.AD_ID]||'').trim();
+    const camp=adId?adCampMap[adId]:'';
+    const rev=toNum(r[COL_SALE.REVENUE]);
+    return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SALE.DATE_CREATE]||'—'}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:600">${r[COL_SALE.NAME]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted)">${r[COL_SALE.PHONE]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px">${r[COL_SALE.PRODUCT]||'—'}</td>
+      <td style="padding:8px 12px;font-size:11px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">${camp||'📲 Trực tiếp'}</td>
+      <td style="padding:8px 12px">${statusBadge(r)}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:700;text-align:right;color:${rev>0?'var(--green)':'var(--muted)'}">${rev>0?vnd(rev):'—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('page-sale-detail').innerHTML=`
+    <div class="page-title">Sale — Chi Tiết</div>
+    <div class="page-sub">Danh sách leads Facebook Online từ CRM</div>
+    <div class="period-bar">
+      <div class="stat-chip">👥 ${rows.length} leads</div>
+      <div class="stat-chip" style="color:var(--green)">✓ ${rows.filter(isChot).length} đã chốt</div>
+      <div class="stat-chip">💰 ${vnd(rows.filter(isChot).reduce((s,r)=>s+toNum(r[COL_SALE.REVENUE]),0))}</div>
+    </div>
+    <div class="tov-card" style="margin-top:16px">
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">NGÀY TẠO</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TÊN KH</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SĐT</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SẢN PHẨM</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CHIẾN DỊCH</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TRẠNG THÁI</th>
+            <th style="padding:10px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--muted)">DOANH SỐ</th>
+          </tr></thead>
+          <tbody>${tableRows||'<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Chưa có dữ liệu CRM</td></tr>'}</tbody>
+        </table>
+      </div>
     </div>`;
 }
 
