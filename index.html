@@ -519,38 +519,50 @@ function calcSaleStats(saleFiltered){
   const totalOrders=closedRows.length;
   const totalLeads=saleFiltered.length;
   const byCamp={};
+  const byDirectProd={HT:{},Shidai:{},CT:{}};
+  function directBrand(r){
+    const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
+    if(/ht[\s\-–]|hiến thuỷ|hien thuy/i.test(text))return'HT';
+    if(/shidai/i.test(text))return'Shidai';
+    if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))return'CT';
+    return null;
+  }
   saleFiltered.forEach(r=>{
     const adId=(r[COL_SALE.AD_ID]||'').trim();
     const camp=adId?adCampMap[adId]:'';
-    let key;
     if(camp){
-      key=camp;
+      if(!byCamp[camp])byCamp[camp]={leads:0,orders:0,revenue:0};
+      byCamp[camp].leads++;
+      if(isChot(r)){byCamp[camp].orders++;byCamp[camp].revenue+=toNum(r[COL_SALE.REVENUE]);}
     } else {
-      const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
-      let br=null;
-      if(/ht[\s\-–]|hiến thuỷ|hien thuy/i.test(text))br='HT';
-      else if(/shidai/i.test(text))br='Shidai';
-      else if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))br='CT';
-      key=br?(br+'__direct__'):'__direct__';
+      const br=directBrand(r);
+      const prod=detectProduct(r[COL_SALE.PRODUCT]||'');
+      if(br){
+        if(!byDirectProd[br][prod])byDirectProd[br][prod]={leads:0,orders:0,revenue:0};
+        byDirectProd[br][prod].leads++;
+        if(isChot(r)){byDirectProd[br][prod].orders++;byDirectProd[br][prod].revenue+=toNum(r[COL_SALE.REVENUE]);}
+      }
     }
-    if(!byCamp[key])byCamp[key]={leads:0,orders:0,revenue:0};
-    byCamp[key].leads++;
-    if(isChot(r)){byCamp[key].orders++;byCamp[key].revenue+=toNum(r[COL_SALE.REVENUE]);}
   });
   const byBrand={HT:{leads:0,orders:0,revenue:0},Shidai:{leads:0,orders:0,revenue:0},CT:{leads:0,orders:0,revenue:0}};
   const byProd={};
   Object.entries(byCamp).forEach(([camp,s])=>{
-    if(camp==='__direct__'||camp.endsWith('__direct__'))return;
     const br=detectBrand(camp);if(byBrand[br]){byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;}
     const pr=detectProduct(camp);
     const key=br+'__'+pr;
     if(!byProd[key])byProd[key]={leads:0,orders:0,revenue:0};
     byProd[key].leads+=s.leads;byProd[key].orders+=s.orders;byProd[key].revenue+=s.revenue;
   });
+  // Include direct purchases in byBrand for chart accuracy
+  ['HT','Shidai','CT'].forEach(br=>{
+    Object.values(byDirectProd[br]).forEach(s=>{
+      byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;
+    });
+  });
   return{totalRevenue,totalOrders,totalLeads,
     avgOrderValue:totalOrders>0?totalRevenue/totalOrders:0,
     convRate:totalLeads>0?totalOrders/totalLeads:0,
-    byCamp,byBrand,byProd};
+    byCamp,byBrand,byProd,byDirectProd};
 }
 
 function toCsv(u){
@@ -759,7 +771,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       </div>
       <div class="chart-card">
         <div class="chart-head">
-          <div class="chart-title">Chi Phí Ads vs Doanh Thu — 7 Ngày</div>
+          <div class="chart-title">Chi Phí Ads — 7 Ngày</div>
           <span class="chart-sub">Chi phí ads có data · DS chờ sheet 4.DATA DT</span>
         </div>
         <div class="chart-wrap" style="height:220px"><canvas id="cWave"></canvas></div>
@@ -828,19 +840,22 @@ function buildGroupedTable(rows,saleStats){
       const prSd=saleStats?saleStats.byProd[br+'__'+p]:null;
       html+=`<tr class="row-product"><td>↳ ${p}</td>${rowCells(pkpi,prSd)}</tr>`;
     });
-    const brDirect=saleStats?saleStats.byCamp[br+'__direct__']:null;
-    if(brDirect&&(brDirect.orders>0||brDirect.leads>0)){
-      const dsColor=brDirect.revenue>0?'var(--text)':'var(--muted)';
-      html+=`<tr class="row-product" style="opacity:.85">
-        <td style="font-style:italic;color:var(--muted)">↳ 📲 Mua hàng trực tiếp trên page</td>
-        <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
-        <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
-        <td class="num-cell" style="color:var(--muted)">—</td>
-        <td class="num-cell" style="color:${dsColor};font-weight:700">${vnd(brDirect.revenue)}</td>
-        <td class="num-cell" style="color:${dsColor}">${num(brDirect.orders)}</td>
-        <td class="num-cell" style="color:${dsColor}">${brDirect.orders>0?vnd(brDirect.revenue/brDirect.orders):'—'}</td>
-        <td class="num-cell" style="color:var(--muted)">—</td>
-      </tr>`;
+    const brDirectProds=saleStats&&saleStats.byDirectProd?saleStats.byDirectProd[br]:null;
+    if(brDirectProds){
+      Object.entries(brDirectProds).sort((a,b)=>b[1].revenue-a[1].revenue).forEach(([prod,sd])=>{
+        if(!sd.orders&&!sd.leads)return;
+        const dsColor=sd.revenue>0?'var(--text)':'var(--muted)';
+        html+=`<tr class="row-product" style="opacity:.85">
+          <td style="font-style:italic;color:var(--muted)">↳ 📲 ${prod} (trực tiếp)</td>
+          <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
+          <td class="num-cell" style="color:var(--muted)">—</td><td class="num-cell" style="color:var(--muted)">—</td>
+          <td class="num-cell" style="color:var(--muted)">—</td>
+          <td class="num-cell" style="color:${dsColor};font-weight:700">${vnd(sd.revenue)}</td>
+          <td class="num-cell" style="color:${dsColor}">${num(sd.orders)}</td>
+          <td class="num-cell" style="color:${dsColor}">${sd.orders>0?vnd(sd.revenue/sd.orders):'—'}</td>
+          <td class="num-cell" style="color:var(--muted)">—</td>
+        </tr>`;
+      });
     }
   });
   return html+'</tbody></table>';
@@ -1259,24 +1274,12 @@ function buildWaveChart(rows,saleFiltered){
     const d=parseDate(r[COL.DATE]);if(!d)return;
     const k=fmtDate(d);byDate[k]=(byDate[k]||0)+toNum(r[COL.SPEND]);
   });
-  const byDateRev={};
-  (saleFiltered||[]).filter(r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'')).forEach(r=>{
-    const d=parseDate(r[COL_SALE.DATE_CLOSE]);if(!d)return;
-    const k=fmtDate(d);byDateRev[k]=(byDateRev[k]||0)+toNum(r[COL_SALE.REVENUE]);
-  });
-  const allDates=[...new Set([...Object.keys(byDate),...Object.keys(byDateRev)])].sort((a,b)=>{
-    const da=parseDate(a),db=parseDate(b);return da&&db?da-db:0;
-  }).slice(-7);
-  const sortedDates=allDates.length?allDates:Object.keys(byDate).sort((a,b)=>{const da=parseDate(a),db=parseDate(b);return da&&db?da-db:0;}).slice(-7);
+  const sortedDates=Object.keys(byDate).sort((a,b)=>{const da=parseDate(a),db=parseDate(b);return da&&db?da-db:0;}).slice(-7);
   const spendData=sortedDates.map(d=>byDate[d]||0);
-  const hasRevData=Object.keys(byDateRev).length>0;
-  const revData=sortedDates.map(d=>byDateRev[d]!==undefined?byDateRev[d]:null);
   if(chartWave){chartWave.destroy();chartWave=null;}
   const canvasCtx=ctx.getContext('2d');
   const gradBlue=canvasCtx.createLinearGradient(0,0,0,220);
   gradBlue.addColorStop(0,'rgba(67,97,238,.55)');gradBlue.addColorStop(0.5,'rgba(67,97,238,.2)');gradBlue.addColorStop(1,'rgba(67,97,238,0)');
-  const gradGreen=canvasCtx.createLinearGradient(0,0,0,220);
-  gradGreen.addColorStop(0,'rgba(10,191,122,.45)');gradGreen.addColorStop(0.5,'rgba(10,191,122,.15)');gradGreen.addColorStop(1,'rgba(10,191,122,0)');
   chartWave=new Chart(ctx,{
     type:'line',
     data:{
@@ -1284,10 +1287,7 @@ function buildWaveChart(rows,saleFiltered){
       datasets:[
         {label:'Chi phí Ads',data:spendData,borderColor:'#4361ee',backgroundColor:gradBlue,borderWidth:2.5,
           pointBackgroundColor:'#fff',pointBorderColor:'#4361ee',pointBorderWidth:2,
-          pointRadius:4,pointHoverRadius:7,fill:true,tension:.4},
-        {label:'Doanh Thu',data:hasRevData?revData:sortedDates.map(()=>null),borderColor:'#0abf7a',backgroundColor:gradGreen,
-          borderWidth:2.5,pointBackgroundColor:'#fff',pointBorderColor:'#0abf7a',pointBorderWidth:2,
-          pointRadius:4,pointHoverRadius:7,fill:true,tension:.4,borderDash:hasRevData?[]:[6,4]}
+          pointRadius:4,pointHoverRadius:7,fill:true,tension:.4}
       ]
     },
     options:{
