@@ -236,8 +236,12 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">💰 SALE CRM</span>
     <input class="url-input" id="saleUrl" placeholder="Link Google Sheets SALE/CRM published CSV…"/>
   </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">👥 CRM HUB</span>
+    <input class="url-input" id="crmHubUrl" placeholder="Link Google Sheets Master Data Hub published CSV…"/>
+  </div>
   <div style="display:flex;justify-content:flex-end">
-    <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải cả hai</button>
+    <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải tất cả</button>
   </div>
 </div>
 
@@ -254,6 +258,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div class="nav-item" onclick="switchPage('sale-overview')" id="nav-sale-overview"><span class="nav-icon">💰</span><span class="nav-label">Tổng Quan</span></div>
       <div class="nav-item" onclick="switchPage('sale-detail')" id="nav-sale-detail"><span class="nav-icon">📑</span><span class="nav-label">Chi Tiết</span></div>
     </nav>
+    <div class="sb-section" style="margin-top:12px">CRM</div>
+    <nav>
+      <div class="nav-item" onclick="switchPage('crm')" id="nav-crm"><span class="nav-icon">👥</span><span class="nav-label">Dashboard Sale</span></div>
+    </nav>
   </div>
 
   <div class="main-content" id="mainContent">
@@ -269,6 +277,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="tab-page" id="page-sale-detail">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
+    <div class="tab-page" id="page-crm">
+      <div style="padding:60px;text-align:center;color:var(--muted)">Nhập link CRM Hub ở ⚙️ để tải dữ liệu</div>
+    </div>
   </div>
 </div>
 
@@ -281,7 +292,8 @@ const COL_SALE={
   SALES_PERSON:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,
   CONTENT:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,CUSTOMER_ID:16,
 };
-let allRows=[],saleRowsRaw=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,sbCollapsed=false;
+const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
+let allRows=[],saleRowsRaw=[],crmHubRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -312,9 +324,9 @@ function toggleSidebar(){
 })();
 
 function switchPage(p){
-  ['overview','detail','sale-overview','sale-detail'].forEach(x=>{
+  ['overview','detail','sale-overview','sale-detail','crm'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
-    document.getElementById('nav-'+x).classList.toggle('active',x===p);
+    const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
 }
 
@@ -322,23 +334,38 @@ function switchPage(p){
 async function loadData(){
   const mktRaw=document.getElementById('sheetUrl').value.trim();
   const saleRaw=document.getElementById('saleUrl').value.trim();
-  if(!mktRaw)return;
+  const crmRaw=document.getElementById('crmHubUrl').value.trim();
+  if(!mktRaw&&!crmRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
-    setStatus('Đang kết nối sheet MKT...');
-    const tasks=[fetchCsvWithProxy(mktRaw,0)];
-    if(saleRaw){setStatus('Đang kết nối MKT + SALE song song...');tasks.push(fetchCsvWithProxy(saleRaw,1));}
+    const tasks=[];
+    const taskIdx={};
+    if(mktRaw){taskIdx.mkt=tasks.length;tasks.push(fetchCsvWithProxy(mktRaw,0));}
+    if(saleRaw){taskIdx.sale=tasks.length;tasks.push(fetchCsvWithProxy(saleRaw,1));}
+    if(crmRaw){taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));}
+    setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
-    if(results[0].status==='rejected')throw new Error('MKT: '+results[0].reason.message);
-    setStatus('Nhận data MKT, đang parse...');
-    parseMktCsv(results[0].value);
-    setStatus(`Parse xong MKT: ${allRows.length} chiến dịch / ${(window.allRowsRaw||[]).length} rows`);
-    if(saleRaw&&results[1]&&results[1].status==='fulfilled'){setStatus('Đang parse SALE...');parseSaleCsv(results[1].value);setStatus(`Parse xong SALE: ${saleRowsRaw.length} rows`);}
-    else if(saleRaw&&results[1]&&results[1].status==='rejected')setStatus('⚠️ SALE không tải được — chỉ hiện data MKT');
+    if(mktRaw){
+      if(results[taskIdx.mkt].status==='rejected')throw new Error('MKT: '+results[taskIdx.mkt].reason.message);
+      setStatus('Nhận data MKT, đang parse...');
+      parseMktCsv(results[taskIdx.mkt].value);
+      setStatus(`Parse xong MKT: ${allRows.length} chiến dịch`);
+    }
+    if(saleRaw&&taskIdx.sale!=null){
+      const r=results[taskIdx.sale];
+      if(r.status==='fulfilled'){setStatus('Đang parse SALE...');parseSaleCsv(r.value);setStatus(`Parse xong SALE: ${saleRowsRaw.length} rows`);}
+      else setStatus('⚠️ SALE không tải được');
+    }
+    if(crmRaw&&taskIdx.crm!=null){
+      const r=results[taskIdx.crm];
+      if(r.status==='fulfilled'){setStatus('Đang parse CRM Hub...');parseCrmHub(r.value);setStatus(`Parse xong CRM Hub: ${crmHubRows.length} leads`);}
+      else setStatus('⚠️ CRM Hub không tải được');
+    }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
-    applyFilter();
+    if(mktRaw)applyFilter();
+    renderCrmDashboard();
   }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
 
@@ -484,6 +511,144 @@ function parseSaleCsv(text){
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
   saleRowsRaw=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
   console.log('[SALE] Rows parsed:',saleRowsRaw.length);
+}
+
+function parseCrmHub(text){
+  let parsed;
+  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  crmHubRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
+  console.log('[CRM] Rows:',crmHubRows.length);
+}
+
+function renderCrmDashboard(){
+  if(!crmHubRows.length){
+    document.getElementById('page-crm').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Nhập link CRM Hub ở ⚙️ để tải dữ liệu</div>';
+    return;
+  }
+  const rows=crmHubRows;
+  const total=rows.length;
+  const online=rows.filter(r=>(r[COL_CRM.SOURCE]||'').trim().toLowerCase()==='online');
+  const offline=rows.filter(r=>(r[COL_CRM.SOURCE]||'').trim().toLowerCase()==='offline');
+  const unassigned=rows.filter(r=>!(r[COL_CRM.SALES]||'').trim());
+
+  // Count helpers
+  function countBy(arr,col){
+    const m={};
+    arr.forEach(r=>{const v=(r[col]||'').trim()||'Chưa rõ';m[v]=(m[v]||0)+1;});
+    return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  }
+  const byChannel=countBy(rows,COL_CRM.CHANNEL);
+  const bySales=countBy(rows,COL_CRM.SALES);
+  const byDept=countBy(rows,COL_CRM.DEPT);
+  const byCustType=countBy(rows,COL_CRM.CUST_TYPE);
+
+  // KPI chip
+  const mkKpiSmall=(icon,label,val,sub,grad)=>`
+    <div class="kpi-card ${grad}">
+      <div class="kpi-icon">${icon}</div>
+      <div class="kpi-label">${label}</div>
+      <div class="kpi-value">${val}</div>
+      <div class="kpi-sub">${sub}</div>
+    </div>`;
+
+  // Table rows for dept breakdown
+  const deptRows=byDept.map(([dept,cnt])=>{
+    const deptSales=countBy(rows.filter(r=>(r[COL_CRM.DEPT]||'').trim()===dept),COL_CRM.SALES);
+    const sub=deptSales.slice(0,3).map(([s,c])=>`<span style="font-size:11px;color:var(--muted)">${s}: <b>${c}</b></span>`).join(' · ');
+    const pct=(cnt/total*100).toFixed(1);
+    return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 14px;font-weight:700;font-size:13px">${dept}</td>
+      <td style="padding:10px 14px;font-size:22px;font-weight:800;color:var(--accent)">${cnt}</td>
+      <td style="padding:10px 14px">
+        <div style="height:6px;background:var(--bg2);border-radius:4px;width:100%">
+          <div style="height:6px;background:var(--accent);border-radius:4px;width:${pct}%"></div>
+        </div>
+        <span style="font-size:11px;color:var(--muted)">${pct}%</span>
+      </td>
+      <td style="padding:10px 14px;font-size:12px">${sub||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('page-crm').innerHTML=`
+    <div class="page-title">CRM — Dashboard Sale</div>
+    <div class="page-sub">Phân tích lead pipeline · Master Data Hub</div>
+    <div class="period-bar">
+      <div class="stat-chip">👥 ${total} tổng leads</div>
+      <div class="stat-chip">🌐 ${online.length} online</div>
+      <div class="stat-chip">🏪 ${offline.length} offline</div>
+      ${unassigned.length?`<div class="stat-chip" style="background:#fef9c3;color:#92400e;font-weight:700">⚠️ ${unassigned.length} chưa phân công</div>`:''}
+    </div>
+
+    <div class="sec-label">Tổng Quan Pipeline</div>
+    <div class="kpi-grid">
+      ${mkKpiSmall('👥','Tổng Leads',num(total),'toàn bộ nguồn','g-blue')}
+      ${mkKpiSmall('🌐','Online',num(online.length),pct(online.length/total*100)+' tổng leads','g-green')}
+      ${mkKpiSmall('🏪','Offline',num(offline.length),pct(offline.length/total*100)+' tổng leads','g-yellow')}
+      ${mkKpiSmall('⚠️','Chưa Phân Công',num(unassigned.length),'leads không có sales','g-red')}
+    </div>
+
+    <div class="sec-label">Phân Tích</div>
+    <div class="charts-2col-grid">
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">Leads Theo Kênh</div><span class="chart-sub">${byChannel.length} kênh</span></div>
+        <div class="chart-wrap" style="height:240px"><canvas id="cCrmChannel"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">Leads Theo Sales</div><span class="chart-sub">Xếp hạng theo số lượng</span></div>
+        <div class="chart-wrap" style="height:240px"><canvas id="cCrmSales"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">Online vs Offline</div><span class="chart-sub">${total} tổng</span></div>
+        <div class="chart-wrap"><canvas id="cCrmSource"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">Loại Khách Hàng</div><span class="chart-sub">${byCustType.length} loại</span></div>
+        <div class="chart-wrap"><canvas id="cCrmCustType"></canvas></div>
+      </div>
+    </div>
+
+    <div class="sec-label">Breakdown Theo Phòng Ban</div>
+    <div class="tov-card">
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">PHÒNG BAN</th>
+            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SỐ LEADS</th>
+            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);width:180px">TỶ LỆ</th>
+            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TOP SALES</th>
+          </tr></thead>
+          <tbody>${deptRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // Build charts
+  const COLORS=['rgba(67,97,238,.8)','rgba(10,191,122,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)','rgba(234,179,8,.8)','rgba(20,184,166,.8)','rgba(239,68,68,.8)'];
+  function buildHBar(id,entries,limit=10){
+    const ctx=document.getElementById(id);if(!ctx)return;
+    const sliced=entries.slice(0,limit);
+    new Chart(ctx,{type:'bar',data:{
+      labels:sliced.map(e=>e[0]),
+      datasets:[{data:sliced.map(e=>e[1]),backgroundColor:COLORS.slice(0,sliced.length).map((c,i)=>COLORS[i%COLORS.length]),borderRadius:6,borderSkipped:false}]
+    },options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:ctx=>` ${ctx.raw} leads`}}},
+      scales:{x:{grid:{display:false},border:{display:false},ticks:{color:'var(--muted)',font:{size:10}}},
+        y:{grid:{display:false},border:{display:false},ticks:{color:'var(--text)',font:{size:11,weight:'600'}}}}}});
+  }
+  function buildDonut(id,entries){
+    const ctx=document.getElementById(id);if(!ctx)return;
+    new Chart(ctx,{type:'doughnut',data:{
+      labels:entries.map(e=>e[0]),
+      datasets:[{data:entries.map(e=>e[1]),backgroundColor:COLORS.slice(0,entries.length),borderWidth:2,hoverOffset:6}]
+    },options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'right',labels:{color:'var(--text)',font:{size:11,weight:'600'},padding:12,
+        generateLabels:chart=>{const d=chart.data;return d.labels.map((l,i)=>({text:`${l}  ${d.datasets[0].data[i]}`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:'transparent',lineWidth:0,hidden:false,index:i}));}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} (${(ctx.raw/total*100).toFixed(1)}%)`}}}}});
+  }
+  buildHBar('cCrmChannel',byChannel);
+  buildHBar('cCrmSales',bySales);
+  buildDonut('cCrmSource',[['Online',online.length],['Offline',offline.length]]);
+  buildDonut('cCrmCustType',byCustType);
 }
 
 function buildAdCampMap(){
