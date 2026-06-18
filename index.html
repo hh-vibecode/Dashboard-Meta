@@ -425,6 +425,22 @@ function parseMktCsv(text){
       return parseDate(dateCol)!==null;
     });
   }
+  // Store debug breakdown for error reporting
+  if(!allRows.length&&allData.length>0){
+    const s=allData[0]||[];
+    window._mktDebug={
+      cols:`CAMP=${COL.CAMPAIGN} ADID=${COL.AD_ID} DATE=${COL.DATE} ADSET=${COL.ADSET_NAME}`,
+      r0:`camp="${s[COL.CAMPAIGN]||''}" adid="${s[COL.AD_ID]||''}" date="${s[COL.DATE]||''}"`,
+      why:{
+        nocamp:allData.filter(r=>!(r[COL.CAMPAIGN]||'').trim()).length,
+        numId:allData.filter(r=>/^\d{8,}$/.test(String(r[COL.AD_ID]||'').trim())).length,
+        nonBlankId:allData.filter(r=>{const v=String(r[COL.AD_ID]||'').trim();return v&&v!=='-'&&v!=='—'&&v!=='0'&&!/^\d{8,}$/.test(v);}).length,
+        noDate:allData.filter(r=>!(r[COL.DATE]||'').trim()).length,
+        allStr:allData.filter(r=>['all','tấtcả','tatca'].includes((r[COL.DATE]||'').trim().toLowerCase().replace(/\s/g,''))).length,
+        badDate:allData.filter(r=>{const v=(r[COL.DATE]||'').trim();return v&&!parseDate(v);}).length,
+      }
+    };
+  }
   console.log('[MKT] allRows:',allRows.length,'/ raw:',allData.length);
 }
 
@@ -503,8 +519,13 @@ function toCsv(u){
 // ── Filters ──
 function applyFilter(){
   if(!allRows.length){
-    if(window.allRowsRaw&&window.allRowsRaw.length>0)
-      showErr(`Tải được ${window.allRowsRaw.length} rows nhưng không nhận dạng được hàng chiến dịch. Kiểm tra cấu trúc sheet MKT.`);
+    if(window.allRowsRaw&&window.allRowsRaw.length>0){
+      const d=window._mktDebug||{};
+      const w=d.why||{};
+      showErr(`Tải được ${window.allRowsRaw.length} rows nhưng allRows=0.\n`+
+        `Cột dùng: ${d.cols||'?'}\nRow đầu: ${d.r0||'?'}\n`+
+        `Lý do bị lọc: noCamp=${w.nocamp} numId=${w.numId} nonBlankId=${w.nonBlankId} noDate=${w.noDate} allStr=${w.allStr} badDate=${w.badDate}`);
+    }
     return;
   }
   const from=document.getElementById('dateFrom').value;
