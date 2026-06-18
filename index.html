@@ -528,8 +528,10 @@ function calcSaleStats(saleFiltered){
   const byProd={};
   Object.entries(byCamp).forEach(([camp,s])=>{
     const br=detectBrand(camp);if(byBrand[br]){byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;}
-    const pr=detectProduct(camp);if(!byProd[pr])byProd[pr]={leads:0,orders:0,revenue:0};
-    byProd[pr].leads+=s.leads;byProd[pr].orders+=s.orders;byProd[pr].revenue+=s.revenue;
+    const pr=detectProduct(camp);
+    const key=br+'__'+pr;
+    if(!byProd[key])byProd[key]={leads:0,orders:0,revenue:0};
+    byProd[key].leads+=s.leads;byProd[key].orders+=s.orders;byProd[key].revenue+=s.revenue;
   });
   return{totalRevenue,totalOrders,totalLeads,
     avgOrderValue:totalOrders>0?totalRevenue/totalOrders:0,
@@ -725,7 +727,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       ${mkKpi('💵','Doanh Số',saleStats?vnd(saleStats.totalRevenue):'—',saleStats?saleStats.totalOrders+' đơn đã chốt':'chưa có dữ liệu','g-teal')}
       ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' leads':'chưa có dữ liệu','g-orange')}
       ${mkKpi('📦','DS TB / Đơn',saleStats&&saleStats.totalOrders>0?vnd(saleStats.avgOrderValue):'—','trung bình / đơn chốt','g-pink')}
-      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&kpi.totalMess>0?pct(saleStats.totalOrders/kpi.totalMess*100):'—',saleStats?'đơn chốt / tổng mess':'chưa có dữ liệu','g-red')}
+      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&saleStats.totalLeads>0?pct(saleStats.totalOrders/saleStats.totalLeads*100):'—',saleStats?'đơn chốt / tổng leads FB':'chưa có dữ liệu','g-red')}
     </div>
 
     <div class="sec-label">Phân Tích</div>
@@ -809,7 +811,7 @@ function buildGroupedTable(rows,saleStats){
     byBrand[br].forEach(r=>{const p=detectProduct(r[COL.CAMPAIGN]);if(!byProd[p])byProd[p]=[];byProd[p].push(r);});
     Object.entries(byProd).sort((a,b)=>calcKPIRows(b[1]).spend-calcKPIRows(a[1]).spend).forEach(([p,pr])=>{
       const pkpi=calcKPIRows(pr);
-      const prSd=saleStats?saleStats.byProd[p]:null;
+      const prSd=saleStats?saleStats.byProd[br+'__'+p]:null;
       html+=`<tr class="row-product"><td>↳ ${p}</td>${rowCells(pkpi,prSd)}</tr>`;
     });
   });
