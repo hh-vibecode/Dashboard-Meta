@@ -292,8 +292,9 @@ const COL_SALE={
 const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
 const COL_ONL={DATE:1,ORDER_ID:2,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
 const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:22,TOTAL_REV:23,CUST_TYPE:24};
+const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
-let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,sbCollapsed=false;
+let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -337,6 +338,7 @@ async function loadData(){
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
+  const sicrmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=138010004&single=true&output=csv';
   const saonlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=2107421092&single=true&output=csv';
   if(!mktRaw)return;
   showLoading();
@@ -350,6 +352,7 @@ async function loadData(){
     taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3));
     taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
     taskIdx.saonl=tasks.length;tasks.push(fetchCsvWithProxy(saonlRaw,5));
+    taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
     if(mktRaw){
@@ -382,6 +385,11 @@ async function loadData(){
       const r=results[taskIdx.saonl];
       if(r.status==='fulfilled'){setStatus('Đang parse Sale Online...');parseSaleOnlCsv(r.value);setStatus(`Parse xong Sale Online: ${saleOnlRows.length} rows`);}
       else setStatus('⚠️ Sale Online không tải được');
+    }
+    {
+      const r=results[taskIdx.sicrm];
+      if(r.status==='fulfilled'){setStatus('Đang parse CRM Sỉ...');parseSaleSiCrmCsv(r.value);setStatus(`Parse xong CRM Sỉ: ${saleSiCrmRows.length} lượt`);}
+      else setStatus('⚠️ CRM Sỉ không tải được');
     }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
@@ -563,6 +571,17 @@ function parseSaleOnlCsv(text){
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
   saleOnlRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
   console.log('[SAONL] Rows:',saleOnlRows.length);
+}
+
+function parseSaleSiCrmCsv(text){
+  let parsed;
+  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  saleSiCrmRows=parsed.data.slice(1).filter(row=>row.some(c=>c!=='')).map(row=>{
+    // Clean Lead ID cell which may contain tabs/newlines
+    if(row[COL_SICRM.LEAD_ID]!=null)row[COL_SICRM.LEAD_ID]=row[COL_SICRM.LEAD_ID].replace(/[\t\n\r]/g,' ').trim();
+    return row;
+  });
+  console.log('[SICRM] Rows:',saleSiCrmRows.length);
 }
 
 
@@ -940,6 +959,70 @@ function renderSaleSi(){
     <td style="padding:8px 12px;text-align:center;font-size:14px;font-weight:800;color:${toN(r[COL_SI.DAYS_NO_CS])>7?'#dc2626':'#ca8a04'}">${r[COL_SI.DAYS_NO_CS]||'—'}</td>
     <td style="padding:8px 12px;font-size:11px;color:var(--muted)">${r[COL_SI.STATUS]||'—'}</td>
   </tr>`).join('');
+
+  // ── CRM care log (gid=138010004) ──
+  const crm=saleSiCrmRows;
+  let crmSection='';
+  if(crm.length){
+    const totalCS=crm.length;
+    const byForm={};
+    crm.forEach(r=>{const f=(r[COL_SICRM.FORM]||'Khác').trim()||'Khác';byForm[f]=(byForm[f]||0)+1;});
+    const done=crm.filter(r=>(r[COL_SICRM.STATUS]||'').toLowerCase().includes('xong')).length;
+    const pending=crm.filter(r=>(r[COL_SICRM.STATUS]||'').toLowerCase().includes('tồn đọng'));
+    // CS by sales
+    const csBySales={};
+    crm.forEach(r=>{const s=(r[COL_SICRM.SALES]||'Chưa rõ').trim()||'Chưa rõ';csBySales[s]=(csBySales[s]||0)+1;});
+    const csSalesRows=Object.entries(csBySales).sort((a,b)=>b[1]-a[1]).map(([s,c])=>`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 14px;font-weight:600">${s}</td>
+      <td style="padding:8px 14px;text-align:center;font-size:16px;font-weight:800;color:var(--accent)">${c}</td>
+      <td style="padding:8px 14px"><div style="height:5px;background:var(--bg2);border-radius:4px"><div style="height:5px;background:var(--accent);border-radius:4px;width:${(c/totalCS*100).toFixed(0)}%"></div></div></td>
+    </tr>`).join('');
+    // Section IX: outstanding follow-ups (Còn tồn đọng), sorted by next appointment date
+    const pendSorted=[...pending].sort((a,b)=>{const da=parseDate(a[COL_SICRM.NEXT_DATE]),db=parseDate(b[COL_SICRM.NEXT_DATE]);return(da?da:0)-(db?db:0);});
+    const supRows=pendSorted.map(r=>`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SICRM.DATE]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted)">${r[COL_SICRM.LEAD_ID]||'—'}</td>
+      <td style="padding:8px 12px;font-size:13px;font-weight:700">${r[COL_SICRM.NAME]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px">${r[COL_SICRM.SALES]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;max-width:280px">${r[COL_SICRM.NEXT_ACTION]||r[COL_SICRM.CONTENT]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#ca8a04;font-weight:600;white-space:nowrap">${r[COL_SICRM.NEXT_DATE]||'—'}</td>
+    </tr>`).join('');
+    const formChips=Object.entries(byForm).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`<div class="stat-chip">${f==='Zalo'?'💬':f==='Gọi điện'?'📞':f==='Gặp trực tiếp'?'🤝':'📋'} ${f}: <b>${c}</b></div>`).join('');
+    crmSection=`
+    <div class="sec-label">Hoạt Động Chăm Sóc (CRM)</div>
+    <div class="period-bar">
+      <div class="stat-chip">📋 ${totalCS} lượt CS</div>
+      <div class="stat-chip" style="color:var(--green)">✅ ${done} đã xong</div>
+      <div class="stat-chip" style="color:#ca8a04">⏳ ${pending.length} còn tồn đọng</div>
+      ${formChips}
+    </div>
+    <div class="kpi-grid">
+      ${mkKpi('📋','Tổng Lượt CS',num(totalCS),'toàn bộ lịch sử','g-blue')}
+      ${mkKpi('✅','Đã Xong',num(done),pct(totalCS?done/totalCS*100:0)+' lượt','g-green')}
+      ${mkKpi('⏳','Còn Tồn Đọng',num(pending.length),'cần theo dõi tiếp','g-yellow')}
+      ${mkKpi('👥','KH Được CS',num(new Set(crm.map(r=>(r[COL_SICRM.LEAD_ID]||'').trim()).filter(Boolean)).size),'khách riêng biệt','g-blue')}
+    </div>
+    <div class="sec-label">Lượt Chăm Sóc Theo Sales</div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+        <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
+        <th style="padding:9px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">SỐ LƯỢT CS</th>
+        <th style="padding:9px 14px;width:160px"></th>
+      </tr></thead><tbody>${csSalesRows}</tbody>
+    </table></div></div>
+    <div class="sec-label">IX. Danh Sách Khách Cần Theo Dõi <span style="font-weight:400;font-size:11px;color:var(--muted)">(còn tồn đọng · ${pending.length} khách)</span></div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">NGÀY CS</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">LEAD ID</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">HỌ TÊN</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">VIỆC CẦN LÀM TIẾP THEO</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:#ca8a04">NGÀY HẸN</th>
+      </tr></thead><tbody>${supRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Không có khách tồn đọng</td></tr>'}</tbody>
+    </table></div></div>`;
+  }
+
   document.getElementById('page-sale-si').innerHTML=`
     <div class="page-title">Báo Cáo Sale Sỉ</div>
     <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng</div>
@@ -1009,7 +1092,8 @@ function renderSaleSi(){
         <th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:700;color:#dc2626">NGÀY CHƯA CS</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TRẠNG THÁI</th>
       </tr></thead><tbody>${priRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Không có khách cần ưu tiên</td></tr>'}</tbody>
-    </table></div></div>`;
+    </table></div></div>
+    ${crmSection}`;
 }
 
 function renderSaleOnl(){
