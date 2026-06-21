@@ -983,9 +983,9 @@ function renderSaleSi(){
       <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SICRM.DATE]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted)">${r[COL_SICRM.LEAD_ID]||'—'}</td>
       <td style="padding:8px 12px;font-size:13px;font-weight:700">${r[COL_SICRM.NAME]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px">${r[COL_SICRM.SALES]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px;max-width:280px">${r[COL_SICRM.NEXT_ACTION]||r[COL_SICRM.CONTENT]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px;color:#ca8a04;font-weight:600;white-space:nowrap">${r[COL_SICRM.NEXT_DATE]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;white-space:nowrap">${r[COL_SICRM.SALES]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px"><div style="max-width:480px;white-space:normal;word-break:break-word;line-height:1.45">${r[COL_SICRM.NEXT_ACTION]||r[COL_SICRM.CONTENT]||'—'}</div></td>
+      <td style="padding:8px 12px;font-size:12px;color:#ca8a04;font-weight:600;white-space:nowrap;text-align:right;width:96px">${r[COL_SICRM.NEXT_DATE]||'—'}</td>
     </tr>`).join('');
     const formChips=Object.entries(byForm).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`<div class="stat-chip">${f==='Zalo'?'💬':f==='Gọi điện'?'📞':f==='Gặp trực tiếp'?'🤝':'📋'} ${f}: <b>${c}</b></div>`).join('');
     crmSection=`
@@ -1016,9 +1016,9 @@ function renderSaleSi(){
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">NGÀY CS</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">LEAD ID</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">HỌ TÊN</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">SALES</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">VIỆC CẦN LÀM TIẾP THEO</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:#ca8a04">NGÀY HẸN</th>
+        <th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;color:#ca8a04;white-space:nowrap">NGÀY HẸN</th>
       </tr></thead><tbody>${supRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Không có khách tồn đọng</td></tr>'}</tbody>
     </table></div></div>`;
   }
