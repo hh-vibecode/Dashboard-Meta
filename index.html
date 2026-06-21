@@ -620,7 +620,7 @@ function calcSaleStats(saleFiltered){
   const adCampMap=buildAdCampMap();
   const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
   const closedRows=saleFiltered.filter(isChot);
-  const totalRevenue=closedRows.reduce((s,r)=>s+toNum(r[COL_SALE.REVENUE]),0);
+  const totalRevenue=closedRows.reduce((s,r)=>s+vndNum(r[COL_SALE.REVENUE]),0);
   const totalOrders=closedRows.length;
   const totalLeads=saleFiltered.length;
   const byCamp={};
@@ -638,14 +638,14 @@ function calcSaleStats(saleFiltered){
     if(camp){
       if(!byCamp[camp])byCamp[camp]={leads:0,orders:0,revenue:0};
       byCamp[camp].leads++;
-      if(isChot(r)){byCamp[camp].orders++;byCamp[camp].revenue+=toNum(r[COL_SALE.REVENUE]);}
+      if(isChot(r)){byCamp[camp].orders++;byCamp[camp].revenue+=vndNum(r[COL_SALE.REVENUE]);}
     } else {
       const br=directBrand(r);
       const prod=detectProduct(r[COL_SALE.PRODUCT]||'');
       if(br){
         if(!byDirectProd[br][prod])byDirectProd[br][prod]={leads:0,orders:0,revenue:0};
         byDirectProd[br][prod].leads++;
-        if(isChot(r)){byDirectProd[br][prod].orders++;byDirectProd[br][prod].revenue+=toNum(r[COL_SALE.REVENUE]);}
+        if(isChot(r)){byDirectProd[br][prod].orders++;byDirectProd[br][prod].revenue+=vndNum(r[COL_SALE.REVENUE]);}
       }
     }
   });
@@ -910,15 +910,15 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
 function renderSaleSi(){
   const rows=saleSiRows;
   if(!rows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
-  const toN=v=>{const n=parseFloat((v||'').toString().replace(/[^0-9.-]/g,''));return isNaN(n)?0:n;};
+  const toN=vndNum;
   const hasStatus=(r,kw)=>(r[COL_SI.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const total=rows.length;
   const fromOnl=rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online').length;
   const selfSource=rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline').length;
-  const caring=rows.filter(r=>hasStatus(r,'chăm sóc')&&!hasStatus(r,'dài hạn')||hasStatus(r,'chưa ra đơn')).length;
-  const longCare=rows.filter(r=>hasStatus(r,'dài hạn')).length;
-  const closed=rows.filter(r=>hasStatus(r,'chốt')||toN(r[COL_SI.TOTAL_REV])>0).length;
-  const lost=rows.filter(r=>hasStatus(r,'mất')).length;
+  // Tình trạng hợp tác sỉ chỉ có: Đã ra đơn / Chưa ra đơn
+  const closed=rows.filter(r=>hasStatus(r,'đã ra đơn')||toN(r[COL_SI.TOTAL_REV])>0).length;
+  const notYet=rows.filter(r=>hasStatus(r,'chưa ra đơn')||(toN(r[COL_SI.TOTAL_REV])===0&&!hasStatus(r,'đã ra đơn'))).length;
+  const vip=rows.filter(r=>(r[COL_SI.CUST_TYPE]||'').toLowerCase().includes('vip')).length;
   // Revenue
   const totalRev=rows.reduce((s,r)=>s+toN(r[COL_SI.TOTAL_REV]),0);
   const onlRev=rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online').reduce((s,r)=>s+toN(r[COL_SI.TOTAL_REV]),0);
@@ -1032,11 +1032,11 @@ function renderSaleSi(){
       ${mkKpi('👥','Tổng Khách Hàng',num(total),'toàn bộ','g-blue')}
       ${mkKpi('🌐','Từ Online',num(fromOnl),pct(fromOnl/total*100)+' tổng','g-green')}
       ${mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(selfSource/total*100)+' tổng','g-yellow')}
-      ${mkKpi('💬','Đang Chăm Sóc',num(caring),'đang xử lý','g-blue')}
-      ${mkKpi('⏳','CS Dài Hạn',num(longCare),'theo dõi lâu dài','g-yellow')}
-      ${mkKpi('✅','Chốt Đơn',num(closed),'đã có doanh thu','g-green')}
-      ${mkKpi('❌','Mất Lead',num(lost),'không chuyển đổi','g-red')}
-      ${mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'tất cả nguồn','g-green')}
+      ${mkKpi('✅','Đã Ra Đơn',num(closed),pct(closed/total*100)+' tổng KH','g-green')}
+      ${mkKpi('⏳','Chưa Ra Đơn',num(notYet),'đang theo đuổi','g-yellow')}
+      ${mkKpi('👑','Khách VIP',num(vip),'phân loại VIP','g-blue')}
+      ${mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'đơn cộng dồn','g-green')}
+      ${mkKpi('📊','DT TB/Khách',vnd(closed>0?totalRev/closed:0),'trên KH đã ra đơn','g-blue')}
     </div>
 
     <div class="charts-2col-grid">
@@ -1099,7 +1099,7 @@ function renderSaleSi(){
 function renderSaleOnl(){
   const rows=saleOnlRows;
   if(!rows.length){document.getElementById('page-sale-onl').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
-  const toN=v=>{const n=parseFloat((v||'').toString().replace(/[^0-9.-]/g,''));return isNaN(n)?0:n;};
+  const toN=vndNum;
   const st=(r,kw)=>(r[COL_SAONL.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const total=rows.length;
   const hasPotential=rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0).length;
@@ -1586,7 +1586,7 @@ function toggleAds(safeId){
       const adId=(r[COL_SALE.AD_ID]||'').trim();if(!adId)return;
       if(!adCrm[adId])adCrm[adId]={orders:0,revenue:0};
       if(/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'')){
-        adCrm[adId].orders++;adCrm[adId].revenue+=toNum(r[COL_SALE.REVENUE]);
+        adCrm[adId].orders++;adCrm[adId].revenue+=vndNum(r[COL_SALE.REVENUE]);
       }
     });
     window._adCrm=adCrm;
@@ -2047,6 +2047,8 @@ function toNum(v){
   const n=parseFloat(s.replace(/[^0-9.-]/g,''));
   return isNaN(n)?0:n;
 }
+// Tiền VND luôn là số nguyên, dấu chấm/phẩy chỉ là phân cách nghìn → bỏ hết
+function vndNum(v){const n=parseInt(String(v==null?'':v).replace(/[^0-9-]/g,''),10);return isNaN(n)?0:n;}
 function vnd(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n))+' ₫';}
 function num(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n));}
 function pct(n){return n>0?n.toFixed(2)+'%':'—';}
