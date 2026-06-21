@@ -282,7 +282,8 @@ const COL_SALE={
   CONTENT:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,CUSTOMER_ID:16,
 };
 const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
-let allRows=[],saleRowsRaw=[],crmHubRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,sbCollapsed=false;
+const COL_ONL={DATE:1,ORDER_ID:2,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
+let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -324,6 +325,7 @@ async function loadData(){
   const mktRaw=document.getElementById('sheetUrl').value.trim();
   const saleRaw=document.getElementById('saleUrl').value.trim();
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
+  const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
@@ -332,7 +334,8 @@ async function loadData(){
     const taskIdx={};
     if(mktRaw){taskIdx.mkt=tasks.length;tasks.push(fetchCsvWithProxy(mktRaw,0));}
     if(saleRaw){taskIdx.sale=tasks.length;tasks.push(fetchCsvWithProxy(saleRaw,1));}
-    if(crmRaw){taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));}
+    taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));
+    taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3));
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
     if(mktRaw){
@@ -346,10 +349,15 @@ async function loadData(){
       if(r.status==='fulfilled'){setStatus('Đang parse SALE...');parseSaleCsv(r.value);setStatus(`Parse xong SALE: ${saleRowsRaw.length} rows`);}
       else setStatus('⚠️ SALE không tải được');
     }
-    if(crmRaw&&taskIdx.crm!=null){
+    {
       const r=results[taskIdx.crm];
       if(r.status==='fulfilled'){setStatus('Đang parse CRM Hub...');parseCrmHub(r.value);setStatus(`Parse xong CRM Hub: ${crmHubRows.length} leads`);}
       else setStatus('⚠️ CRM Hub không tải được');
+    }
+    {
+      const r=results[taskIdx.onl];
+      if(r.status==='fulfilled'){setStatus('Đang parse Data Online...');parseOnlineCsv(r.value);setStatus(`Parse xong Online: ${onlineRows.length} rows`);}
+      else setStatus('⚠️ Data Online không tải được');
     }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
@@ -508,6 +516,13 @@ function parseCrmHub(text){
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
   crmHubRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
   console.log('[CRM] Rows:',crmHubRows.length);
+}
+
+function parseOnlineCsv(text){
+  let parsed;
+  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  onlineRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
+  console.log('[ONL] Rows:',onlineRows.length);
 }
 
 
@@ -833,6 +848,64 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
   buildProdRevChart(saleStats);
 }
 
+function buildOnlineCampTable(){
+  if(!onlineRows.length)return'';
+  const adCampMap=buildAdCampMap();
+  const hasTag=(tag,val)=>tag.toUpperCase().includes(val);
+  // Group by campaign
+  const byCamp={};
+  onlineRows.forEach(r=>{
+    const adId=(r[COL_ONL.AD_ID]||'').trim();
+    const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Trực tiếp (không có Ad ID)');
+    if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,total:0};
+    const tag=(r[COL_ONL.TAG]||'');
+    if(hasTag(tag,'TIỀM NĂNG'))byCamp[camp].tiem++;
+    if(hasTag(tag,'LEAD ĐẠT'))byCamp[camp].dat++;
+    if(hasTag(tag,'KH LẺ'))byCamp[camp].le++;
+    if(hasTag(tag,'KH SỈ'))byCamp[camp].si++;
+    byCamp[camp].total++;
+  });
+  // Sort by campaign name, put "Trực tiếp" last
+  const entries=Object.entries(byCamp).sort(([a],[b])=>{
+    if(a.startsWith('Trực tiếp'))return 1;
+    if(b.startsWith('Trực tiếp'))return -1;
+    return a.localeCompare(b,'vi');
+  });
+  const campRows=entries.map(([camp,s])=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:9px 14px;font-size:12px;font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">${camp}</td>
+    <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${s.tiem>0?'#ca8a04':'var(--muted)'}">${s.tiem||'—'}</td>
+    <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${s.dat>0?'var(--green)':'var(--muted)'}">${s.dat||'—'}</td>
+    <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${s.le>0?'#2563eb':'var(--muted)'}">${s.le||'—'}</td>
+    <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${s.si>0?'#7c3aed':'var(--muted)'}">${s.si||'—'}</td>
+    <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:800">${s.total}</td>
+  </tr>`).join('');
+  const grandTotal=onlineRows.length;
+  const grandTiem=onlineRows.filter(r=>hasTag(r[COL_ONL.TAG]||'','TIỀM NĂNG')).length;
+  const grandDat=onlineRows.filter(r=>hasTag(r[COL_ONL.TAG]||'','LEAD ĐẠT')).length;
+  const grandLe=onlineRows.filter(r=>hasTag(r[COL_ONL.TAG]||'','KH LẺ')).length;
+  const grandSi=onlineRows.filter(r=>hasTag(r[COL_ONL.TAG]||'','KH SỈ')).length;
+  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grandTotal} đơn · theo Ad ID)</span></div>
+  <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CHIẾN DỊCH</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#ca8a04">TIỀM NĂNG</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">LEAD ĐẠT</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#2563eb">KH LẺ</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#7c3aed">KH SỈ</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">TỔNG</th>
+    </tr></thead>
+    <tbody>${campRows}</tbody>
+    <tfoot><tr style="background:var(--bg2);border-top:2px solid var(--border)">
+      <td style="padding:10px 14px;font-size:12px;font-weight:800">TỔNG CỘNG</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#ca8a04">${grandTiem}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:var(--green)">${grandDat}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#2563eb">${grandLe}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#7c3aed">${grandSi}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800">${grandTotal}</td>
+    </tr></tfoot>
+  </table></div></div>`;
+}
+
 function renderSaleOverview(){
   const rows=crmHubRows;
   if(!rows.length){
@@ -888,7 +961,8 @@ function renderSaleOverview(){
         <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);width:160px">TỶ LỆ</th>
         <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TOP SALES</th>
       </tr></thead><tbody>${deptRows}</tbody>
-    </table></div></div>`;
+    </table></div></div>
+    ${buildOnlineCampTable()}`;
   const COLORS=['rgba(67,97,238,.8)','rgba(10,191,122,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)','rgba(234,179,8,.8)','rgba(20,184,166,.8)','rgba(239,68,68,.8)'];
   function hbar(id,entries,lim=10){
     const ctx=document.getElementById(id);if(!ctx)return;
