@@ -251,8 +251,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     </nav>
     <div class="sb-section" style="margin-top:12px">Sale</div>
     <nav>
-      <div class="nav-item" onclick="switchPage('sale-overview')" id="nav-sale-overview"><span class="nav-icon">💰</span><span class="nav-label">Tổng Quan</span></div>
-      <div class="nav-item" onclick="switchPage('sale-detail')" id="nav-sale-detail"><span class="nav-icon">📑</span><span class="nav-label">Chi Tiết</span></div>
+      <div class="nav-item" onclick="switchPage('sale-overview')" id="nav-sale-overview"><span class="nav-icon">🗄️</span><span class="nav-label">Data Hub</span></div>
       <div class="nav-item" onclick="switchPage('sale-si')" id="nav-sale-si"><span class="nav-icon">🏪</span><span class="nav-label">Báo Cáo Sỉ</span></div>
       <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo Online</span></div>
     </nav>
@@ -266,9 +265,6 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
     <div class="tab-page" id="page-sale-overview">
-      <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
-    </div>
-    <div class="tab-page" id="page-sale-detail">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
     <div class="tab-page" id="page-sale-si">
@@ -325,7 +321,7 @@ function toggleSidebar(){
 })();
 
 function switchPage(p){
-  ['overview','detail','sale-overview','sale-detail','sale-si','sale-onl'].forEach(x=>{
+  ['overview','detail','sale-overview','sale-si','sale-onl'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
@@ -395,7 +391,6 @@ async function loadData(){
     setStatus('Đang render...');
     if(mktRaw)applyFilter();
     renderSaleOverview();
-    renderSaleDetail();
     renderSaleSi();
     renderSaleOnl();
   }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
@@ -1339,7 +1334,7 @@ function renderSaleOverview(){
       <td style="padding:10px 14px;font-size:12px">${top||'—'}</td></tr>`;
   }).join('');
   document.getElementById('page-sale-overview').innerHTML=`
-    <div class="page-title">Sale — Tổng Quan</div>
+    <div class="page-title">Sale — Data Hub</div>
     <div class="page-sub">Dashboard Sale Manager · Master Data Hub</div>
     <div class="period-bar">
       <div class="stat-chip">👥 ${total} tổng leads</div>
