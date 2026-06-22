@@ -223,23 +223,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="toggle-track"><div class="toggle-thumb"></div></div>
     <span id="themeLabel">Tối</span>
   </button>
-  <button class="settings-btn" id="settingsBtn" onclick="toggleUrlPanel()" title="Cài đặt nguồn dữ liệu">⚙️</button>
+  <button class="settings-btn" id="settingsBtn" onclick="loadData()" title="Tải lại dữ liệu">↺</button>
   </div>
 </div>
-
-<div class="url-panel" id="urlPanel">
-  <div style="display:flex;align-items:center;gap:8px">
-    <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">📊 MKT ADS</span>
-    <input class="url-input" id="sheetUrl" placeholder="Link Google Sheets MKT published CSV…"/>
-  </div>
-  <div style="display:flex;align-items:center;gap:8px">
-    <span style="font-size:10px;font-weight:700;color:var(--muted);width:74px;flex-shrink:0">💰 SALE CRM</span>
-    <input class="url-input" id="saleUrl" placeholder="Link Google Sheets SALE/CRM published CSV…"/>
-  </div>
-  <div style="display:flex;justify-content:flex-end">
-    <button class="btn" id="btnLoad" onclick="loadData()">↺ Tải tất cả</button>
-  </div>
-</div>
+<button id="btnLoad" style="display:none"></button>
 
 <div class="app-body">
   <div class="sidebar" id="sidebar">
@@ -254,6 +241,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div class="nav-item" onclick="switchPage('sale-overview')" id="nav-sale-overview"><span class="nav-icon">🗄️</span><span class="nav-label">Data Hub</span></div>
       <div class="nav-item" onclick="switchPage('sale-si')" id="nav-sale-si"><span class="nav-icon">🏪</span><span class="nav-label">Báo Cáo Sỉ</span></div>
       <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo Online</span></div>
+    </nav>
+    <div class="sb-section" style="margin-top:12px">QC</div>
+    <nav>
+      <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Đối Soát</span></div>
     </nav>
   </div>
 
@@ -273,6 +264,15 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="tab-page" id="page-sale-onl">
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>
     </div>
+    <div class="tab-page" id="page-qc-doisoat">
+      <div class="page-title">QC — Báo Cáo Đối Soát</div>
+      <div class="page-sub">Đối soát số liệu</div>
+      <div style="padding:80px 20px;text-align:center;color:var(--muted)">
+        <div style="font-size:48px;margin-bottom:12px">🧾</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text2)">Báo cáo đối soát — đang phát triển</div>
+        <div style="font-size:13px;margin-top:6px">Khu vực này sẽ được dựng sau.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -286,7 +286,7 @@ const COL_SALE={
   CONTENT:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,CUSTOMER_ID:16,
 };
 const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
-const COL_ONL={DATE:1,ORDER_ID:2,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
+const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
 const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:22,TOTAL_REV:23,CUST_TYPE:24};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
@@ -321,7 +321,7 @@ function toggleSidebar(){
 })();
 
 function switchPage(p){
-  ['overview','detail','sale-overview','sale-si','sale-onl'].forEach(x=>{
+  ['overview','detail','sale-overview','sale-si','sale-onl','qc-doisoat'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
@@ -329,8 +329,8 @@ function switchPage(p){
 
 // ── Load ──
 async function loadData(){
-  const mktRaw=document.getElementById('sheetUrl').value.trim();
-  const saleRaw=document.getElementById('saleUrl').value.trim();
+  const mktRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
+  const saleRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pubhtml?gid=2107421092&single=true';
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
@@ -1265,18 +1265,21 @@ function buildOnlineCampTable(){
   onlineRows.forEach(r=>{
     const adId=(r[COL_ONL.AD_ID]||'').trim();
     const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Data chưa phân loại');
-    if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,total:0};
+    if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,moi:0,cu:0,total:0};
     const tag=(r[COL_ONL.TAG]||'');
     if(hasTag(tag,'TIỀM NĂNG'))byCamp[camp].tiem++;
     if(hasTag(tag,'LEAD ĐẠT'))byCamp[camp].dat++;
     if(hasTag(tag,'KH LẺ'))byCamp[camp].le++;
     if(hasTag(tag,'KH SỈ'))byCamp[camp].si++;
+    const nw=(r[COL_ONL.NEWOLD]||'').trim().toLowerCase();
+    if(nw==='mới'||nw==='moi')byCamp[camp].moi++;
+    else if(nw==='cũ'||nw==='cu')byCamp[camp].cu++;
     byCamp[camp].total++;
   });
   // Phân nhóm chiến dịch theo thương hiệu
   const BRANDS=[['CT','Chánh Tâm','#2563eb'],['HT','Hiền Thuỷ','#ca8a04'],['Shidai','Shidai','#7c3aed'],['Other','Chưa phân loại / chưa khớp','#64748b']];
   const grpRank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
-  const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,total:a.total+s.total}),{tiem:0,dat:0,le:0,si:0,total:0});
+  const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,moi:a.moi+s.moi,cu:a.cu+s.cu,total:a.total+s.total}),{tiem:0,dat:0,le:0,si:0,moi:0,cu:0,total:0});
   const cell=(v,color)=>`<td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?color:'var(--muted)'}">${v||'—'}</td>`;
 
   // Gom theo brand
@@ -1292,11 +1295,13 @@ function buildOnlineCampTable(){
       <td style="padding:8px 14px 8px 38px;font-size:12px;font-weight:500;color:var(--text2);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">↳ ${camp}</td>
       ${cell(s.tiem,'#ca8a04')}${cell(s.dat,'var(--green)')}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
       <td style="padding:8px 14px;text-align:center;font-size:13px;font-weight:800">${s.total}</td>
+      ${cell(s.moi,'#0abf7a')}${cell(s.cu,'#f97316')}
     </tr>`).join('');
     const brandRow=`<tr onclick="toggleOnlBrand('${k}')" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 14px;font-size:13px;font-weight:800;color:${color}"><span id="onl-arrow-${k}" style="display:inline-block;width:14px;color:var(--muted);font-size:10px">▶</span> ${label} <span style="font-weight:400;color:var(--muted);font-size:11px">(${sorted.length} chiến dịch)</span></td>
       ${cell(t.tiem,'#ca8a04')}${cell(t.dat,'var(--green)')}${cell(t.le,'#2563eb')}${cell(t.si,'#7c3aed')}
       <td style="padding:10px 14px;text-align:center;font-size:14px;font-weight:800">${t.total}</td>
+      ${cell(t.moi,'#0abf7a')}${cell(t.cu,'#f97316')}
     </tr>`;
     return brandRow+subRows;
   }).join('');
@@ -1309,6 +1314,8 @@ function buildOnlineCampTable(){
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#2563eb">KH LẺ</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#7c3aed">KH SỈ</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">TỔNG</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#0abf7a">KH MỚI</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#f97316">KH CŨ</th>
     </tr></thead>
     <tbody>${bodyRows}</tbody>
     <tfoot><tr style="background:var(--bg2);border-top:2px solid var(--border)">
@@ -1318,6 +1325,8 @@ function buildOnlineCampTable(){
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:#2563eb">${grand.le}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:#7c3aed">${grand.si}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800">${grand.total}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#0abf7a">${grand.moi}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#f97316">${grand.cu}</td>
     </tr></tfoot>
   </table></div></div>`;
 }
@@ -2076,30 +2085,7 @@ function vnd(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n))+' �
 function num(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n));}
 function pct(n){return n>0?n.toFixed(2)+'%':'—';}
 
-function toggleUrlPanel(){
-  const panel=document.getElementById('urlPanel');
-  const btn=document.getElementById('settingsBtn');
-  const isOpen=panel.classList.contains('open');
-  panel.classList.toggle('open',!isOpen);
-  btn.classList.toggle('active',!isOpen);
-  if(!isOpen){
-    setTimeout(()=>{
-      document.addEventListener('click',function handler(e){
-        if(!panel.contains(e.target)&&e.target!==btn){
-          panel.classList.remove('open');
-          btn.classList.remove('active');
-          document.removeEventListener('click',handler);
-        }
-      });
-    },100);
-  }
-}
-
 window.onload=function(){
-  const el=document.getElementById('sheetUrl');
-  if(el)el.value='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
-  const sl=document.getElementById('saleUrl');
-  if(sl)sl.value='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pubhtml?gid=2107421092&single=true';
   loadData();
 };
 </script>
