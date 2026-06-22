@@ -935,11 +935,7 @@ function renderSaleSi(){
   // By model
   const byModel={};
   rows.forEach(r=>{const m=(r[COL_SI.MODEL]||'Chưa rõ').trim();byModel[m]=(byModel[m]||0)+1;});
-  const modelRows=Object.entries(byModel).sort((a,b)=>b[1]-a[1]).map(([model,cnt])=>`<tr style="border-bottom:1px solid var(--border)">
-    <td style="padding:9px 14px;font-weight:600">${model}</td>
-    <td style="padding:9px 14px;font-size:18px;font-weight:800;color:#7c3aed">${cnt}</td>
-    <td style="padding:9px 14px"><div style="height:5px;background:var(--bg2);border-radius:4px"><div style="height:5px;background:#7c3aed;border-radius:4px;width:${(cnt/total*100).toFixed(0)}%"></div></div><span style="font-size:11px;color:var(--muted)">${(cnt/total*100).toFixed(1)}%</span></td>
-  </tr>`).join('');
+  const modelEntries=Object.entries(byModel).sort((a,b)=>b[1]-a[1]);
   // By sales
   const bySales={};
   rows.forEach(r=>{const s=(r[COL_SI.SALES]||'Chưa phân công').trim();if(!bySales[s])bySales[s]={total:0,closed:0,rev:0};bySales[s].total++;if(hasStatus(r,'chốt')||toN(r[COL_SI.TOTAL_REV])>0){bySales[s].closed++;bySales[s].rev+=toN(r[COL_SI.TOTAL_REV]);}});
@@ -1052,13 +1048,7 @@ function renderSaleSi(){
       </div>
       <div>
         <div class="sec-label">III. Phân Bố Theo Mô Hình</div>
-        <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-          <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">MÔ HÌNH KH</th>
-            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SỐ KHÁCH</th>
-            <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);width:140px">TỶ LỆ</th>
-          </tr></thead><tbody>${modelRows||'<tr><td colspan="3" style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</td></tr>'}</tbody>
-        </table></div></div>
+        <div class="chart-card"><div class="chart-wrap" style="height:260px"><canvas id="cSiModel"></canvas></div></div>
       </div>
     </div>
 
@@ -1094,6 +1084,16 @@ function renderSaleSi(){
       </tr></thead><tbody>${priRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Không có khách cần ưu tiên</td></tr>'}</tbody>
     </table></div></div>
     ${crmSection}`;
+  // Pie chart phân bố theo mô hình
+  const PIE=['#7c3aed','#4361ee','#0abf7a','#f97316','#ec4899','#eab308','#14b8a6','#ef4444'];
+  const mCtx=document.getElementById('cSiModel');
+  if(mCtx&&modelEntries.length){
+    new Chart(mCtx,{type:'pie',data:{labels:modelEntries.map(e=>e[0]),
+      datasets:[{data:modelEntries.map(e=>e[1]),backgroundColor:modelEntries.map((_,i)=>PIE[i%PIE.length]),borderWidth:2,borderColor:'var(--surface)',hoverOffset:8}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'var(--text)',font:{size:12,weight:'600'},padding:12,
+        generateLabels:c=>{const d=c.data,tot=d.datasets[0].data.reduce((a,b)=>a+b,0);return d.labels.map((l,i)=>({text:`${l}  ${d.datasets[0].data[i]} (${(d.datasets[0].data[i]/tot*100).toFixed(1)}%)`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i}));}}},
+        tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} khách (${(c.raw/total*100).toFixed(1)}%)`}}}}});
+  }
 }
 
 function renderSaleOnl(){
