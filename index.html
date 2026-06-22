@@ -625,7 +625,7 @@ function calcSaleStats(saleFiltered){
   const byDirectProd={HT:{},Shidai:{},CT:{}};
   function directBrand(r){
     const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
-    if(/ht[\s\-–]|hiến thuỷ|hien thuy/i.test(text))return'HT';
+    if(/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text))return'HT';
     if(/shidai/i.test(text))return'Shidai';
     if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))return'CT';
     return null;
@@ -711,9 +711,17 @@ function applyFilter(){
   if(saleFiltered.length&&(brand!=='all'||prod!=='all')){
     const adCampMap=buildAdCampMap();
     saleFiltered=saleFiltered.filter(r=>{
-      const camp=adCampMap[(r[COL_SALE.AD_ID]||'').trim()];if(!camp)return false;
-      if(brand!=='all'&&detectBrand(camp)!==brand)return false;
-      if(prod!=='all'&&detectProduct(camp)!==prod)return false;
+      const camp=adCampMap[(r[COL_SALE.AD_ID]||'').trim()];
+      // Có Ad ID → lấy brand/sp từ campaign; không có → lấy từ kênh + sản phẩm quan tâm (đơn trực tiếp)
+      let rb,rp;
+      if(camp){rb=detectBrand(camp);rp=detectProduct(camp);}
+      else{
+        const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
+        rb=/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text)?'HT':/shidai/i.test(text)?'Shidai':/chánh tâm|chanh tam|ct[\s\-–]/i.test(text)?'CT':null;
+        rp=detectProduct(r[COL_SALE.PRODUCT]||'');
+      }
+      if(brand!=='all'&&rb!==brand)return false;
+      if(prod!=='all'&&rp!==prod)return false;
       return true;
     });
   }
@@ -757,7 +765,7 @@ function applyQuickFilter(){
 // ── Brand & Product ──
 function detectBrand(name){
   const n=(name||'').trim();
-  if(/^HT[\s\-–]/i.test(n)||/^HT$/i.test(n))return'HT';
+  if(/^HT[\s\-–]|^HT$|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(n))return'HT';
   if(/shidai/i.test(n))return'Shidai';
   if(/chánh tâm|chanh tam|^CT[\s\-–]/i.test(n))return'CT';
   return'CT';
