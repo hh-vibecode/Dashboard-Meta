@@ -1129,7 +1129,8 @@ function renderSaleOnl(){
   const totalPot=rows.reduce((s,r)=>s+toN(r[COL_SAONL.POTENTIAL]),0);
   const caringPot=rows.filter(r=>st(r,'đang chăm sóc')).reduce((s,r)=>s+toN(r[COL_SAONL.POTENTIAL]),0);
   const longPot=rows.filter(r=>st(r,'dài hạn')).reduce((s,r)=>s+toN(r[COL_SAONL.POTENTIAL]),0);
-  const closedPot=rows.filter(r=>st(r,'chốt')).reduce((s,r)=>s+toN(r[COL_SAONL.POTENTIAL]),0);
+  // Đơn đã chốt: dùng doanh thu thực tế (cột Doanh thu), không phải giá trị tiềm năng
+  const closedRev=rows.filter(r=>st(r,'chốt')).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
   // Top potential customers
   const topPot=rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0).sort((a,b)=>toN(b[COL_SAONL.POTENTIAL])-toN(a[COL_SAONL.POTENTIAL])).slice(0,10);
   const topPotRows=topPot.map(r=>`<tr style="border-bottom:1px solid var(--border)">
@@ -1185,7 +1186,7 @@ function renderSaleOnl(){
           ${mkKpi('💎','Tổng GT Tiềm Năng',vnd(totalPot),'toàn bộ leads','g-yellow')}
           ${mkKpi('💬','Đang Chăm Sóc',vnd(caringPot),'tiềm năng','g-blue')}
           ${mkKpi('⏳','CS Dài Hạn',vnd(longPot),'tiềm năng','g-yellow')}
-          ${mkKpi('✅','Đã Chốt',vnd(closedPot),'thực hiện','g-green')}
+          ${mkKpi('✅','Đã Chốt',vnd(closedRev),'doanh số thực tế','g-green')}
         </div>
       </div>
     </div>
