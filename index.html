@@ -883,6 +883,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
           :'<div class="chart-empty" style="height:220px"><div class="icon">📊</div><p>Chưa có dữ liệu doanh số</p></div>'}
       </div>
     </div>
+    ${buildOnlineCampTable()}
     <div class="sec-label">Brand → Loại Sản Phẩm</div>
     <div class="tov-card">
       <div class="tov-head">
@@ -1264,7 +1265,7 @@ function buildOnlineCampTable(){
   const byCamp={};
   onlineRows.forEach(r=>{
     const adId=(r[COL_ONL.AD_ID]||'').trim();
-    const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Trực tiếp (không có Ad ID)');
+    const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Data chưa phân loại');
     if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,total:0};
     const tag=(r[COL_ONL.TAG]||'');
     if(hasTag(tag,'TIỀM NĂNG'))byCamp[camp].tiem++;
@@ -1273,10 +1274,11 @@ function buildOnlineCampTable(){
     if(hasTag(tag,'KH SỈ'))byCamp[camp].si++;
     byCamp[camp].total++;
   });
-  // Sort by campaign name, put "Trực tiếp" last
+  // Sort by campaign name, đẩy nhóm chưa phân loại / chưa khớp xuống cuối
+  const rank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
   const entries=Object.entries(byCamp).sort(([a],[b])=>{
-    if(a.startsWith('Trực tiếp'))return 1;
-    if(b.startsWith('Trực tiếp'))return -1;
+    const ra=rank(a),rb=rank(b);
+    if(ra!==rb)return ra-rb;
     return a.localeCompare(b,'vi');
   });
   const campRows=entries.map(([camp,s])=>`<tr style="border-bottom:1px solid var(--border)">
@@ -1369,8 +1371,7 @@ function renderSaleOverview(){
         <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);width:160px">TỶ LỆ</th>
         <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TOP SALES</th>
       </tr></thead><tbody>${deptRows}</tbody>
-    </table></div></div>
-    ${buildOnlineCampTable()}`;
+    </table></div></div>`;
   const COLORS=['rgba(67,97,238,.8)','rgba(10,191,122,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)','rgba(234,179,8,.8)','rgba(20,184,166,.8)','rgba(239,68,68,.8)'];
   function hbar(id,entries,lim=10){
     const ctx=document.getElementById(id);if(!ctx)return;
