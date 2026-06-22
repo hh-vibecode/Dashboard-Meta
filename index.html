@@ -883,18 +883,8 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
           :'<div class="chart-empty" style="height:220px"><div class="icon">📊</div><p>Chưa có dữ liệu doanh số</p></div>'}
       </div>
     </div>
-    ${buildOnlineCampTable()}
-    <div class="sec-label">Brand → Loại Sản Phẩm</div>
-    <div class="tov-card">
-      <div class="tov-head">
-        <div class="tov-title">Bảng Tổng Quan</div>
-        <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
-        <span class="period-chip" style="font-size:11px">📅 ${period}</span>
-      </div>
-      <div class="tov-scroll" id="tovBody">${buildGroupedTable(rows,saleStats)}</div>
-    </div>`;
+    ${buildOnlineCampTable()}`;
 
-  window._tovRows=rows;
   const pf=document.getElementById('prodFilter');
   if(pf){
     const cur=pf.value;
@@ -1552,6 +1542,15 @@ function renderDetail(camps,period,filteredRows,saleStats){
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
+    </div>
+    <div class="sec-label" style="margin-top:18px">Brand → Loại Sản Phẩm</div>
+    <div class="tov-card">
+      <div class="tov-head">
+        <div class="tov-title">Bảng Tổng Quan</div>
+        <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
+        <span class="period-chip" style="font-size:11px">📅 ${period}</span>
+      </div>
+      <div class="tov-scroll" id="tovBody">${buildGroupedTable(filteredRows,saleStats)}</div>
     </div>`;
 }
 
