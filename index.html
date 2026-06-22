@@ -397,26 +397,30 @@ async function loadData(){
 }
 
 async function fetchCsvWithProxy(rawUrl,idx=0){
-  const labels=['MKT','SALE'];
+  const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM'];
   const lbl=labels[idx]||'';
   const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now();
-  const proxies=['https://corsproxy.io/?','https://api.allorigins.win/raw?url=','https://thingproxy.freeboard.io/fetch/'];
-  for(let i=0;i<proxies.length;i++){
-    const proxy=proxies[i];
-    setStatus(`[${lbl}] Thử proxy ${i+1}/3...`);
+  // Google Sheets published CSV hỗ trợ CORS trực tiếp → thử trực tiếp trước (nhanh + ổn định)
+  const attempts=[csvUrl,
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(csvUrl),
+    'https://corsproxy.io/?'+encodeURIComponent(csvUrl),
+    'https://thingproxy.freeboard.io/fetch/'+csvUrl];
+  for(let i=0;i<attempts.length;i++){
+    setStatus(`[${lbl}] ${i===0?'Tải trực tiếp':'Proxy '+i}...`);
     try{
       const ctrl=new AbortController();
       const timer=setTimeout(()=>ctrl.abort(),15000);
-      const res=await fetch(proxy+encodeURIComponent(csvUrl),{signal:ctrl.signal});
-      if(!res.ok){clearTimeout(timer);setStatus(`[${lbl}] Proxy ${i+1} lỗi ${res.status}, thử tiếp...`);continue;}
-      setStatus(`[${lbl}] Proxy ${i+1} OK, đang tải data...`);
+      const res=await fetch(attempts[i],{signal:ctrl.signal,redirect:'follow'});
+      if(!res.ok){clearTimeout(timer);setStatus(`[${lbl}] ${i===0?'Trực tiếp':'Proxy '+i} lỗi ${res.status}, thử tiếp...`);continue;}
       const text=await res.text();
       clearTimeout(timer);
+      // Google trả HTML khi lỗi/redirect chưa xong → coi như fail, thử cách khác
+      if(/^\s*<(!doctype|html)/i.test(text)){setStatus(`[${lbl}] ${i===0?'Trực tiếp':'Proxy '+i} trả HTML, thử tiếp...`);continue;}
       setStatus(`[${lbl}] Tải xong (${Math.round(text.length/1024)}KB)`);
       return text;
-    }catch(e){setStatus(`[${lbl}] Proxy ${i+1} timeout/lỗi, thử tiếp...`);continue;}
+    }catch(e){setStatus(`[${lbl}] ${i===0?'Trực tiếp':'Proxy '+i} timeout/lỗi, thử tiếp...`);continue;}
   }
-  throw new Error(`[${lbl}] Không kết nối được proxy (đã thử 3 servers)`);
+  throw new Error(`[${lbl}] Không tải được dữ liệu (đã thử trực tiếp + 3 proxy)`);
 }
 
 function parseMktCsv(text){
