@@ -1278,29 +1278,29 @@ function buildOnlineCampTable(){
   const grpRank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
   const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,total:a.total+s.total}),{tiem:0,dat:0,le:0,si:0,total:0});
   const cell=(v,color)=>`<td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?color:'var(--muted)'}">${v||'—'}</td>`;
-  const headRow=`<tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-      <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CHIẾN DỊCH</th>
-      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#ca8a04">TIỀM NĂNG</th>
-      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">LEAD ĐẠT</th>
-      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#2563eb">KH LẺ</th>
-      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#7c3aed">KH SỈ</th>
-      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">TỔNG</th>
-    </tr>`;
 
   // Gom theo brand
   const grpByBrand={};
   Object.entries(byCamp).forEach(([camp,s])=>{const b=onlineBrand(camp);(grpByBrand[b]=grpByBrand[b]||[]).push([camp,s]);});
 
-  // ── Bảng tổng ngang theo thương hiệu ──
+  // ── Bảng theo thương hiệu (click để mở danh sách chiến dịch) ──
   const grand=sumOf(Object.entries(byCamp));
-  const summaryRows=BRANDS.filter(([k])=>grpByBrand[k]&&grpByBrand[k].length).map(([k,label,color])=>{
+  const bodyRows=BRANDS.filter(([k])=>grpByBrand[k]&&grpByBrand[k].length).map(([k,label,color])=>{
     const t=sumOf(grpByBrand[k]);
-    return`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:10px 14px;font-size:13px;font-weight:800;color:${color}">${label}</td>
+    const sorted=grpByBrand[k].sort(([a],[b])=>{const ra=grpRank(a),rb=grpRank(b);if(ra!==rb)return ra-rb;return a.localeCompare(b,'vi');});
+    const subRows=sorted.map(([camp,s])=>`<tr class="onl-sub onl-sub-${k}" style="display:none;background:var(--bg2);border-bottom:1px solid var(--border)">
+      <td style="padding:8px 14px 8px 38px;font-size:12px;font-weight:500;color:var(--text2);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">↳ ${camp}</td>
+      ${cell(s.tiem,'#ca8a04')}${cell(s.dat,'var(--green)')}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
+      <td style="padding:8px 14px;text-align:center;font-size:13px;font-weight:800">${s.total}</td>
+    </tr>`).join('');
+    const brandRow=`<tr onclick="toggleOnlBrand('${k}')" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <td style="padding:10px 14px;font-size:13px;font-weight:800;color:${color}"><span id="onl-arrow-${k}" style="display:inline-block;width:14px;color:var(--muted);font-size:10px">▶</span> ${label} <span style="font-weight:400;color:var(--muted);font-size:11px">(${sorted.length} chiến dịch)</span></td>
       ${cell(t.tiem,'#ca8a04')}${cell(t.dat,'var(--green)')}${cell(t.le,'#2563eb')}${cell(t.si,'#7c3aed')}
       <td style="padding:10px 14px;text-align:center;font-size:14px;font-weight:800">${t.total}</td>
-    </tr>`;}).join('');
-  let html=`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} đơn · theo Ad ID)</span></div>
+    </tr>`;
+    return brandRow+subRows;
+  }).join('');
+  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} data · theo Ad ID · click thương hiệu để xem chiến dịch)</span></div>
   <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
     <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
       <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THƯƠNG HIỆU</th>
@@ -1310,7 +1310,7 @@ function buildOnlineCampTable(){
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#7c3aed">KH SỈ</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">TỔNG</th>
     </tr></thead>
-    <tbody>${summaryRows}</tbody>
+    <tbody>${bodyRows}</tbody>
     <tfoot><tr style="background:var(--bg2);border-top:2px solid var(--border)">
       <td style="padding:10px 14px;font-size:12px;font-weight:800">TỔNG CỘNG</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:#ca8a04">${grand.tiem}</td>
@@ -1320,32 +1320,13 @@ function buildOnlineCampTable(){
       <td style="padding:10px 14px;text-align:center;font-weight:800">${grand.total}</td>
     </tr></tfoot>
   </table></div></div>`;
+}
 
-  // ── Bảng chi tiết theo từng thương hiệu ──
-  BRANDS.forEach(([k,label,color])=>{
-    const list=grpByBrand[k];if(!list||!list.length)return;
-    const sorted=list.sort(([a],[b])=>{const ra=grpRank(a),rb=grpRank(b);if(ra!==rb)return ra-rb;return a.localeCompare(b,'vi');});
-    const rowsHtml=sorted.map(([camp,s])=>`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 14px;font-size:12px;font-weight:600;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">${camp}</td>
-      ${cell(s.tiem,'#ca8a04')}${cell(s.dat,'var(--green)')}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
-      <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:800">${s.total}</td>
-    </tr>`).join('');
-    const t=sumOf(list);
-    html+=`<div class="sec-label" style="margin-top:14px"><span style="color:${color}">${label}</span> <span style="font-weight:400;color:var(--muted);font-size:11px">(${t.total} đơn · ${list.length} chiến dịch)</span></div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead>${headRow}</thead>
-      <tbody>${rowsHtml}</tbody>
-      <tfoot><tr style="background:var(--bg2);border-top:2px solid var(--border)">
-        <td style="padding:10px 14px;font-size:12px;font-weight:800">Tổng ${label}</td>
-        <td style="padding:10px 14px;text-align:center;font-weight:800;color:#ca8a04">${t.tiem}</td>
-        <td style="padding:10px 14px;text-align:center;font-weight:800;color:var(--green)">${t.dat}</td>
-        <td style="padding:10px 14px;text-align:center;font-weight:800;color:#2563eb">${t.le}</td>
-        <td style="padding:10px 14px;text-align:center;font-weight:800;color:#7c3aed">${t.si}</td>
-        <td style="padding:10px 14px;text-align:center;font-weight:800">${t.total}</td>
-      </tr></tfoot>
-    </table></div></div>`;
-  });
-  return html;
+function toggleOnlBrand(k){
+  const open=document.querySelectorAll('.onl-sub-'+k);
+  let show=null;
+  open.forEach(el=>{if(show===null)show=el.style.display==='none';el.style.display=show?'':'none';});
+  const ar=document.getElementById('onl-arrow-'+k);if(ar)ar.textContent=show?'▼':'▶';
 }
 
 function renderSaleOverview(){
