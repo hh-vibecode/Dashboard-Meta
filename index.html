@@ -290,7 +290,7 @@ const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:1
 const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:22,TOTAL_REV:23,CUST_TYPE:24};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
-let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,sbCollapsed=false;
+let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -784,6 +784,8 @@ function renderAll(rows,saleFiltered){
   if(chartWave){chartWave.destroy();chartWave=null;}
   if(chartProdRev){chartProdRev.destroy();chartProdRev=null;}
   if(chartBrandRev){chartBrandRev.destroy();chartBrandRev=null;}
+  if(chartPlatRev){chartPlatRev.destroy();chartPlatRev=null;}
+  if(chartAdsDs){chartAdsDs.destroy();chartAdsDs=null;}
   const kpi=calcKPI(rows);
   const saleStats=calcSaleStats(saleFiltered||[]);
   const byCamp=groupByCamp(rows);
@@ -826,6 +828,23 @@ function renderAll(rows,saleFiltered){
 
 // ── TỔNG QUAN ──
 function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds,saleFiltered){
+  // Doanh số theo nền tảng (Facebook / TikTok / khác) — từ đơn đã chốt
+  const platRev=(function(){
+    const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+    const p={fb:0,tt:0,other:0,total:0};
+    (saleFiltered||[]).filter(isChot).forEach(r=>{
+      const ch=(r[COL_SALE.CHANNEL]||'').toLowerCase();const v=vndNum(r[COL_SALE.REVENUE]);
+      if(ch.includes('facebook'))p.fb+=v;else if(ch.includes('tiktok')||ch.includes('tik tok'))p.tt+=v;else p.other+=v;
+      p.total+=v;
+    });
+    return p;
+  })();
+  // ADS/DS theo brand: chi phí ads / doanh số
+  const adsDsBrand=[
+    {key:'HT',label:'Hiền Thuỷ',color:'#f59e0b',spend:htSpend,rev:saleStats?saleStats.byBrand.HT.revenue:0},
+    {key:'Shidai',label:'Shidai',color:'#8b5cf6',spend:sdSpend,rev:saleStats?saleStats.byBrand.Shidai.revenue:0},
+    {key:'CT',label:'Chánh Tâm',color:'#3b82f6',spend:ctSpend,rev:saleStats?saleStats.byBrand.CT.revenue:0}
+  ];
   document.getElementById('page-overview').innerHTML=`
     <div class="page-title">Tổng Quan</div>
     <div class="page-sub">Chọn brand & khoảng ngày trên topbar để lọc</div>
@@ -881,6 +900,18 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
           ?'<div class="chart-wrap" style="height:220px"><canvas id="cProdRev"></canvas></div>'
           :'<div class="chart-empty" style="height:220px"><div class="icon">📊</div><p>Chưa có dữ liệu doanh số</p></div>'}
       </div>
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">Doanh Số Theo Nền Tảng</div><span class="chart-sub">Facebook · TikTok · khác</span></div>
+        ${platRev&&platRev.total>0
+          ?'<div class="chart-wrap"><canvas id="cPlatRev"></canvas></div>'
+          :'<div class="chart-empty"><div class="icon">📱</div><p>Chưa có dữ liệu doanh số</p></div>'}
+      </div>
+      <div class="chart-card">
+        <div class="chart-head"><div class="chart-title">ADS/DS Theo Brand</div><span class="chart-sub">Chi phí ads / doanh số · thấp = tốt</span></div>
+        ${adsDsBrand&&adsDsBrand.some(b=>b.rev>0)
+          ?'<div class="chart-wrap" style="height:220px"><canvas id="cAdsDs"></canvas></div>'
+          :'<div class="chart-empty" style="height:220px"><div class="icon">🎯</div><p>Chưa có dữ liệu doanh số</p></div>'}
+      </div>
     </div>
     ${buildOnlineCampTable()}`;
 
@@ -894,6 +925,8 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
   buildBrandRevChart(saleStats);
   buildWaveChart(rows,saleFiltered);
   buildProdRevChart(saleStats);
+  buildPlatRevChart(platRev);
+  buildAdsDsChart(adsDsBrand);
 }
 
 function renderSaleSi(){
@@ -2030,6 +2063,31 @@ function buildProdRevChart(saleStats){
       }
     }
   });
+}
+
+function buildPlatRevChart(p){
+  const ctx=document.getElementById('cPlatRev');if(!ctx||!p||p.total<=0)return;
+  const items=[['Facebook',p.fb,'rgba(24,119,242,.85)'],['TikTok',p.tt,'rgba(0,0,0,.8)'],['Khác',p.other,'rgba(148,163,184,.85)']].filter(x=>x[1]>0);
+  chartPlatRev=new Chart(ctx,{type:'doughnut',
+    data:{labels:items.map(i=>i[0]),datasets:[{data:items.map(i=>i[1]),backgroundColor:items.map(i=>i[2]),borderWidth:2,borderColor:'var(--surface)',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{legend:{position:'right',labels:{color:'var(--text)',font:{size:12,weight:'600'},padding:12,
+        generateLabels:c=>{const d=c.data;return d.labels.map((l,i)=>({text:`${l}  ${vnd(d.datasets[0].data[i])}`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i}));}}},
+        tooltip:{callbacks:{label:c=>`${c.label}: ${vnd(c.raw)} (${(c.raw/p.total*100).toFixed(1)}%)`}}}}});
+}
+
+function buildAdsDsChart(brands){
+  const ctx=document.getElementById('cAdsDs');if(!ctx)return;
+  const items=brands.filter(b=>b.rev>0);
+  if(!items.length)return;
+  const ratios=items.map(b=>b.spend/b.rev*100);
+  chartAdsDs=new Chart(ctx,{type:'bar',
+    data:{labels:items.map(b=>b.label),datasets:[{label:'ADS/DS',data:ratios,backgroundColor:items.map(b=>b.color),borderRadius:6,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>{const b=items[c.dataIndex];return ` ${c.raw.toFixed(1)}% — ads ${vnd(b.spend)} / DS ${vnd(b.rev)}`;}}}},
+      scales:{x:{grid:{display:false},border:{display:false},ticks:{color:'var(--muted)',font:{size:10,family:'Inter'},callback:v=>v+'%'}},
+        y:{grid:{display:false},border:{display:false},ticks:{color:'var(--text)',font:{size:11,family:'Inter',weight:'600'}}}}}});
 }
 
 function groupByCamp(rows){
