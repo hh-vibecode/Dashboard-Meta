@@ -597,9 +597,8 @@ function buildAdCampMap(){
 function filterSaleRows(from,to){
   const base=saleRowsRaw.filter(r=>{
     const src=(r[COL_SALE.SOURCE]||'').trim().toLowerCase();
-    const ch=(r[COL_SALE.CHANNEL]||'').trim().toLowerCase();
-    const adId=(r[COL_SALE.AD_ID]||'').trim();
-    return src==='online'&&ch.includes('facebook');
+    // Gồm tất cả nguồn online (Facebook + TikTok + nguồn khác), không chỉ riêng Facebook
+    return src==='online';
   });
   if(!from&&!to)return base;
   const fromD=from?localDate(from):null;
@@ -856,7 +855,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     <div class="sec-label">Sale Performance</div>
     <div class="kpi-grid">
       ${mkKpi('💵','Doanh Số',saleStats?vnd(saleStats.totalRevenue):'—',saleStats?saleStats.totalOrders+' đơn đã chốt':'chưa có dữ liệu','g-teal')}
-      ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' leads':'chưa có dữ liệu','g-orange')}
+      ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' lead tiềm năng':'chưa có dữ liệu','g-orange')}
       ${mkKpi('📦','DS TB / Đơn',saleStats&&saleStats.totalOrders>0?vnd(saleStats.avgOrderValue):'—','trung bình / đơn chốt','g-pink')}
       ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&kpi.totalMess>0?pct(saleStats.totalOrders/kpi.totalMess*100):'—',saleStats?'đơn chốt / tổng mess':'chưa có dữ liệu','g-red')}
     </div>
