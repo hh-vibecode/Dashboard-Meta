@@ -213,10 +213,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     </select>
     <div class="fdiv"></div>
     <label>Từ</label>
-    <input type="date" id="dateFrom" onchange="applyFilter()">
+    <input type="date" id="dateFrom" onchange="onDateChange()">
     <div class="fdiv"></div>
     <label>Đến</label>
-    <input type="date" id="dateTo" onchange="applyFilter()">
+    <input type="date" id="dateTo" onchange="onDateChange()">
     <div class="fdiv"></div>
     <button class="btn-ghost" onclick="clearFilter()">Xoá</button>
   </div>
@@ -741,10 +741,30 @@ function clearFilter(){
   const bf=document.getElementById('brandFilter');if(bf)bf.value='all';
   const pf=document.getElementById('prodFilter');if(pf)pf.value='all';
   if(allRows.length)renderAll(allRows);
+  renderSaleOverview();renderSaleSi();renderSaleOnl();
 }
 function localDate(str,end=false){
   const p=str.split('-');
   return end?new Date(+p[0],+p[1]-1,+p[2],23,59,59):new Date(+p[0],+p[1]-1,+p[2],0,0,0);
+}
+// Predicate lọc theo khoảng ngày đang chọn; getD(r) trả về Date của dòng
+function saleRangePred(getD){
+  const fv=document.getElementById('dateFrom'),tv=document.getElementById('dateTo');
+  const from=fv?fv.value:'',to=tv?tv.value:'';
+  if(!from&&!to)return ()=>true;
+  const fromD=from?localDate(from):null,toD=to?localDate(to,true):null;
+  return r=>{const d=getD(r);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
+}
+function curPeriodLabel(){
+  const f=document.getElementById('dateFrom'),t=document.getElementById('dateTo');
+  const fv=f?f.value:'',tv=t?t.value:'';
+  if(!fv&&!tv)return'Toàn bộ';
+  return(fv?fv.split('-').reverse().join('/'):'...')+' → '+(tv?tv.split('-').reverse().join('/'):'...');
+}
+// Đổi ngày → re-render cả MKT lẫn các báo cáo Sale
+function onDateChange(){
+  if(allRows.length)applyFilter();
+  renderSaleOverview();renderSaleSi();renderSaleOnl();
 }
 function applyQuickFilter(){
   const v=document.getElementById('quickFilter').value;
@@ -765,7 +785,7 @@ function applyQuickFilter(){
   }
   document.getElementById('dateFrom').value=from;
   document.getElementById('dateTo').value=to;
-  applyFilter();
+  onDateChange();
 }
 
 // ── Brand & Product ──
@@ -955,8 +975,8 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
 }
 
 function renderSaleSi(){
-  const rows=saleSiRows;
-  if(!rows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  if(!saleSiRows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  const rows=saleSiRows.filter(saleRangePred(r=>parseDate(r[COL_SI.DATE])));
   const toN=vndNum;
   const hasStatus=(r,kw)=>(r[COL_SI.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const total=rows.length;
@@ -1004,7 +1024,7 @@ function renderSaleSi(){
   </tr>`).join('');
 
   // ── CRM care log (gid=138010004) ──
-  const crm=saleSiCrmRows;
+  const crm=saleSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE])));
   let crmSection='';
   if(crm.length){
     const totalCS=crm.length;
@@ -1068,7 +1088,7 @@ function renderSaleSi(){
 
   document.getElementById('page-sale-si').innerHTML=`
     <div class="page-title">Báo Cáo Sale Sỉ</div>
-    <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng</div>
+    <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng · 📅 ${curPeriodLabel()}</div>
 
     <div class="sec-label">I. Tổng Quan Chung</div>
     <div class="kpi-grid">
@@ -1144,8 +1164,8 @@ function renderSaleSi(){
 }
 
 function renderSaleOnl(){
-  const rows=saleOnlRows;
-  if(!rows.length){document.getElementById('page-sale-onl').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  if(!saleOnlRows.length){document.getElementById('page-sale-onl').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  const rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
   const toN=vndNum;
   const st=(r,kw)=>(r[COL_SAONL.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const total=rows.length;
@@ -1211,7 +1231,7 @@ function renderSaleOnl(){
   </tr>`).join('');
   document.getElementById('page-sale-onl').innerHTML=`
     <div class="page-title">Báo Cáo Sale Online</div>
-    <div class="page-sub">Phân tích lead online · ${total} leads</div>
+    <div class="page-sub">Phân tích lead online · ${total} leads · 📅 ${curPeriodLabel()}</div>
 
     <div class="sec-label">I. Tổng Quan Lead</div>
     <div class="kpi-grid">
@@ -1397,8 +1417,8 @@ function toggleOnlBrand(k){
 }
 
 function renderSaleOverview(){
-  const rows=crmHubRows;
-  if(!rows.length){
+  const rows=crmHubRows.filter(saleRangePred(r=>parseDate(r[COL_CRM.DATE])));
+  if(!crmHubRows.length){
     document.getElementById('page-sale-overview').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';
     return;
   }
@@ -1422,7 +1442,7 @@ function renderSaleOverview(){
   }).join('');
   document.getElementById('page-sale-overview').innerHTML=`
     <div class="page-title">Sale — Data Hub</div>
-    <div class="page-sub">Dashboard Sale Manager · Master Data Hub</div>
+    <div class="page-sub">Dashboard Sale Manager · Master Data Hub · 📅 ${curPeriodLabel()}</div>
     <div class="period-bar">
       <div class="stat-chip">👥 ${total} tổng leads</div>
       <div class="stat-chip">🌐 ${online.length} online</div>
