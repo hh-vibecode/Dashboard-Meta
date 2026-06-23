@@ -157,6 +157,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .row-brand-ht td:first-child{color:var(--orange);font-weight:800;padding-left:13px}
 .row-brand-sd td:first-child{color:var(--teal);font-weight:800;padding-left:13px}
 .row-brand-ct td:first-child{color:var(--purple);font-weight:800;padding-left:13px}
+.row-brand-ttv td:first-child{color:var(--green);font-weight:800;padding-left:13px}
 .row-product td:first-child{padding-left:36px;color:var(--text2);font-size:11.5px;font-weight:600}
 .num-cell{font-family:var(--font);font-weight:700;font-size:12px}
 .tbl-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
@@ -622,9 +623,10 @@ function calcSaleStats(saleFiltered){
   const totalOrders=closedRows.length;
   const totalLeads=saleFiltered.length;
   const byCamp={};
-  const byDirectProd={HT:{},Shidai:{},CT:{}};
+  const byDirectProd={HT:{},Shidai:{},CT:{},TTV:{}};
   function directBrand(r){
     const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
+    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(text))return'TTV';
     if(/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text))return'HT';
     if(/shidai/i.test(text))return'Shidai';
     if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))return'CT';
@@ -647,7 +649,7 @@ function calcSaleStats(saleFiltered){
       }
     }
   });
-  const byBrand={HT:{leads:0,orders:0,revenue:0},Shidai:{leads:0,orders:0,revenue:0},CT:{leads:0,orders:0,revenue:0}};
+  const byBrand={HT:{leads:0,orders:0,revenue:0},Shidai:{leads:0,orders:0,revenue:0},CT:{leads:0,orders:0,revenue:0},TTV:{leads:0,orders:0,revenue:0}};
   const byProd={};
   Object.entries(byCamp).forEach(([camp,s])=>{
     const br=detectBrand(camp);if(byBrand[br]){byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;}
@@ -657,7 +659,7 @@ function calcSaleStats(saleFiltered){
     byProd[key].leads+=s.leads;byProd[key].orders+=s.orders;byProd[key].revenue+=s.revenue;
   });
   // Include direct purchases in byBrand for chart accuracy
-  ['HT','Shidai','CT'].forEach(br=>{
+  ['HT','Shidai','CT','TTV'].forEach(br=>{
     Object.values(byDirectProd[br]).forEach(s=>{
       byBrand[br].leads+=s.leads;byBrand[br].orders+=s.orders;byBrand[br].revenue+=s.revenue;
     });
@@ -717,7 +719,7 @@ function applyFilter(){
       if(camp){rb=detectBrand(camp);rp=detectProduct(camp);}
       else{
         const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
-        rb=/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text)?'HT':/shidai/i.test(text)?'Shidai':/chánh tâm|chanh tam|ct[\s\-–]/i.test(text)?'CT':null;
+        rb=/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(text)?'TTV':/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text)?'HT':/shidai/i.test(text)?'Shidai':/chánh tâm|chanh tam|ct[\s\-–]/i.test(text)?'CT':null;
         rp=detectProduct(r[COL_SALE.PRODUCT]||'');
       }
       if(brand!=='all'&&rb!==brand)return false;
@@ -765,6 +767,7 @@ function applyQuickFilter(){
 // ── Brand & Product ──
 function detectBrand(name){
   const n=(name||'').trim();
+  if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
   if(/^HT[\s\-–]|^HT$|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(n))return'HT';
   if(/shidai/i.test(n))return'Shidai';
   if(/chánh tâm|chanh tam|^CT[\s\-–]/i.test(n))return'CT';
@@ -782,7 +785,7 @@ function detectProduct(name){
 }
 function getBrandBadge(name){
   const b=detectBrand(name);
-  return b==='HT'?'<span class="brand-ht">HT</span>':b==='Shidai'?'<span class="brand-sd">SD</span>':'<span class="brand-ct">CT</span>';
+  return b==='HT'?'<span class="brand-ht">HT</span>':b==='Shidai'?'<span class="brand-sd">SD</span>':b==='TTV'?'<span style="display:inline-flex;align-items:center;background:rgba(10,191,122,.12);color:var(--green);border:1px solid rgba(10,191,122,.25);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700">TTV</span>':'<span class="brand-ct">CT</span>';
 }
 
 // ── Render All ──
@@ -815,7 +818,8 @@ function renderAll(rows,saleFiltered){
   const htSpend=camps.filter(c=>detectBrand(c.name)==='HT').reduce((s,c)=>s+c.spend,0);
   const sdSpend=camps.filter(c=>detectBrand(c.name)==='Shidai').reduce((s,c)=>s+c.spend,0);
   const ctSpend=camps.filter(c=>detectBrand(c.name)==='CT').reduce((s,c)=>s+c.spend,0);
-  const total=htSpend+sdSpend+ctSpend||1;
+  const ttvSpend=camps.filter(c=>detectBrand(c.name)==='TTV').reduce((s,c)=>s+c.spend,0);
+  const total=htSpend+sdSpend+ctSpend+ttvSpend||1;
 
   const prodCount={};
   camps.forEach(c=>{const p=detectProduct(c.name);prodCount[p]=(prodCount[p]||0)+1;});
@@ -826,7 +830,7 @@ function renderAll(rows,saleFiltered){
   const _pf=document.getElementById('prodFilter');
   const _bv=_bf?_bf.value:'all';
   const _pv=_pf?_pf.value:'all';
-  renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds,saleFiltered||[]);
+  renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,ttvSpend,total,prodCount,allProds,saleFiltered||[]);
   const bf2=document.getElementById('brandFilter');
   const pf2=document.getElementById('prodFilter');
   if(bf2)bf2.value=_bv;
@@ -835,7 +839,7 @@ function renderAll(rows,saleFiltered){
 }
 
 // ── TỔNG QUAN ──
-function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,total,prodCount,allProds,saleFiltered){
+function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,ttvSpend,total,prodCount,allProds,saleFiltered){
   // Doanh số theo nền tảng (Facebook / TikTok / khác) — từ đơn đã chốt
   const platRev=(function(){
     const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
@@ -851,7 +855,8 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
   const adsDsBrand=[
     {key:'HT',label:'Hiền Thuỷ',color:'#f59e0b',spend:htSpend,rev:saleStats?saleStats.byBrand.HT.revenue:0},
     {key:'Shidai',label:'Shidai',color:'#8b5cf6',spend:sdSpend,rev:saleStats?saleStats.byBrand.Shidai.revenue:0},
-    {key:'CT',label:'Chánh Tâm',color:'#3b82f6',spend:ctSpend,rev:saleStats?saleStats.byBrand.CT.revenue:0}
+    {key:'CT',label:'Chánh Tâm',color:'#3b82f6',spend:ctSpend,rev:saleStats?saleStats.byBrand.CT.revenue:0},
+    {key:'TTV',label:'Tự Tại Viên',color:'#0abf7a',spend:ttvSpend,rev:saleStats?saleStats.byBrand.TTV.revenue:0}
   ];
   document.getElementById('page-overview').innerHTML=`
     <div class="page-title">Tổng Quan</div>
@@ -865,6 +870,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
         <option value="HT">Hiền Thuỷ</option>
         <option value="Shidai">Shidai</option>
         <option value="CT">Chánh Tâm</option>
+        <option value="TTV">Tự Tại Viên</option>
       </select>
       <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;min-width:130px;font-weight:600">
         <option value="all">Tất cả SP</option>
@@ -916,9 +922,17 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       </div>
       <div class="chart-card">
         <div class="chart-head"><div class="chart-title">ADS/DS Theo Brand</div><span class="chart-sub">Chi phí ads / doanh số · thấp = tốt</span></div>
-        ${adsDsBrand&&adsDsBrand.some(b=>b.rev>0)
-          ?'<div class="chart-wrap" style="height:220px"><canvas id="cAdsDs"></canvas></div>'
-          :'<div class="chart-empty" style="height:220px"><div class="icon">🎯</div><p>Chưa có dữ liệu doanh số</p></div>'}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:6px 2px">
+          ${adsDsBrand.map(b=>{
+            const ratio=b.rev>0?b.spend/b.rev*100:null;
+            const rc=ratio===null?'var(--muted)':ratio<=50?'var(--green)':ratio<=100?'#f59e0b':'#ef4444';
+            return`<div style="background:var(--bg2);border-radius:12px;padding:13px 15px;border-left:4px solid ${b.color}">
+              <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${b.label}</div>
+              <div style="font-size:24px;font-weight:800;color:${rc};margin:3px 0 2px">${ratio===null?'—':ratio.toFixed(1)+'%'}</div>
+              <div style="font-size:10px;color:var(--muted)">ads ${vnd(b.spend)} · DS ${b.rev>0?vnd(b.rev):'—'}</div>
+            </div>`;
+          }).join('')}
+        </div>
       </div>
     </div>
     ${buildOnlineCampTable()}`;
@@ -929,12 +943,11 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     pf.innerHTML='<option value="all">Tất cả SP</option>'+allProds.map(p=>`<option value="${p}">${p}</option>`).join('');
     if(allProds.includes(cur))pf.value=cur;
   }
-  buildBrandChart(htSpend,sdSpend,ctSpend,total);
+  buildBrandChart(htSpend,sdSpend,ctSpend,ttvSpend,total);
   buildBrandRevChart(saleStats);
   buildWaveChart(rows,saleFiltered);
   buildProdRevChart(saleStats);
   buildPlatRevChart(platRev);
-  buildAdsDsChart(adsDsBrand);
 }
 
 function renderSaleSi(){
@@ -1290,6 +1303,7 @@ function renderSaleOnl(){
 function onlineBrand(camp){
   const n=(camp||'').trim();
   if(camp==='ID chưa khớp chiến dịch'||camp==='Data chưa phân loại')return'Other';
+  if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
   if(/^HT[\s\-–]|hiền thu[ỷy]|hien thuy/i.test(n))return'HT';
   if(/shidai/i.test(n))return'Shidai';
   if(/^CT[\s\-–]|chánh tâm|chanh tam/i.test(n))return'CT';
@@ -1317,7 +1331,7 @@ function buildOnlineCampTable(){
     byCamp[camp].total++;
   });
   // Phân nhóm chiến dịch theo thương hiệu
-  const BRANDS=[['CT','Chánh Tâm','#2563eb'],['HT','Hiền Thuỷ','#ca8a04'],['Shidai','Shidai','#7c3aed'],['Other','Chưa phân loại / chưa khớp','#64748b']];
+  const BRANDS=[['CT','Chánh Tâm','#2563eb'],['HT','Hiền Thuỷ','#ca8a04'],['Shidai','Shidai','#7c3aed'],['TTV','Tự Tại Viên','#0abf7a'],['Other','Chưa phân loại / chưa khớp','#64748b']];
   const grpRank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
   const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,moi:a.moi+s.moi,cu:a.cu+s.cu,total:a.total+s.total}),{tiem:0,dat:0,le:0,si:0,moi:0,cu:0,total:0});
   const cell=(v,color)=>`<td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?color:'var(--muted)'}">${v||'—'}</td>`;
@@ -1470,14 +1484,14 @@ function buildGroupedTable(rows,saleStats){
             <td class="num-cell" style="color:${dsColor}">${sd&&sd.orders>0?vnd(sd.revenue/sd.orders):'—'}</td>
             <td class="num-cell" style="color:${dsColor}">${sd&&kpi.mess>0?pct(sd.orders/kpi.mess*100):'—'}</td>`;
   }
-  const byBrand={HT:[],Shidai:[],CT:[]};
+  const byBrand={HT:[],Shidai:[],CT:[],TTV:[]};
   rows.forEach(r=>{const b=detectBrand(r[COL.CAMPAIGN]);if(byBrand[b])byBrand[b].push(r);});
-  ['HT','Shidai','CT'].forEach(br=>{
+  ['HT','Shidai','CT','TTV'].forEach(br=>{
     if(!byBrand[br].length)return;
     const bkpi=calcKPIRows(byBrand[br]);
     const brSd=saleStats?saleStats.byBrand[br]:null;
-    const bc=br==='HT'?'row-brand-ht':br==='Shidai'?'row-brand-sd':'row-brand-ct';
-    const bl=br==='HT'?'<span class="brand-ht">Hiền Thuỷ</span>':br==='Shidai'?'<span class="brand-sd">Shidai</span>':'<span class="brand-ct">Chánh Tâm</span>';
+    const bc=br==='HT'?'row-brand-ht':br==='Shidai'?'row-brand-sd':br==='CT'?'row-brand-ct':'row-brand-ttv';
+    const bl=br==='HT'?'<span class="brand-ht">Hiền Thuỷ</span>':br==='Shidai'?'<span class="brand-sd">Shidai</span>':br==='CT'?'<span class="brand-ct">Chánh Tâm</span>':'<span style="color:var(--green);font-weight:800">Tự Tại Viên</span>';
     html+=`<tr class="${bc}"><td>${bl}</td>${rowCells(bkpi,brSd)}</tr>`;
     const byProd={};
     byBrand[br].forEach(r=>{const p=detectProduct(r[COL.CAMPAIGN]);if(!byProd[p])byProd[p]=[];byProd[p].push(r);});
@@ -1555,6 +1569,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
         <option value="HT">Hiền Thuỷ</option>
         <option value="Shidai">Shidai</option>
         <option value="CT">Chánh Tâm</option>
+        <option value="TTV">Tự Tại Viên</option>
       </select>
       <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;min-width:130px;font-weight:600">
         <option value="all">Tất cả SP</option>
@@ -1890,12 +1905,13 @@ function toggleAdSet(ck){
 }
 
 // ── Charts ──
-function buildBrandChart(htSpend,sdSpend,ctSpend,total){
+function buildBrandChart(htSpend,sdSpend,ctSpend,ttvSpend,total){
   const ctx=document.getElementById('cBrand');if(!ctx)return;
   const labels=[],data=[],bgC=[],bdC=[];
   if(htSpend>0){labels.push('Hiền Thuỷ');data.push(htSpend);bgC.push('rgba(249,115,22,.85)');bdC.push('#f97316');}
   if(sdSpend>0){labels.push('Shidai');data.push(sdSpend);bgC.push('rgba(8,145,178,.85)');bdC.push('#0891b2');}
   if(ctSpend>0){labels.push('Chánh Tâm');data.push(ctSpend);bgC.push('rgba(124,58,237,.85)');bdC.push('#7c3aed');}
+  if(ttvSpend>0){labels.push('Tự Tại Viên');data.push(ttvSpend);bgC.push('rgba(10,191,122,.85)');bdC.push('#0abf7a');}
   chartBrand=new Chart(ctx,{
     type:'doughnut',
     data:{labels,datasets:[{data,backgroundColor:bgC,borderColor:bdC,borderWidth:2,hoverOffset:8}]},
@@ -1927,6 +1943,7 @@ function buildBrandRevChart(saleStats){
   if(saleStats.byBrand.HT.revenue>0){labels.push('Hiền Thuỷ');data.push(saleStats.byBrand.HT.revenue);bgC.push('rgba(249,115,22,.85)');bdC.push('#f97316');}
   if(saleStats.byBrand.Shidai.revenue>0){labels.push('Shidai');data.push(saleStats.byBrand.Shidai.revenue);bgC.push('rgba(8,145,178,.85)');bdC.push('#0891b2');}
   if(saleStats.byBrand.CT.revenue>0){labels.push('Chánh Tâm');data.push(saleStats.byBrand.CT.revenue);bgC.push('rgba(124,58,237,.85)');bdC.push('#7c3aed');}
+  if(saleStats.byBrand.TTV.revenue>0){labels.push('Tự Tại Viên');data.push(saleStats.byBrand.TTV.revenue);bgC.push('rgba(10,191,122,.85)');bdC.push('#0abf7a');}
   if(chartBrandRev){chartBrandRev.destroy();chartBrandRev=null;}
   chartBrandRev=new Chart(ctx,{
     type:'doughnut',
