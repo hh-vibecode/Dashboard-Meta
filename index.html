@@ -195,6 +195,21 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 </head>
 <body>
 
+<div id="loginGate" style="position:fixed;inset:0;z-index:6000;background:linear-gradient(135deg,#1e293b 0%,#4361ee 100%);display:none;align-items:center;justify-content:center;font-family:Inter,sans-serif">
+  <div style="background:#fff;border-radius:20px;padding:32px 32px 28px;width:350px;box-shadow:0 24px 70px rgba(0,0,0,.45)">
+    <div style="text-align:center;margin-bottom:20px">
+      <img src="logo.png" style="width:56px;height:56px;object-fit:contain" onerror="this.style.display='none'">
+      <div style="font-size:19px;font-weight:800;color:#1e293b;margin-top:6px">Dashboard MKT</div>
+      <div style="font-size:12px;color:#64748b">Đăng nhập để tiếp tục</div>
+    </div>
+    <input id="loginUser" placeholder="Tên đăng nhập" autocomplete="username" style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:10px;outline:none" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+    <input id="loginPass" type="password" placeholder="Mật khẩu" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="loginErr" style="color:#dc2626;font-size:12px;min-height:16px;margin:6px 2px"></div>
+    <button onclick="doLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#4361ee,#7c3aed);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Đăng nhập</button>
+    <div id="loginIp" style="font-size:10px;color:#94a3b8;text-align:center;margin-top:14px"></div>
+  </div>
+</div>
+
 <div class="topbar">
   <button class="sb-toggle" onclick="toggleSidebar()">☰</button>
   <div class="top-logo">
@@ -225,6 +240,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <span id="themeLabel">Tối</span>
   </button>
   <button class="settings-btn" id="settingsBtn" onclick="loadData()" title="Tải lại dữ liệu">↺</button>
+  <button class="settings-btn" onclick="logout()" title="Đăng xuất">⎋</button>
   </div>
 </div>
 <button id="btnLoad" style="display:none"></button>
@@ -327,6 +343,27 @@ function toggleSidebar(){
     document.getElementById('mainContent').classList.add('collapsed');
   }
 })();
+
+// ── Auth: khoá dashboard + phân quyền (client-side) ──
+const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'}};
+const AUTH_ALLOWED_IPS=[]; // thêm IP máy bạn vào đây (vd '113.161.x.x') để vào thẳng khỏi đăng nhập
+function doLogin(){
+  const u=(document.getElementById('loginUser').value||'').trim().toLowerCase();
+  const p=document.getElementById('loginPass').value||'';
+  const acc=AUTH_USERS[u];
+  if(acc&&acc.pass===p){localStorage.setItem('dashRole',acc.role);localStorage.setItem('dashUser',u);document.getElementById('loginGate').style.display='none';}
+  else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
+}
+function logout(){localStorage.removeItem('dashRole');localStorage.removeItem('dashUser');document.getElementById('loginGate').style.display='flex';}
+function initAuth(){
+  const gate=document.getElementById('loginGate');if(!gate)return;
+  if(localStorage.getItem('dashRole')){gate.style.display='none';return;}
+  gate.style.display='flex';
+  fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{
+    const ipEl=document.getElementById('loginIp');if(ipEl)ipEl.textContent='IP của bạn: '+d.ip+' · gửi IP này cho admin để vào thẳng';
+    if(AUTH_ALLOWED_IPS.includes(d.ip)){localStorage.setItem('dashRole','admin');gate.style.display='none';}
+  }).catch(()=>{});
+}
 
 function switchPage(p){
   ['overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat'].forEach(x=>{
@@ -2634,6 +2671,7 @@ function num(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n));}
 function pct(n){return n>0?n.toFixed(2)+'%':'—';}
 
 window.onload=function(){
+  initAuth();
   loadData();
 };
 </script>
