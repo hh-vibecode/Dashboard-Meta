@@ -1335,6 +1335,13 @@ function renderSaleSiData(){
   const hasRev=enriched.filter(x=>x.rev>0).length;
   const coldLeads=needCareCount;
   const totalCS=enriched.reduce((s,x)=>s+x.ci.count,0);
+  // KPI hoạt động chăm sóc
+  const khTotal=baseEnriched.length;
+  const khDaCS=baseEnriched.filter(x=>x.ci.count>0).length;
+  const crmInRange=hasRange?saleSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE]))):saleSiCrmRows;
+  const csTotal=crmInRange.length;
+  const csDone=crmInRange.filter(r=>(r[COL_SICRM.STATUS]||'').toLowerCase().includes('xong')).length;
+  const csPending=csTotal-csDone;
   const daysBadge=ci=>{if(ci.days===null)return'<span style="color:#dc2626;font-weight:800">Chưa CS</span>';
     const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
     return`<span style="color:${c};font-weight:800">${ci.days} ngày</span>`;};
@@ -1358,10 +1365,20 @@ function renderSaleSiData(){
     </tr>`).join('');
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
-    <div class="page-sub">Thông tin khách sỉ (Master ⨝ CRM) · click 👤 để mở hồ sơ đầy đủ · ${total} khách${hasRange?' được CS':''} · 📅 ${curPeriodLabel()}</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 10px">
-      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách · sắp theo giá trị KH)</span></div>
-      <button onclick="toggleSiNeedCare()" style="cursor:pointer;border:1.5px solid ${window._siNeedCare?'#dc2626':'var(--border)'};background:${window._siNeedCare?'#dc2626':'var(--surface)'};color:${window._siNeedCare?'#fff':'#dc2626'};border-radius:20px;padding:7px 15px;font-size:12px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;transition:all .15s">🔔 ${window._siNeedCare?'Đang lọc: cần CS — bỏ lọc':'Khách cần chăm sóc'} <span style="background:${window._siNeedCare?'rgba(255,255,255,.25)':'#fee2e2'};color:${window._siNeedCare?'#fff':'#dc2626'};border-radius:10px;padding:1px 8px;font-size:11px">${num(needCareCount)}</span></button>
+    <div class="page-sub">Thông tin & chăm sóc khách sỉ (Master ⨝ CRM) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</div>
+    <div class="sec-label">Hoạt Động Chăm Sóc</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+      ${mkKpi('👥','Tổng Số KH',num(khTotal),'khách riêng biệt','g-blue')}
+      ${mkKpi('✅','KH Đã Chăm Sóc',num(khDaCS),pct(khTotal?khDaCS/khTotal*100:0)+' tổng KH','g-green')}
+      <div onclick="toggleSiNeedCare()" style="cursor:pointer;border-radius:16px;outline:${window._siNeedCare?'3px solid #dc2626':'none'};outline-offset:2px;position:relative">${mkKpi('🔔','KH Chưa / Lâu CS',num(needCareCount),(window._siNeedCare?'✓ đang lọc — bấm để bỏ':'bấm để lọc')+' · >10 ngày','g-red')}</div>
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+      ${mkKpi('📋','Tổng Lượt Chăm Sóc',num(csTotal),hasRange?'trong kỳ':'toàn bộ lịch sử','g-teal')}
+      ${mkKpi('✔️','Đã Xong',num(csDone),pct(csTotal?csDone/csTotal*100:0)+' lượt','g-green')}
+      ${mkKpi('⏳','Còn Tồn Đọng',num(csPending),'gồm cả chưa phân loại','g-yellow')}
+    </div>
+    <div style="margin:18px 0 10px">
+      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${window._siNeedCare?' cần CS':hasRange?' được CS':''} · sắp theo giá trị KH)</span></div>
     </div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:900px">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
