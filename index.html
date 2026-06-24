@@ -292,7 +292,7 @@ const COL_SALE={
 };
 const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
 const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
-const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:23,TOTAL_REV:24,CUST_TYPE:25,MA_KH:26};
+const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,ADDRESS:12,LICENSE:13,FANPAGE:14,MODEL:15,SHOWROOM:16,FINANCE:17,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:23,TOTAL_REV:24,CUST_TYPE:25,MA_KH:26,NOTE:28};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
 let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,sbCollapsed=false;
@@ -1280,46 +1280,97 @@ function renderSaleSiData(){
   const chip=(txt,bg,fg)=>`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;
   const srcChip=s=>{const t=(s||'').trim().toLowerCase();if(t==='online')return chip('Online','#dbeafe','#2563eb');if(t==='offline')return chip('Offline','#fef3c7','#b45309');return s?chip(s,'#e5e7eb','#6b7280'):'<span style="color:var(--muted)">—</span>';};
   const statusChip=s=>{const v=(s||'').trim();if(!v)return'<span style="color:var(--muted)">—</span>';const t=v.toLowerCase();if(t.includes('đã ra đơn'))return chip(v,'#dcfce7','#16a34a');if(t.includes('chưa ra đơn'))return chip(v,'#fef9c3','#ca8a04');if(t.includes('dừng')||t.includes('huỷ')||t.includes('hủy'))return chip(v,'#fee2e2','#dc2626');return chip(v,'#e5e7eb','#6b7280');};
-  const bodyRows=enriched.map(({r,ci,rev},i)=>{
-    const recs=careOf(r);
-    const detail=recs.length?`<div style="padding:10px 14px 16px 40px;background:var(--bg2)">
-      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:6px">📋 Lịch sử chăm sóc (${recs.length} lượt)</div>
-      <table style="width:100%;border-collapse:collapse;background:var(--surface);border-radius:8px;overflow:hidden">
-        <thead><tr style="border-bottom:1px solid var(--border)">${['NGÀY CS','HÌNH THỨC','NỘI DUNG CHĂM SÓC','KẾT QUẢ','TÌNH TRẠNG','NGÀY HẸN'].map(h=>`<th style="padding:7px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">${h}</th>`).join('')}</tr></thead>
-        <tbody>${recs.map(c=>`<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:7px 12px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[COL_SICRM.DATE]||'—'}</td>
-          <td style="padding:7px 12px;font-size:12px;white-space:nowrap">${c[COL_SICRM.FORM]||'—'}</td>
-          <td style="padding:7px 12px;font-size:12px"><div style="max-width:430px;white-space:normal;line-height:1.4">${c[COL_SICRM.CONTENT]||'—'}</div></td>
-          <td style="padding:7px 12px;font-size:12px"><div style="max-width:300px;white-space:normal;line-height:1.4">${c[COL_SICRM.RESULT]||'—'}</div></td>
-          <td style="padding:7px 12px;font-size:11px;white-space:nowrap">${c[COL_SICRM.STATUS]||'—'}</td>
-          <td style="padding:7px 12px;font-size:12px;white-space:nowrap;color:#ca8a04;font-weight:600">${c[COL_SICRM.NEXT_DATE]||'—'}</td>
-        </tr>`).join('')}</tbody></table></div>`
-      :'<div style="padding:16px 40px;color:var(--muted);font-size:12px">Chưa có lịch sử chăm sóc trong CRM</div>';
-    return`<tr class="si-cust-row" onclick="toggleSiCust(${i})" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-      <td style="padding:8px 12px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap"><span id="si-arrow-${i}" style="color:var(--muted);font-size:9px;margin-right:5px">▶</span>${r[COL_SI.DATE]||'—'}</td>
-      <td style="padding:8px 12px;font-size:13px;font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r[COL_SI.STORE]||r[COL_SI.REP]||'').replace(/"/g,'')}">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px">${r[COL_SI.REP]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px;color:var(--muted)">${r[COL_SI.PHONE]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px">${r[COL_SI.CITY]||'—'}</td>
-      <td style="padding:8px 12px;font-size:11px"><span style="padding:1px 7px;border-radius:12px;background:var(--bg2);font-weight:600">${siRegion(r[COL_SI.CITY])}</span></td>
-      <td style="padding:8px 12px">${srcChip(r[COL_SI.SOURCE])}</td>
-      <td style="padding:8px 12px;font-size:12px">${r[COL_SI.SALES]||'—'}</td>
-      <td style="padding:8px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
-      <td style="padding:8px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
-      <td style="padding:8px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
-      <td style="padding:8px 12px">${statusChip(r[COL_SI.STATUS])}</td>
-    </tr>
-    <tr id="si-detail-${i}" style="display:none"><td colspan="13" style="padding:0;border-bottom:2px solid var(--border)">${detail}</td></tr>`;}).join('');
+  window._siProfiles=enriched;window._siHist=histMap;
+  const fbAvatar='<svg viewBox="0 0 40 40" width="30" height="30" style="display:block"><circle cx="20" cy="20" r="20" fill="#b9c3cf"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>';
+  const bodyRows=enriched.map(({r,ci,rev},i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SI.DATE]||'—'}</td>
+      <td style="padding:9px 12px;font-size:13px;font-weight:700;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r[COL_SI.STORE]||r[COL_SI.REP]||'').replace(/"/g,'')}">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
+      <td style="padding:9px 12px">${srcChip(r[COL_SI.SOURCE])}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
+      <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
+      <td style="padding:9px 12px">${statusChip(r[COL_SI.STATUS])}</td>
+      <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-block;border-radius:50%;transition:transform .1s" onmouseover="this.style.transform='scale(1.12)'" onmouseout="this.style.transform='scale(1)'">${fbAvatar}</span></td>
+    </tr>`).join('');
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
-    <div class="page-sub">Thông tin khách sỉ (Master ⨝ CRM) · click 1 khách để xem lịch sử chăm sóc · ${total} khách${hasRange?' được CS':''} · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub">Thông tin khách sỉ (Master ⨝ CRM) · click 👤 để mở hồ sơ đầy đủ · ${total} khách${hasRange?' được CS':''} · 📅 ${curPeriodLabel()}</div>
     <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo giá trị KH · ${num(totalCS)} lượt CS từ CRM)</span></div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1180px">
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:900px">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${['NGÀY TẠO','CỬA HÀNG','NGƯỜI ĐẠI DIỆN','SĐT','TỈNH/TP','VÙNG','NGUỒN','SALES','SỐ LẦN CS','CS CUỐI','CHƯA LIÊN HỆ','GIÁ TRỊ KH','TRẠNG THÁI'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===8||i===10?'center':i===11?'right':'left'};font-size:11px;font-weight:700;color:${i===10?'#dc2626':i===11?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${['NGÀY TẠO','TÊN KHÁCH','NGUỒN','SỐ LẦN LH','CS CUỐI','CHƯA LH','GIÁ TRỊ KH','TRẠNG THÁI','HỒ SƠ'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===3||i===5||i===8?'center':i===6?'right':'left'};font-size:11px;font-weight:700;color:${i===5?'#dc2626':i===6?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
+}
+
+function closeSiProfile(){const m=document.getElementById('siProfileModal');if(m)m.style.display='none';}
+function openSiProfile(i){
+  const x=(window._siProfiles||[])[i];if(!x)return;
+  const r=x.r,ci=x.ci,rev=x.rev;
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const hist=window._siHist||{};
+  const recs=hist[norm(r[COL_SI.MA_KH])]||hist[norm(r[COL_SI.LEAD_ID])]||[];
+  const chip=(t,bg,fg)=>`<span style="display:inline-block;padding:3px 11px;border-radius:6px;background:${bg};color:${fg};font-size:12px;font-weight:700">${t}</span>`;
+  const v=(r[COL_SI.STATUS]||'').trim(),tl=v.toLowerCase();
+  const sttChip=!v?'':tl.includes('đã ra đơn')?chip(v,'#dcfce7','#16a34a'):tl.includes('chưa ra đơn')?chip(v,'#fef9c3','#ca8a04'):chip(v,'#e5e7eb','#6b7280');
+  const info=(label,val,full)=>`<div style="${full?'grid-column:1/-1;':''}display:flex;flex-direction:column;gap:2px"><span style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em">${label}</span><span style="font-size:13px;font-weight:600;word-break:break-word">${(val&&String(val).trim())||'—'}</span></div>`;
+  const money=(label,val,color)=>`<div style="background:var(--bg2);border-radius:10px;padding:12px 14px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">${label}</div><div style="font-size:17px;font-weight:800;color:${color||'var(--text)'};margin-top:2px">${val}</div></div>`;
+  const careTable=recs.length?`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1.5px solid var(--border)">${['NGÀY CS','HÌNH THỨC','NỘI DUNG TRAO ĐỔI','KẾT QUẢ','TÌNH TRẠNG','NGÀY HẸN'].map(h=>`<th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+    <tbody>${recs.map(c=>`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[COL_SICRM.DATE]||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;white-space:nowrap">${c[COL_SICRM.FORM]||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px"><div style="min-width:240px;white-space:normal;line-height:1.45">${c[COL_SICRM.CONTENT]||'—'}</div></td>
+      <td style="padding:7px 10px;font-size:12px"><div style="min-width:160px;white-space:normal;line-height:1.45">${c[COL_SICRM.RESULT]||'—'}</div></td>
+      <td style="padding:7px 10px;font-size:11px;white-space:nowrap">${c[COL_SICRM.STATUS]||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:#ca8a04;font-weight:600">${c[COL_SICRM.NEXT_DATE]||'—'}</td>
+    </tr>`).join('')}</tbody></table>`:'<div style="padding:14px;color:var(--muted);font-size:13px;text-align:center">Chưa có lịch sử chăm sóc trong CRM</div>';
+  const name=r[COL_SI.REP]||r[COL_SI.STORE]||'Khách hàng';
+  let modal=document.getElementById('siProfileModal');
+  if(!modal){modal=document.createElement('div');modal.id='siProfileModal';document.body.appendChild(modal);}
+  modal.innerHTML=`<div onclick="closeSiProfile()" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:36px 18px;overflow:auto">
+    <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:18px;max-width:960px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden">
+      <div style="background:linear-gradient(135deg,#4361ee,#7c3aed);padding:22px 26px;display:flex;align-items:center;gap:16px;color:#fff;position:relative">
+        <svg viewBox="0 0 40 40" width="56" height="56"><circle cx="20" cy="20" r="20" fill="rgba(255,255,255,.25)"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>
+        <div style="flex:1">
+          <div style="font-size:20px;font-weight:800">${name}</div>
+          <div style="font-size:13px;opacity:.9">${r[COL_SI.STORE]||''} ${r[COL_SI.MA_KH]?'· '+r[COL_SI.MA_KH]:''}</div>
+        </div>
+        ${sttChip}
+        <span onclick="closeSiProfile()" style="cursor:pointer;font-size:22px;line-height:1;padding:4px 8px;opacity:.85">✕</span>
+      </div>
+      <div style="padding:22px 26px;max-height:72vh;overflow:auto">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Tổng quan tài chính</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+          ${money('Tổng giá trị mua',rev>0?vnd(rev):'—','var(--green)')}
+          ${money('Số lần chăm sóc',num(ci.count))}
+          ${money('Chăm sóc cuối',ci.lastStr||'—')}
+          ${money('Chưa liên hệ',ci.days===null?'Chưa CS':ci.days+' ngày',ci.days!==null&&ci.days>=10?'#ef4444':'var(--text)')}
+        </div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Thông tin khách hàng</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px 18px;margin-bottom:20px">
+          ${info('Người đại diện',r[COL_SI.REP])}
+          ${info('SĐT',r[COL_SI.PHONE])}
+          ${info('Nguồn',r[COL_SI.SOURCE])}
+          ${info('Kênh',r[COL_SI.CHANNEL])}
+          ${info('Sales phụ trách',r[COL_SI.SALES])}
+          ${info('Mô hình hợp tác',r[COL_SI.MODEL])}
+          ${info('Tỉnh/TP',r[COL_SI.CITY])}
+          ${info('Vùng',siRegion(r[COL_SI.CITY]))}
+          ${info('Phân loại KH',r[COL_SI.CUST_TYPE])}
+          ${info('Khả năng tài chính',r[COL_SI.FINANCE])}
+          ${info('Diện tích showroom',r[COL_SI.SHOWROOM])}
+          ${info('Fanpage / Website',r[COL_SI.FANPAGE])}
+          ${info('Địa chỉ',r[COL_SI.ADDRESS],true)}
+        </div>
+        ${(r[COL_SI.NOTE]||'').trim()?`<div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Ghi chú khách hàng <span style="font-weight:400;text-transform:none">(ngày sinh, sở thích, tính cách…)</span></div>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;color:#92400e;margin-bottom:20px;white-space:pre-wrap">${r[COL_SI.NOTE]}</div>`:''}
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">📋 Lịch sử chăm sóc (${recs.length} lượt)</div>
+        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px">${careTable}</div>
+      </div>
+    </div></div>`;
+  modal.style.display='block';
 }
 
 function renderSaleOnl(){
