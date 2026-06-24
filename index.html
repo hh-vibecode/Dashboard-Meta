@@ -1005,16 +1005,25 @@ function getSiCrmMap(){
   });
   return m;
 }
-// Số ngày chưa tương tác của 1 khách: ưu tiên ngày CS gần nhất từ CRM, fallback master
+// Số ngày chưa tương tác của 1 khách: GỘP cả 2 khoá Mã KH + Lead ID (1 khách có thể có CS dưới cả 2)
 function siContactInfo(masterRow,crmMap){
   const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
-  // CRM Sỉ khoá theo Mã KH (KH....); fallback Lead ID (SI../ONL..)
-  const e=crmMap[norm(masterRow[COL_SI.MA_KH])]||crmMap[norm(masterRow[COL_SI.LEAD_ID])]||null;
+  const k1=norm(masterRow[COL_SI.MA_KH]),k2=norm(masterRow[COL_SI.LEAD_ID]);
+  const buckets=[k1&&crmMap[k1],(k2&&k2!==k1)?crmMap[k2]:null].filter(Boolean);
   const today=new Date();today.setHours(0,0,0,0);
-  const last=e&&e.last?e.last:parseDate(masterRow[COL_SI.LAST_CS]);
-  const lastStr=e&&e.lastStr?e.lastStr:(masterRow[COL_SI.LAST_CS]||'');
+  let last=null,lastStr='',count=0,status='',next='';
+  buckets.forEach(e=>{count+=e.count;if(e.last&&(!last||e.last>last)){last=e.last;lastStr=e.lastStr;status=e.status;next=e.next;}});
+  if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
-  return {days,lastStr,count:e?e.count:0,status:e?e.status:'',next:e?e.next:''};
+  return {days,lastStr,count,status,next};
+}
+// Gộp lịch sử CS của 1 khách từ cả 2 khoá (Mã KH + Lead ID), sắp mới→cũ
+function siCareRecords(masterRow,histMap){
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const k1=norm(masterRow[COL_SI.MA_KH]),k2=norm(masterRow[COL_SI.LEAD_ID]);
+  const merged=[...(k1&&histMap[k1]||[]),...((k2&&k2!==k1&&histMap[k2])||[])];
+  merged.sort((x,y)=>{const dx=parseDate(x[COL_SICRM.DATE]),dy=parseDate(y[COL_SICRM.DATE]);return(dy?dy:0)-(dx?dx:0);});
+  return merged;
 }
 
 function renderSaleSi(){
@@ -1275,13 +1284,12 @@ function renderSaleSiData(){
     const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
     return`<span style="color:${c};font-weight:800">${ci.days} ngày</span>`;};
   const histMap=getSiCrmHistory();
-  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
-  const careOf=r=>histMap[norm(r[COL_SI.MA_KH])]||histMap[norm(r[COL_SI.LEAD_ID])]||[];
+  const careOf=r=>siCareRecords(r,histMap);
   const chip=(txt,bg,fg)=>`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;
   const srcChip=s=>{const t=(s||'').trim().toLowerCase();if(t==='online')return chip('Online','#dbeafe','#2563eb');if(t==='offline')return chip('Offline','#fef3c7','#b45309');return s?chip(s,'#e5e7eb','#6b7280'):'<span style="color:var(--muted)">—</span>';};
   const statusChip=s=>{const v=(s||'').trim();if(!v)return'<span style="color:var(--muted)">—</span>';const t=v.toLowerCase();if(t.includes('đã ra đơn'))return chip(v,'#dcfce7','#16a34a');if(t.includes('chưa ra đơn'))return chip(v,'#fef9c3','#ca8a04');if(t.includes('dừng')||t.includes('huỷ')||t.includes('hủy'))return chip(v,'#fee2e2','#dc2626');return chip(v,'#e5e7eb','#6b7280');};
   window._siProfiles=enriched;window._siHist=histMap;
-  const fbAvatar='<svg viewBox="0 0 40 40" width="30" height="30" style="display:block"><circle cx="20" cy="20" r="20" fill="#b9c3cf"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>';
+  const fbAvatar='<svg viewBox="0 0 40 40" width="30" height="30" style="display:block"><circle cx="20" cy="20" r="20" fill="#1f2937"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>';
   const bodyRows=enriched.map(({r,ci,rev},i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SI.DATE]||'—'}</td>
       <td style="padding:9px 12px;font-size:13px;font-weight:700;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r[COL_SI.STORE]||r[COL_SI.REP]||'').replace(/"/g,'')}">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
@@ -1291,7 +1299,7 @@ function renderSaleSiData(){
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
       <td style="padding:9px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
       <td style="padding:9px 12px">${statusChip(r[COL_SI.STATUS])}</td>
-      <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-block;border-radius:50%;transition:transform .1s" onmouseover="this.style.transform='scale(1.12)'" onmouseout="this.style.transform='scale(1)'">${fbAvatar}</span></td>
+      <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${fbAvatar}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
     </tr>`).join('');
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
@@ -1308,9 +1316,7 @@ function closeSiProfile(){const m=document.getElementById('siProfileModal');if(m
 function openSiProfile(i){
   const x=(window._siProfiles||[])[i];if(!x)return;
   const r=x.r,ci=x.ci,rev=x.rev;
-  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
-  const hist=window._siHist||{};
-  const recs=hist[norm(r[COL_SI.MA_KH])]||hist[norm(r[COL_SI.LEAD_ID])]||[];
+  const recs=siCareRecords(r,window._siHist||{});
   const chip=(t,bg,fg)=>`<span style="display:inline-block;padding:3px 11px;border-radius:6px;background:${bg};color:${fg};font-size:12px;font-weight:700">${t}</span>`;
   const v=(r[COL_SI.STATUS]||'').trim(),tl=v.toLowerCase();
   const sttChip=!v?'':tl.includes('đã ra đơn')?chip(v,'#dcfce7','#16a34a'):tl.includes('chưa ra đơn')?chip(v,'#fef9c3','#ca8a04'):chip(v,'#e5e7eb','#6b7280');
