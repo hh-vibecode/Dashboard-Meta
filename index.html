@@ -292,7 +292,7 @@ const COL_SALE={
 };
 const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
 const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
-const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:22,TOTAL_REV:23,CUST_TYPE:24};
+const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:22,TOTAL_REV:23,CUST_TYPE:24,MA_KH:26};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
 let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,sbCollapsed=false;
@@ -1007,8 +1007,9 @@ function getSiCrmMap(){
 }
 // Số ngày chưa tương tác của 1 khách: ưu tiên ngày CS gần nhất từ CRM, fallback master
 function siContactInfo(masterRow,crmMap){
-  const id=(masterRow[COL_SI.LEAD_ID]||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
-  const e=id?crmMap[id]:null;
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  // CRM Sỉ khoá theo Mã KH (KH....); fallback Lead ID (SI../ONL..)
+  const e=crmMap[norm(masterRow[COL_SI.MA_KH])]||crmMap[norm(masterRow[COL_SI.LEAD_ID])]||null;
   const today=new Date();today.setHours(0,0,0,0);
   const last=e&&e.last?e.last:parseDate(masterRow[COL_SI.LAST_CS]);
   const lastStr=e&&e.lastStr?e.lastStr:(masterRow[COL_SI.LAST_CS]||'');
@@ -1164,32 +1165,14 @@ function renderSaleSi(){
           <div style="font-size:24px;font-weight:800;color:var(--accent)">${num(total)}</div>
         </div></div>
       </div>
-      <!-- GIỮA: bản đồ Việt Nam tô màu 3 miền -->
-      <div class="tov-card" style="display:flex;align-items:center;justify-content:center;padding:14px;position:relative">
-        <svg viewBox="0 0 372 600" style="height:420px;width:auto">
-          <defs><linearGradient id="vnSiGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="${regionData[0].color}"/><stop offset="33%" stop-color="${regionData[0].color}"/>
-            <stop offset="40%" stop-color="${regionData[1].color}"/><stop offset="70%" stop-color="${regionData[1].color}"/>
-            <stop offset="78%" stop-color="${regionData[2].color}"/><stop offset="100%" stop-color="${regionData[2].color}"/>
-          </linearGradient></defs>
-          <path d="M150,40 C180,48 198,68 208,92 C214,110 206,124 200,138 C196,160 200,178 196,196 C210,222 226,250 240,278 C250,296 256,312 252,330 C264,356 270,378 264,398 C256,420 244,436 230,448 C220,470 205,492 182,512 C168,524 156,528 148,520 C140,524 130,518 128,506 C118,514 104,508 100,494 C96,480 104,470 116,464 C132,456 144,446 150,430 C160,406 150,386 164,366 C156,342 150,322 160,304 C172,282 190,276 202,264 C182,236 154,212 132,188 C112,164 96,140 86,114 C80,96 92,66 118,50 C128,44 140,40 150,40 Z" fill="url(#vnSiGrad)" stroke="var(--surface)" stroke-width="2.5" stroke-linejoin="round"/>
-          <circle cx="184" cy="150" r="5" fill="#fff" stroke="${regionData[0].color}" stroke-width="2.5"/>
-          <circle cx="172" cy="470" r="5" fill="#fff" stroke="${regionData[2].color}" stroke-width="2.5"/>
-          <text x="194" y="148" font-size="11" font-weight="700" fill="var(--text)">Hà Nội</text>
-          <text x="182" y="486" font-size="11" font-weight="700" fill="var(--text)">HCM</text>
-          <text x="234" y="108" font-size="18" font-weight="800" fill="${regionData[0].color}">${regionData[0].pct.toFixed(1)}%</text>
-          <text x="234" y="125" font-size="9.5" fill="var(--muted)">Miền Bắc</text>
-          <text x="10" y="312" font-size="18" font-weight="800" fill="${regionData[1].color}">${regionData[1].pct.toFixed(1)}%</text>
-          <text x="10" y="329" font-size="9.5" fill="var(--muted)">Miền Trung</text>
-          <text x="232" y="402" font-size="18" font-weight="800" fill="${regionData[2].color}">${regionData[2].pct.toFixed(1)}%</text>
-          <text x="232" y="419" font-size="9.5" fill="var(--muted)">Miền Nam</text>
-          <!-- QĐ. Hoàng Sa -->
-          <g fill="var(--muted)" opacity="0.75"><circle cx="305" cy="250" r="2"/><circle cx="313" cy="244" r="1.6"/><circle cx="300" cy="258" r="1.6"/><circle cx="316" cy="255" r="1.6"/><circle cx="309" cy="262" r="1.4"/></g>
-          <text x="284" y="232" font-size="9" fill="var(--muted)" font-weight="600">QĐ. Hoàng Sa</text>
-          <!-- QĐ. Trường Sa -->
-          <g fill="var(--muted)" opacity="0.75"><circle cx="322" cy="468" r="2"/><circle cx="330" cy="460" r="1.6"/><circle cx="316" cy="476" r="1.6"/><circle cx="332" cy="474" r="1.4"/><circle cx="325" cy="482" r="1.4"/></g>
-          <text x="300" y="450" font-size="9" fill="var(--muted)" font-weight="600">QĐ. Trường Sa</text>
-        </svg>
+      <!-- GIỮA: bản đồ Việt Nam thật, tô màu 3 miền -->
+      <div class="tov-card" style="display:flex;align-items:center;justify-content:center;padding:14px;position:relative;min-height:430px">
+        <div id="vnMapBox" style="height:420px;display:flex;align-items:center;justify-content:center;width:100%"><div style="color:var(--muted);font-size:12px">Đang vẽ bản đồ…</div></div>
+        <div style="position:absolute;top:12%;right:9%;text-align:left;pointer-events:none"><div style="font-size:19px;font-weight:800;color:${regionData[0].color}">${regionData[0].pct.toFixed(1)}%</div><div style="font-size:10px;color:var(--muted)">Miền Bắc</div></div>
+        <div style="position:absolute;top:45%;left:5%;text-align:left;pointer-events:none"><div style="font-size:19px;font-weight:800;color:${regionData[1].color}">${regionData[1].pct.toFixed(1)}%</div><div style="font-size:10px;color:var(--muted)">Miền Trung</div></div>
+        <div style="position:absolute;bottom:13%;right:11%;text-align:left;pointer-events:none"><div style="font-size:19px;font-weight:800;color:${regionData[2].color}">${regionData[2].pct.toFixed(1)}%</div><div style="font-size:10px;color:var(--muted)">Miền Nam</div></div>
+        <div style="position:absolute;top:35%;right:2%;font-size:10px;color:var(--muted);font-weight:600;pointer-events:none">QĐ. Hoàng Sa</div>
+        <div style="position:absolute;bottom:24%;right:1%;font-size:10px;color:var(--muted);font-weight:600;pointer-events:none">QĐ. Trường Sa</div>
       </div>
       <!-- PHẢI: top thành phố -->
       <div class="tov-card" style="padding:18px;display:flex;flex-direction:column">
@@ -1264,6 +1247,8 @@ function renderSaleSi(){
         generateLabels:c=>{const d=c.data,tot=d.datasets[0].data.reduce((a,b)=>a+b,0)||1;return d.labels.map((l,i)=>({text:`${l}  ${vnd(d.datasets[0].data[i])} (${(d.datasets[0].data[i]/tot*100).toFixed(1)}%)`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i}));}}},
         tooltip:{callbacks:{label:c=>`${c.label}: ${vnd(c.raw)}`}}}}});
   }
+  // Bản đồ Việt Nam thật, tô 3 miền theo data
+  buildVnMap([regionData[0].color,regionData[1].color,regionData[2].color]);
 }
 
 function renderSaleSiData(){
@@ -1561,6 +1546,31 @@ function buildOnlineCampTable(){
 }
 
 function toggleSiCities(){const e=document.getElementById('siCitiesFull');if(e)e.style.display=e.style.display==='none'?'':'none';}
+let _vnSvgCache=null;
+async function buildVnMap(colors){
+  const box=document.getElementById('vnMapBox');if(!box)return;
+  const c=colors&&colors.length===3?colors:['#0abf7a','#7c3aed','#4361ee'];
+  try{
+    if(_vnSvgCache===null){const r=await fetch('vietnam-map.svg');_vnSvgCache=await r.text();}
+    const doc=new DOMParser().parseFromString(_vnSvgCache,'image/svg+xml');
+    const root=doc.documentElement;
+    const W=root.getAttribute('width')||'3185',H=root.getAttribute('height')||'4987';
+    const paths=[...doc.querySelectorAll('path')];
+    if(!paths.length)throw new Error('no path');
+    // path lớn nhất = đường viền đất liền Việt Nam
+    let main=paths[0];for(const p of paths){if((p.getAttribute('d')||'').length>(main.getAttribute('d')||'').length)main=p;}
+    const d=main.getAttribute('d');
+    let tf='',n=main;while(n&&n!==root){const t=n.getAttribute&&n.getAttribute('transform');if(t)tf=t+' '+tf;n=n.parentNode;}
+    box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="height:420px;width:auto;max-width:100%" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="vnRegGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${c[0]}"/><stop offset="34%" stop-color="${c[0]}"/>
+        <stop offset="41%" stop-color="${c[1]}"/><stop offset="69%" stop-color="${c[1]}"/>
+        <stop offset="77%" stop-color="${c[2]}"/><stop offset="100%" stop-color="${c[2]}"/>
+      </linearGradient></defs>
+      <g transform="${tf}"><path d="${d}" fill="url(#vnRegGrad)" stroke="var(--surface)" stroke-width="4" stroke-linejoin="round"/></g>
+    </svg>`;
+  }catch(e){box.innerHTML='<div style="color:var(--muted);font-size:12px;padding:30px;text-align:center">Không tải được bản đồ (vietnam-map.svg)</div>';}
+}
 function toggleOnlBrand(k){
   const open=document.querySelectorAll('.onl-sub-'+k);
   let show=null;
