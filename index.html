@@ -1047,7 +1047,15 @@ function renderSaleSi(){
   const donutSegs=[...regionData.map(d=>({pct:d.pct,color:d.color}))];
   if(regionOther>0)donutSegs.push({pct:regionOther/regionTot*100,color:'#cbd5e1'});
   let _acc=0;const donutConic=donutSegs.filter(s=>s.pct>0).map(s=>{const a=_acc;_acc+=s.pct;return `${s.color} ${a.toFixed(2)}% ${_acc.toFixed(2)}%`;}).join(',')||'var(--bg2) 0% 100%';
-  const topCities=Object.entries(byCity).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([city,cnt])=>({city,cnt,pct:cnt/total*100}));
+  const allCitiesData=Object.entries(byCity).sort((a,b)=>b[1]-a[1]).map(([city,cnt])=>({city,cnt,pct:cnt/total*100}));
+  const topCities=allCitiesData.slice(0,10);
+  const siCitiesFullRows=allCitiesData.map((c,i)=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:8px 14px;font-size:12px;color:var(--muted);text-align:center">${i+1}</td>
+    <td style="padding:8px 14px;font-size:13px;font-weight:600">${c.city}</td>
+    <td style="padding:8px 14px;font-size:11px"><span style="padding:1px 7px;border-radius:12px;background:var(--bg2);font-weight:600">${siRegion(c.city)}</span></td>
+    <td style="padding:8px 14px;text-align:center;font-size:14px;font-weight:800;color:var(--accent)">${num(c.cnt)}</td>
+    <td style="padding:8px 14px;text-align:right;font-weight:700">${c.pct.toFixed(1)}%</td>
+  </tr>`).join('');
   // By sales
   const bySales={};
   rows.forEach(r=>{const s=(r[COL_SI.SALES]||'Chưa phân công').trim();if(!bySales[s])bySales[s]={total:0,closed:0,rev:0};bySales[s].total++;if(hasStatus(r,'chốt')||toN(r[COL_SI.TOTAL_REV])>0){bySales[s].closed++;bySales[s].rev+=toN(r[COL_SI.TOTAL_REV]);}});
@@ -1138,15 +1146,15 @@ function renderSaleSi(){
       <!-- TRÁI: donut + legend + tổng -->
       <div class="tov-card" style="padding:18px;display:flex;flex-direction:column">
         <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px">Tỷ Lệ Khách Theo Miền</div>
-        <div style="display:flex;justify-content:center;margin-bottom:16px">
-          <div style="position:relative;width:150px;height:150px;border-radius:50%;background:conic-gradient(${donutConic})">
-            <div style="position:absolute;inset:32px;background:var(--surface);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center">
-              <span style="font-size:10px;color:var(--muted);font-weight:700">TỔNG</span>
-              <span style="font-size:20px;font-weight:800">100%</span>
+        <div style="display:flex;justify-content:center;margin-bottom:22px;margin-top:8px">
+          <div style="position:relative;width:180px;height:180px;border-radius:50%;background:conic-gradient(${donutConic})">
+            <div style="position:absolute;inset:40px;background:var(--surface);border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <span style="font-size:11px;color:var(--muted);font-weight:700">TỔNG</span>
+              <span style="font-size:24px;font-weight:800">100%</span>
             </div>
           </div>
         </div>
-        ${regionData.map(d=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+        ${regionData.map(d=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
           <span style="font-size:12px;font-weight:600"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${d.color};margin-right:7px"></span>${d.name}</span>
           <span style="white-space:nowrap"><b style="color:${d.color}">${d.pct.toFixed(1)}%</b> <span style="font-size:11px;color:var(--muted);margin-left:6px">${num(d.cnt)}</span></span>
         </div>`).join('')}
@@ -1156,36 +1164,58 @@ function renderSaleSi(){
           <div style="font-size:24px;font-weight:800;color:var(--accent)">${num(total)}</div>
         </div></div>
       </div>
-      <!-- GIỮA: bản đồ VN chữ S -->
-      <div class="tov-card" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:18px;position:relative">
-        <svg viewBox="0 0 200 290" style="height:252px;width:auto">
-          <path d="M95,28 C58,44 54,84 82,114" fill="none" stroke="${regionData[0].color}" stroke-width="24" stroke-linecap="round" opacity="${(0.45+0.55*regionData[0].pct/regionMax).toFixed(2)}"/>
-          <path d="M82,114 C108,144 102,182 86,208" fill="none" stroke="${regionData[1].color}" stroke-width="24" stroke-linecap="round" opacity="${(0.45+0.55*regionData[1].pct/regionMax).toFixed(2)}"/>
-          <path d="M86,208 C70,238 96,260 122,252" fill="none" stroke="${regionData[2].color}" stroke-width="24" stroke-linecap="round" opacity="${(0.45+0.55*regionData[2].pct/regionMax).toFixed(2)}"/>
-          <circle cx="95" cy="28" r="4.5" fill="var(--surface)" stroke="${regionData[0].color}" stroke-width="2.5"/>
-          <circle cx="122" cy="252" r="4.5" fill="var(--surface)" stroke="${regionData[2].color}" stroke-width="2.5"/>
-          <text x="103" y="25" font-size="8.5" fill="var(--muted)" font-weight="700">Hà Nội</text>
-          <text x="130" y="256" font-size="8.5" fill="var(--muted)" font-weight="700">HCM</text>
-          <text x="118" y="80" font-size="13" font-weight="800" fill="${regionData[0].color}">${regionData[0].pct.toFixed(1)}%</text>
-          <text x="118" y="92" font-size="7.5" fill="var(--muted)">Miền Bắc</text>
-          <text x="18" y="165" font-size="13" font-weight="800" fill="${regionData[1].color}">${regionData[1].pct.toFixed(1)}%</text>
-          <text x="18" y="177" font-size="7.5" fill="var(--muted)">Miền Trung</text>
-          <text x="135" y="225" font-size="13" font-weight="800" fill="${regionData[2].color}">${regionData[2].pct.toFixed(1)}%</text>
-          <text x="135" y="237" font-size="7.5" fill="var(--muted)">Miền Nam</text>
+      <!-- GIỮA: bản đồ Việt Nam tô màu 3 miền -->
+      <div class="tov-card" style="display:flex;align-items:center;justify-content:center;padding:14px;position:relative">
+        <svg viewBox="0 0 372 600" style="height:420px;width:auto">
+          <defs><linearGradient id="vnSiGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${regionData[0].color}"/><stop offset="33%" stop-color="${regionData[0].color}"/>
+            <stop offset="40%" stop-color="${regionData[1].color}"/><stop offset="70%" stop-color="${regionData[1].color}"/>
+            <stop offset="78%" stop-color="${regionData[2].color}"/><stop offset="100%" stop-color="${regionData[2].color}"/>
+          </linearGradient></defs>
+          <path d="M150,40 C180,48 198,68 208,92 C214,110 206,124 200,138 C196,160 200,178 196,196 C210,222 226,250 240,278 C250,296 256,312 252,330 C264,356 270,378 264,398 C256,420 244,436 230,448 C220,470 205,492 182,512 C168,524 156,528 148,520 C140,524 130,518 128,506 C118,514 104,508 100,494 C96,480 104,470 116,464 C132,456 144,446 150,430 C160,406 150,386 164,366 C156,342 150,322 160,304 C172,282 190,276 202,264 C182,236 154,212 132,188 C112,164 96,140 86,114 C80,96 92,66 118,50 C128,44 140,40 150,40 Z" fill="url(#vnSiGrad)" stroke="var(--surface)" stroke-width="2.5" stroke-linejoin="round"/>
+          <circle cx="184" cy="150" r="5" fill="#fff" stroke="${regionData[0].color}" stroke-width="2.5"/>
+          <circle cx="172" cy="470" r="5" fill="#fff" stroke="${regionData[2].color}" stroke-width="2.5"/>
+          <text x="194" y="148" font-size="11" font-weight="700" fill="var(--text)">Hà Nội</text>
+          <text x="182" y="486" font-size="11" font-weight="700" fill="var(--text)">HCM</text>
+          <text x="234" y="108" font-size="18" font-weight="800" fill="${regionData[0].color}">${regionData[0].pct.toFixed(1)}%</text>
+          <text x="234" y="125" font-size="9.5" fill="var(--muted)">Miền Bắc</text>
+          <text x="10" y="312" font-size="18" font-weight="800" fill="${regionData[1].color}">${regionData[1].pct.toFixed(1)}%</text>
+          <text x="10" y="329" font-size="9.5" fill="var(--muted)">Miền Trung</text>
+          <text x="232" y="402" font-size="18" font-weight="800" fill="${regionData[2].color}">${regionData[2].pct.toFixed(1)}%</text>
+          <text x="232" y="419" font-size="9.5" fill="var(--muted)">Miền Nam</text>
+          <!-- QĐ. Hoàng Sa -->
+          <g fill="var(--muted)" opacity="0.75"><circle cx="305" cy="250" r="2"/><circle cx="313" cy="244" r="1.6"/><circle cx="300" cy="258" r="1.6"/><circle cx="316" cy="255" r="1.6"/><circle cx="309" cy="262" r="1.4"/></g>
+          <text x="284" y="232" font-size="9" fill="var(--muted)" font-weight="600">QĐ. Hoàng Sa</text>
+          <!-- QĐ. Trường Sa -->
+          <g fill="var(--muted)" opacity="0.75"><circle cx="322" cy="468" r="2"/><circle cx="330" cy="460" r="1.6"/><circle cx="316" cy="476" r="1.6"/><circle cx="332" cy="474" r="1.4"/><circle cx="325" cy="482" r="1.4"/></g>
+          <text x="300" y="450" font-size="9" fill="var(--muted)" font-weight="600">QĐ. Trường Sa</text>
         </svg>
       </div>
       <!-- PHẢI: top thành phố -->
-      <div class="tov-card" style="padding:18px">
+      <div class="tov-card" style="padding:18px;display:flex;flex-direction:column">
         <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Top 10 Thành Phố</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Theo tỷ lệ khách hàng</div>
-        ${topCities.length?topCities.map((c,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:5px 0">
+        ${topCities.length?topCities.map((c,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:8px 0">
           <span style="font-size:12px;color:var(--muted);font-weight:700;width:16px;text-align:center">${i+1}</span>
           <div style="flex:1;min-width:0">
-            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.city}</span><span style="color:var(--accent);font-weight:700;white-space:nowrap">${c.pct.toFixed(1)}%</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.city}</span><span style="white-space:nowrap"><span style="color:var(--accent);font-weight:700">${c.pct.toFixed(1)}%</span> <span style="color:var(--muted);font-size:11px">(${num(c.cnt)})</span></span></div>
             <div style="height:5px;background:var(--bg2);border-radius:4px;margin-top:4px"><div style="height:5px;background:var(--accent);border-radius:4px;width:${Math.min(100,c.pct).toFixed(0)}%"></div></div>
           </div>
         </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}
+        <div onclick="toggleSiCities()" style="margin-top:auto;padding-top:12px;text-align:center;color:var(--accent);font-weight:700;font-size:12px;cursor:pointer;user-select:none">Xem tất cả ${allCitiesData.length} thành phố ↓</div>
       </div>
+    </div>
+    <div id="siCitiesFull" style="display:none">
+      <div class="sec-label">Tất Cả Thành Phố <span style="font-weight:400;font-size:11px;color:var(--muted)">(${allCitiesData.length} tỉnh/thành)</span></div>
+      <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);width:40px">#</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THÀNH PHỐ</th>
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">VÙNG</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">SỐ KHÁCH</th>
+          <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--muted)">TỶ LỆ</th>
+        </tr></thead><tbody>${siCitiesFullRows}</tbody>
+      </table></div></div>
     </div>
 
     <div class="charts-2col-grid">
@@ -1530,6 +1560,7 @@ function buildOnlineCampTable(){
   </table></div></div>`;
 }
 
+function toggleSiCities(){const e=document.getElementById('siCitiesFull');if(e)e.style.display=e.style.display==='none'?'':'none';}
 function toggleOnlBrand(k){
   const open=document.querySelectorAll('.onl-sub-'+k);
   let show=null;
