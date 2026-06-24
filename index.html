@@ -1560,14 +1560,19 @@ async function buildVnMap(colors){
     // path lớn nhất = đường viền đất liền Việt Nam
     let main=paths[0];for(const p of paths){if((p.getAttribute('d')||'').length>(main.getAttribute('d')||'').length)main=p;}
     const d=main.getAttribute('d');
-    let tf='',n=main;while(n&&n!==root){const t=n.getAttribute&&n.getAttribute('transform');if(t)tf=t+' '+tf;n=n.parentNode;}
-    box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="height:420px;width:auto;max-width:100%" xmlns="http://www.w3.org/2000/svg">
+    // Tự tính bounding box (path toàn lệnh tuyệt đối) → viewBox khít, khỏi bị cắt/lệch
+    const nums=(d.match(/-?\d+\.?\d*(?:e-?\d+)?/g)||[]).map(Number);
+    let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+    for(let i=0;i+1<nums.length;i+=2){const x=nums[i],y=nums[i+1];if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;}
+    const w=maxX-minX,h=maxY-minY,px=w*0.05,py=h*0.03;
+    const vb=(isFinite(minX)?`${minX-px} ${minY-py} ${w+2*px} ${h+2*py}`:`0 0 ${W} ${H}`);
+    box.innerHTML=`<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" style="height:420px;width:auto;max-width:100%" xmlns="http://www.w3.org/2000/svg">
       <defs><linearGradient id="vnRegGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${c[0]}"/><stop offset="34%" stop-color="${c[0]}"/>
-        <stop offset="41%" stop-color="${c[1]}"/><stop offset="69%" stop-color="${c[1]}"/>
+        <stop offset="0%" stop-color="${c[0]}"/><stop offset="30%" stop-color="${c[0]}"/>
+        <stop offset="37%" stop-color="${c[1]}"/><stop offset="70%" stop-color="${c[1]}"/>
         <stop offset="77%" stop-color="${c[2]}"/><stop offset="100%" stop-color="${c[2]}"/>
       </linearGradient></defs>
-      <g transform="${tf}"><path d="${d}" fill="url(#vnRegGrad)" stroke="var(--surface)" stroke-width="4" stroke-linejoin="round"/></g>
+      <path d="${d}" fill="url(#vnRegGrad)" stroke="var(--surface)" stroke-width="4" stroke-linejoin="round"/>
     </svg>`;
   }catch(e){box.innerHTML='<div style="color:var(--muted);font-size:12px;padding:30px;text-align:center">Không tải được bản đồ (vietnam-map.svg)</div>';}
 }
