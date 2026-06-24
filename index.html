@@ -1250,7 +1250,18 @@ function renderSaleSi(){
 function renderSaleSiData(){
   const elp=document.getElementById('page-sale-si-data');
   if(!saleSiRows.length){elp.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
-  const rows=saleSiRows.filter(saleRangePred(r=>parseDate(r[COL_SI.DATE])));
+  const nrm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  // Lọc theo NGÀY CHĂM SÓC: hiện khách có lượt CS trong kỳ; toàn bộ ngày → tất cả khách
+  const fv=document.getElementById('dateFrom'),tv=document.getElementById('dateTo');
+  const hasRange=(fv&&fv.value)||(tv&&tv.value);
+  let rows;
+  if(!hasRange){rows=saleSiRows;}
+  else{
+    const cp=saleRangePred(r=>parseDate(r[COL_SICRM.DATE]));
+    const keys=new Set();
+    saleSiCrmRows.filter(cp).forEach(r=>{const id=nrm(r[COL_SICRM.LEAD_ID]);if(id)keys.add(id);});
+    rows=saleSiRows.filter(r=>keys.has(nrm(r[COL_SI.MA_KH]))||keys.has(nrm(r[COL_SI.LEAD_ID])));
+  }
   const toN=vndNum;
   const crmMap=getSiCrmMap();
   // Gắn thông tin CS từ CRM vào từng khách, sắp theo doanh thu tích luỹ
@@ -1299,7 +1310,7 @@ function renderSaleSiData(){
     <tr id="si-detail-${i}" style="display:none"><td colspan="13" style="padding:0;border-bottom:2px solid var(--border)">${detail}</td></tr>`;}).join('');
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
-    <div class="page-sub">Thông tin khách sỉ (Master ⨝ CRM) · click 1 khách để xem lịch sử chăm sóc · ${total} khách · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub">Thông tin khách sỉ (Master ⨝ CRM) · click 1 khách để xem lịch sử chăm sóc · ${total} khách${hasRange?' được CS':''} · 📅 ${curPeriodLabel()}</div>
     <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo giá trị KH · ${num(totalCS)} lượt CS từ CRM)</span></div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1180px">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
