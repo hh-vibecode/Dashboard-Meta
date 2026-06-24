@@ -1374,7 +1374,8 @@ function renderSaleSiData(){
     <div style="margin:18px 0 10px">
       <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',done:' đã xong',pending:' còn tồn đọng'})[F]||''} · sắp theo giá trị KH)</span></div>
     </div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:900px">
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:980px;table-layout:fixed">
+      <colgroup>${['9%','23%','9%','8%','10%','9%','13%','12%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         ${['NGÀY TẠO','TÊN KHÁCH','NGUỒN','SỐ LẦN LH','CS CUỐI','CHƯA LH','GIÁ TRỊ KH','TRẠNG THÁI','HỒ SƠ'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===3||i===5||i===8?'center':i===6?'right':'left'};font-size:11px;font-weight:700;color:${i===5?'#dc2626':i===6?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
