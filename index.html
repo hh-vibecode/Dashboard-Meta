@@ -1061,6 +1061,14 @@ function renderSaleSi(){
   const onlRev=rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online').reduce((s,r)=>s+toN(r[COL_SI.TOTAL_REV]),0);
   const selfRev=rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline').reduce((s,r)=>s+toN(r[COL_SI.TOTAL_REV]),0);
   function revByChannel(kw){return rows.filter(r=>(r[COL_SI.CHANNEL]||'').toLowerCase().includes(kw.toLowerCase())).reduce((s,r)=>s+toN(r[COL_SI.TOTAL_REV]),0);}
+  // ── Doanh thu: top khách / theo miền / theo thành phố ──
+  const custRev=rows.map(r=>({name:siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),store:(r[COL_SI.STORE]||'').trim(),city:(r[COL_SI.CITY]||'Chưa rõ').trim(),region:siRegion(r[COL_SI.CITY]),rev:toN(r[COL_SI.TOTAL_REV])})).filter(x=>x.rev>0).sort((a,b)=>b.rev-a.rev);
+  const topCust=custRev.slice(0,12);
+  const revByRegionObj={};rows.forEach(r=>{const reg=siRegion(r[COL_SI.CITY]);revByRegionObj[reg]=(revByRegionObj[reg]||0)+toN(r[COL_SI.TOTAL_REV]);});
+  const revRegion=[['Miền Bắc','#0abf7a'],['Miền Trung','#7c3aed'],['Miền Nam','#4361ee'],['Khác','#94a3b8'],['Chưa rõ','#cbd5e1']].map(([n,c])=>({name:n,color:c,rev:revByRegionObj[n]||0})).filter(x=>x.rev>0);
+  const revByCityObj={};rows.forEach(r=>{const c=(r[COL_SI.CITY]||'Chưa rõ').trim();revByCityObj[c]=(revByCityObj[c]||0)+toN(r[COL_SI.TOTAL_REV]);});
+  const revCity=Object.entries(revByCityObj).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const revRegionMax=Math.max(...revRegion.map(x=>x.rev),1),revCityMax=Math.max(...revCity.map(e=>e[1]),1);
   // By city
   const byCity={};
   rows.forEach(r=>{const c=(r[COL_SI.CITY]||'Chưa rõ').trim();byCity[c]=(byCity[c]||0)+1;});
@@ -1248,19 +1256,44 @@ function renderSaleSi(){
       </tr></thead><tbody>${salesRows}</tbody>
     </table></div></div>
 
-    <div class="sec-label">VIII. Nhắc Chăm Sóc <span style="font-weight:400;font-size:11px;color:var(--muted)">(khách chưa chăm sóc ≥ 10 ngày · ${priority.length} khách)</span></div>
+    <div class="sec-label">VIII. Top Khách Theo Doanh Thu <span style="font-weight:400;font-size:11px;color:var(--muted)">(giá trị đơn cộng dồn)</span></div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">LEAD ID</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CỬA HÀNG / KH</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THÀNH PHỐ</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CS CUỐI</th>
-        <th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:700;color:#dc2626">CHƯA CS</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TRẠNG THÁI</th>
-      </tr></thead><tbody>${priRows||'<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--green)">✓ Không có khách quá hạn chăm sóc</td></tr>'}</tbody>
+        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);width:44px">#</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TÊN KHÁCH</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CỬA HÀNG</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TỈNH/TP</th>
+        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">MIỀN</th>
+        <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH THU</th>
+      </tr></thead><tbody>${topCust.length?topCust.map((c,i)=>`<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:800;color:${i<3?'#f59e0b':'var(--muted)'}">${i+1}</td>
+        <td style="padding:9px 14px;font-size:13px;font-weight:700">${c.name}</td>
+        <td style="padding:9px 14px;font-size:12px;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.store||'—'}</td>
+        <td style="padding:9px 14px;font-size:12px">${c.city||'—'}</td>
+        <td style="padding:9px 14px;font-size:11px"><span style="padding:1px 7px;border-radius:12px;background:var(--bg2);font-weight:600">${c.region}</span></td>
+        <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green);white-space:nowrap">${vnd(c.rev)}</td>
+      </tr>`).join(''):'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Chưa có khách có doanh thu</td></tr>'}</tbody>
     </table></div></div>
-    ${crmSection}`;
+
+    <div class="charts-2col-grid">
+      <div>
+        <div class="sec-label">IX. Doanh Thu Theo Miền</div>
+        <div class="tov-card" style="padding:18px">${revRegion.length?revRegion.map(x=>`<div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:13px;font-weight:700"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${x.color};margin-right:7px"></span>${x.name}</span><span style="font-size:14px;font-weight:800;color:${x.color}">${vnd(x.rev)}</span></div>
+          <div style="height:8px;background:var(--bg2);border-radius:5px"><div style="height:8px;border-radius:5px;background:${x.color};width:${(x.rev/revRegionMax*100).toFixed(0)}%"></div></div>
+        </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}</div>
+      </div>
+      <div>
+        <div class="sec-label">X. Doanh Thu Theo Thành Phố <span style="font-weight:400;font-size:11px;color:var(--muted)">(top 10)</span></div>
+        <div class="tov-card" style="padding:18px">${revCity.length?revCity.map(([city,rv],i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:12px;color:var(--muted);font-weight:700;width:16px;text-align:center">${i+1}</span>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${city}</span><span style="color:var(--green);font-weight:700;white-space:nowrap">${vnd(rv)}</span></div>
+            <div style="height:6px;background:var(--bg2);border-radius:4px;margin-top:3px"><div style="height:6px;background:var(--accent);border-radius:4px;width:${(rv/revCityMax*100).toFixed(0)}%"></div></div>
+          </div>
+        </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}</div>
+      </div>
+    </div>`;
   // Donut: doanh thu Online vs Offline
   const ooCtx=document.getElementById('cSiOnOff');
   if(ooCtx&&(onlRev>0||selfRev>0)){
