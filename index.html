@@ -1277,6 +1277,9 @@ function renderSaleSiData(){
   const histMap=getSiCrmHistory();
   const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const careOf=r=>histMap[norm(r[COL_SI.MA_KH])]||histMap[norm(r[COL_SI.LEAD_ID])]||[];
+  const chip=(txt,bg,fg)=>`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;
+  const srcChip=s=>{const t=(s||'').trim().toLowerCase();if(t==='online')return chip('Online','#dbeafe','#2563eb');if(t==='offline')return chip('Offline','#fef3c7','#b45309');return s?chip(s,'#e5e7eb','#6b7280'):'<span style="color:var(--muted)">—</span>';};
+  const statusChip=s=>{const v=(s||'').trim();if(!v)return'<span style="color:var(--muted)">—</span>';const t=v.toLowerCase();if(t.includes('đã ra đơn'))return chip(v,'#dcfce7','#16a34a');if(t.includes('chưa ra đơn'))return chip(v,'#fef9c3','#ca8a04');if(t.includes('dừng')||t.includes('huỷ')||t.includes('hủy'))return chip(v,'#fee2e2','#dc2626');return chip(v,'#e5e7eb','#6b7280');};
   const bodyRows=enriched.map(({r,ci,rev},i)=>{
     const recs=careOf(r);
     const detail=recs.length?`<div style="padding:10px 14px 16px 40px;background:var(--bg2)">
@@ -1293,19 +1296,19 @@ function renderSaleSiData(){
         </tr>`).join('')}</tbody></table></div>`
       :'<div style="padding:16px 40px;color:var(--muted);font-size:12px">Chưa có lịch sử chăm sóc trong CRM</div>';
     return`<tr class="si-cust-row" onclick="toggleSiCust(${i})" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
-      <td style="padding:8px 12px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap"><span id="si-arrow-${i}" style="color:var(--muted);font-size:9px;margin-right:5px">▶</span>${r[COL_SI.LEAD_ID]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap"><span id="si-arrow-${i}" style="color:var(--muted);font-size:9px;margin-right:5px">▶</span>${r[COL_SI.DATE]||'—'}</td>
       <td style="padding:8px 12px;font-size:13px;font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r[COL_SI.STORE]||r[COL_SI.REP]||'').replace(/"/g,'')}">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px">${r[COL_SI.REP]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--muted)">${r[COL_SI.PHONE]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px">${r[COL_SI.CITY]||'—'}</td>
       <td style="padding:8px 12px;font-size:11px"><span style="padding:1px 7px;border-radius:12px;background:var(--bg2);font-weight:600">${siRegion(r[COL_SI.CITY])}</span></td>
-      <td style="padding:8px 12px;font-size:12px">${r[COL_SI.MODEL]||'—'}</td>
+      <td style="padding:8px 12px">${srcChip(r[COL_SI.SOURCE])}</td>
       <td style="padding:8px 12px;font-size:12px">${r[COL_SI.SALES]||'—'}</td>
       <td style="padding:8px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
       <td style="padding:8px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
       <td style="padding:8px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
-      <td style="padding:8px 12px;font-size:11px;color:var(--muted)">${r[COL_SI.STATUS]||'—'}</td>
+      <td style="padding:8px 12px">${statusChip(r[COL_SI.STATUS])}</td>
     </tr>
     <tr id="si-detail-${i}" style="display:none"><td colspan="13" style="padding:0;border-bottom:2px solid var(--border)">${detail}</td></tr>`;}).join('');
   elp.innerHTML=`
@@ -1314,7 +1317,7 @@ function renderSaleSiData(){
     <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo giá trị KH · ${num(totalCS)} lượt CS từ CRM)</span></div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1180px">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${['LEAD ID','CỬA HÀNG','NGƯỜI ĐẠI DIỆN','SĐT','TỈNH/TP','VÙNG','MÔ HÌNH','SALES','SỐ LẦN CS','CS CUỐI','CHƯA LIÊN HỆ','GIÁ TRỊ KH','TRẠNG THÁI'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===8||i===10?'center':i===11?'right':'left'};font-size:11px;font-weight:700;color:${i===10?'#dc2626':i===11?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${['NGÀY TẠO','CỬA HÀNG','NGƯỜI ĐẠI DIỆN','SĐT','TỈNH/TP','VÙNG','NGUỒN','SALES','SỐ LẦN CS','CS CUỐI','CHƯA LIÊN HỆ','GIÁ TRỊ KH','TRẠNG THÁI'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===8||i===10?'center':i===11?'right':'left'};font-size:11px;font-weight:700;color:${i===10?'#dc2626':i===11?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
 }
