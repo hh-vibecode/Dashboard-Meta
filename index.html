@@ -991,6 +991,31 @@ function siRegion(city){
   return'Khác';
 }
 
+// Join CRM Sỉ (nhật ký chăm sóc) theo Lead ID — gắn ngược vào master
+function getSiCrmMap(){
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const m={};
+  saleSiCrmRows.forEach(r=>{
+    const id=norm(r[COL_SICRM.LEAD_ID]);if(!id)return;
+    const d=parseDate(r[COL_SICRM.DATE]);
+    if(!m[id])m[id]={count:0,last:null,lastStr:'',content:'',status:'',next:'',close:0};
+    const e=m[id];e.count++;
+    if(d&&(!e.last||d>e.last)){e.last=d;e.lastStr=r[COL_SICRM.DATE]||'';e.content=(r[COL_SICRM.RESULT]||r[COL_SICRM.CONTENT]||'').trim();e.status=(r[COL_SICRM.STATUS]||'').trim();e.next=(r[COL_SICRM.NEXT_DATE]||'').trim();}
+    const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]);if(cv>e.close)e.close=cv;
+  });
+  return m;
+}
+// Số ngày chưa tương tác của 1 khách: ưu tiên ngày CS gần nhất từ CRM, fallback master
+function siContactInfo(masterRow,crmMap){
+  const id=(masterRow[COL_SI.LEAD_ID]||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const e=id?crmMap[id]:null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const last=e&&e.last?e.last:parseDate(masterRow[COL_SI.LAST_CS]);
+  const lastStr=e&&e.lastStr?e.lastStr:(masterRow[COL_SI.LAST_CS]||'');
+  const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
+  return {days,lastStr,count:e?e.count:0,status:e?e.status:'',next:e?e.next:''};
+}
+
 function renderSaleSi(){
   if(!saleSiRows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
   const rows=saleSiRows.filter(saleRangePred(r=>parseDate(r[COL_SI.DATE])));
@@ -1017,10 +1042,12 @@ function renderSaleSi(){
     <td style="padding:9px 14px"><div style="height:5px;background:var(--bg2);border-radius:4px"><div style="height:5px;background:var(--accent);border-radius:4px;width:${(cnt/total*100).toFixed(0)}%"></div></div><span style="font-size:11px;color:var(--muted)">${(cnt/total*100).toFixed(1)}%</span></td>
   </tr>`).join('');
   // By vùng miền (chữ S)
-  const REGION_ORDER={'Miền Bắc':0,'Miền Trung':1,'Miền Nam':2,'Khác':3,'Chưa rõ':4};
   const byRegion={};
   rows.forEach(r=>{const m=siRegion(r[COL_SI.CITY]);byRegion[m]=(byRegion[m]||0)+1;});
-  const regionEntries=Object.entries(byRegion).sort((a,b)=>(REGION_ORDER[a[0]]??9)-(REGION_ORDER[b[0]]??9));
+  const regionTot=Object.values(byRegion).reduce((s,n)=>s+n,0)||1;
+  const regionData=[['Miền Bắc','#4361ee'],['Miền Trung','#f59e0b'],['Miền Nam','#0abf7a']].map(([name,color])=>({name,color,cnt:byRegion[name]||0,pct:(byRegion[name]||0)/regionTot*100}));
+  const regionOther=(byRegion['Khác']||0)+(byRegion['Chưa rõ']||0);
+  const regionMax=Math.max(...regionData.map(d=>d.pct),1);
   // By sales
   const bySales={};
   rows.forEach(r=>{const s=(r[COL_SI.SALES]||'Chưa phân công').trim();if(!bySales[s])bySales[s]={total:0,closed:0,rev:0};bySales[s].total++;if(hasStatus(r,'chốt')||toN(r[COL_SI.TOTAL_REV])>0){bySales[s].closed++;bySales[s].rev+=toN(r[COL_SI.TOTAL_REV]);}});
@@ -1030,14 +1057,18 @@ function renderSaleSi(){
     <td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--green)">${d.closed}</td>
     <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${d.rev>0?vnd(d.rev):'—'}</td>
   </tr>`).join('');
-  // Nhắc: khách chưa chăm sóc sau 10 ngày
-  const priority=rows.filter(r=>toN(r[COL_SI.DAYS_NO_CS])>=10).sort((a,b)=>toN(b[COL_SI.DAYS_NO_CS])-toN(a[COL_SI.DAYS_NO_CS]));
-  const priRows=priority.map(r=>`<tr style="border-bottom:1px solid var(--border)">
+  // Nhắc: khách chưa chăm sóc ≥ 10 ngày (tính theo ngày CS gần nhất từ CRM, join Lead ID)
+  const crmMap=getSiCrmMap();
+  const priority=rows.map(r=>({r,ci:siContactInfo(r,crmMap)}))
+    .filter(x=>x.ci.days===null||x.ci.days>=10)
+    .sort((a,b)=>(b.ci.days===null?1e9:b.ci.days)-(a.ci.days===null?1e9:a.ci.days));
+  const priRows=priority.map(({r,ci})=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted)">${r[COL_SI.LEAD_ID]||'—'}</td>
-    <td style="padding:8px 12px;font-size:13px;font-weight:700">${r[COL_SI.REP]||r[COL_SI.STORE]||'—'}</td>
+    <td style="padding:8px 12px;font-size:13px;font-weight:700">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SI.CITY]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SI.SALES]||'—'}</td>
-    <td style="padding:8px 12px;text-align:center;font-size:14px;font-weight:800;color:${toN(r[COL_SI.DAYS_NO_CS])>7?'#dc2626':'#ca8a04'}">${r[COL_SI.DAYS_NO_CS]||'—'}</td>
+    <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'<span style="color:#dc2626">Chưa CS lần nào</span>'}</td>
+    <td style="padding:8px 12px;text-align:center;font-size:14px;font-weight:800;color:${ci.days===null||ci.days>=20?'#dc2626':'#ca8a04'}">${ci.days===null?'—':ci.days+'n'}</td>
     <td style="padding:8px 12px;font-size:11px;color:var(--muted)">${r[COL_SI.STATUS]||'—'}</td>
   </tr>`).join('');
 
@@ -1114,8 +1145,29 @@ function renderSaleSi(){
         </table></div></div>
       </div>
       <div>
-        <div class="sec-label">III. Tỉ Trọng Theo Vùng Miền 🇻🇳</div>
-        <div class="chart-card"><div class="chart-wrap" style="height:260px"><canvas id="cSiRegion"></canvas></div></div>
+        <div class="sec-label">III. Bản Đồ Tỉ Trọng Vùng Miền 🇻🇳</div>
+        <div class="chart-card" style="display:flex;gap:20px;align-items:center;min-height:262px;padding:18px 22px">
+          <svg viewBox="0 0 160 285" style="height:236px;width:auto;flex-shrink:0">
+            <path d="M95,28 C58,44 54,84 82,114" fill="none" stroke="${regionData[0].color}" stroke-width="23" stroke-linecap="round" opacity="${(0.4+0.6*regionData[0].pct/regionMax).toFixed(2)}"/>
+            <path d="M82,114 C108,144 102,182 86,208" fill="none" stroke="${regionData[1].color}" stroke-width="23" stroke-linecap="round" opacity="${(0.4+0.6*regionData[1].pct/regionMax).toFixed(2)}"/>
+            <path d="M86,208 C70,238 96,260 122,252" fill="none" stroke="${regionData[2].color}" stroke-width="23" stroke-linecap="round" opacity="${(0.4+0.6*regionData[2].pct/regionMax).toFixed(2)}"/>
+            <circle cx="95" cy="28" r="4.5" fill="var(--surface)" stroke="${regionData[0].color}" stroke-width="2.5"/>
+            <circle cx="122" cy="252" r="4.5" fill="var(--surface)" stroke="${regionData[2].color}" stroke-width="2.5"/>
+            <text x="104" y="26" font-size="9" fill="var(--muted)" font-weight="700">HN</text>
+            <text x="130" y="256" font-size="9" fill="var(--muted)" font-weight="700">HCM</text>
+          </svg>
+          <div style="flex:1;display:flex;flex-direction:column;gap:15px">
+            ${regionData.map(d=>`<div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+                <span style="font-size:13px;font-weight:700"><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:${d.color};margin-right:7px;vertical-align:middle"></span>${d.name}</span>
+                <span style="font-size:18px;font-weight:800;color:${d.color}">${d.pct.toFixed(1)}%</span>
+              </div>
+              <div style="height:8px;background:var(--bg2);border-radius:5px"><div style="height:8px;border-radius:5px;background:${d.color};width:${d.pct.toFixed(0)}%"></div></div>
+              <div style="font-size:11px;color:var(--muted);margin-top:3px">${d.cnt} khách</div>
+            </div>`).join('')}
+            ${regionOther?`<div style="font-size:11px;color:var(--muted)">Khác / chưa rõ: <b>${regionOther}</b> khách</div>`:''}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1147,24 +1199,15 @@ function renderSaleSi(){
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">LEAD ID</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">HỌ TÊN / CỬA HÀNG</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CỬA HÀNG / KH</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THÀNH PHỐ</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
-        <th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:700;color:#dc2626">NGÀY CHƯA CS</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CS CUỐI</th>
+        <th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:700;color:#dc2626">CHƯA CS</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TRẠNG THÁI</th>
-      </tr></thead><tbody>${priRows||'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Không có khách cần ưu tiên</td></tr>'}</tbody>
+      </tr></thead><tbody>${priRows||'<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--green)">✓ Không có khách quá hạn chăm sóc</td></tr>'}</tbody>
     </table></div></div>
     ${crmSection}`;
-  // Donut: tỉ trọng theo vùng miền
-  const RCOL={'Miền Bắc':'#4361ee','Miền Trung':'#f59e0b','Miền Nam':'#0abf7a','Khác':'#94a3b8','Chưa rõ':'#cbd5e1'};
-  const rCtx=document.getElementById('cSiRegion');
-  if(rCtx&&regionEntries.length){
-    new Chart(rCtx,{type:'doughnut',data:{labels:regionEntries.map(e=>e[0]),
-      datasets:[{data:regionEntries.map(e=>e[1]),backgroundColor:regionEntries.map(e=>RCOL[e[0]]||'#94a3b8'),borderWidth:2,borderColor:'var(--surface)',hoverOffset:8}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{color:'var(--text)',font:{size:12,weight:'600'},padding:12,
-        generateLabels:c=>{const d=c.data,tot=d.datasets[0].data.reduce((a,b)=>a+b,0);return d.labels.map((l,i)=>({text:`${l}  ${d.datasets[0].data[i]} (${(d.datasets[0].data[i]/tot*100).toFixed(1)}%)`,fillStyle:d.datasets[0].backgroundColor[i],strokeStyle:'transparent',lineWidth:0,index:i}));}}},
-        tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} khách (${(c.raw/total*100).toFixed(1)}%)`}}}}});
-  }
   // Donut: doanh thu Online vs Offline
   const ooCtx=document.getElementById('cSiOnOff');
   if(ooCtx&&(onlRev>0||selfRev>0)){
@@ -1181,18 +1224,18 @@ function renderSaleSiData(){
   if(!saleSiRows.length){elp.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
   const rows=saleSiRows.filter(saleRangePred(r=>parseDate(r[COL_SI.DATE])));
   const toN=vndNum;
-  // Sắp xếp: doanh thu tích luỹ cao nhất trước
-  const sorted=[...rows].sort((a,b)=>toN(b[COL_SI.TOTAL_REV])-toN(a[COL_SI.TOTAL_REV]));
+  const crmMap=getSiCrmMap();
+  // Gắn thông tin CS từ CRM vào từng khách, sắp theo doanh thu tích luỹ
+  const enriched=rows.map(r=>({r,ci:siContactInfo(r,crmMap),rev:toN(r[COL_SI.TOTAL_REV])})).sort((a,b)=>b.rev-a.rev);
   const total=rows.length;
-  const totalRev=rows.reduce((s,r)=>s+toN(r[COL_SI.TOTAL_REV]),0);
-  const hasRev=rows.filter(r=>toN(r[COL_SI.TOTAL_REV])>0).length;
-  const coldLeads=rows.filter(r=>toN(r[COL_SI.DAYS_NO_CS])>=10).length;
-  const daysBadge=d=>{const n=toN(d);if(!d||n===0)return'<span style="color:var(--muted)">—</span>';
-    const c=n>=20?'#ef4444':n>=10?'#f59e0b':'#0abf7a';
-    return`<span style="color:${c};font-weight:800">${n} ngày</span>`;};
-  const bodyRows=sorted.map(r=>{
-    const rev=toN(r[COL_SI.TOTAL_REV]);
-    return`<tr style="border-bottom:1px solid var(--border)">
+  const totalRev=enriched.reduce((s,x)=>s+x.rev,0);
+  const hasRev=enriched.filter(x=>x.rev>0).length;
+  const coldLeads=enriched.filter(x=>x.ci.days===null||x.ci.days>=10).length;
+  const totalCS=enriched.reduce((s,x)=>s+x.ci.count,0);
+  const daysBadge=ci=>{if(ci.days===null)return'<span style="color:#dc2626;font-weight:800">Chưa CS</span>';
+    const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
+    return`<span style="color:${c};font-weight:800">${ci.days} ngày</span>`;};
+  const bodyRows=enriched.map(({r,ci,rev})=>`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px 12px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap">${r[COL_SI.LEAD_ID]||'—'}</td>
       <td style="padding:8px 12px;font-size:13px;font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r[COL_SI.STORE]||r[COL_SI.REP]||'').replace(/"/g,'')}">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px">${r[COL_SI.REP]||'—'}</td>
@@ -1201,24 +1244,25 @@ function renderSaleSiData(){
       <td style="padding:8px 12px;font-size:11px"><span style="padding:1px 7px;border-radius:12px;background:var(--bg2);font-weight:600">${siRegion(r[COL_SI.CITY])}</span></td>
       <td style="padding:8px 12px;font-size:12px">${r[COL_SI.MODEL]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px">${r[COL_SI.SALES]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SI.LAST_CS]||'—'}</td>
-      <td style="padding:8px 12px;text-align:center;white-space:nowrap">${daysBadge(r[COL_SI.DAYS_NO_CS])}</td>
+      <td style="padding:8px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
+      <td style="padding:8px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
       <td style="padding:8px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
       <td style="padding:8px 12px;font-size:11px;color:var(--muted)">${r[COL_SI.STATUS]||'—'}</td>
-    </tr>`;}).join('');
+    </tr>`).join('');
   elp.innerHTML=`
     <div class="page-title">Data Khách Hàng Sỉ</div>
-    <div class="page-sub">Chân dung & theo dõi khách sỉ · ${total} khách · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub">Chân dung & theo dõi khách sỉ (Master ⨝ CRM) · ${total} khách · 📅 ${curPeriodLabel()}</div>
     <div class="kpi-grid">
       ${mkKpi('👥','Tổng Khách',num(total),'trong kỳ','g-blue')}
       ${mkKpi('🛒','KH Đã Mua',num(hasRev),pct(total?hasRev/total*100:0)+' có doanh thu','g-green')}
       ${mkKpi('💰','Tổng DT Tích Luỹ',vnd(totalRev),'cộng dồn tất cả KH','g-teal')}
-      ${mkKpi('🔔','Lâu Chưa Tương Tác',num(coldLeads),'≥ 10 ngày chưa liên hệ','g-red')}
+      ${mkKpi('🔔','Lâu Chưa Tương Tác',num(coldLeads),'≥10 ngày / chưa CS','g-red')}
     </div>
-    <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo doanh thu tích luỹ)</span></div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1100px">
+    <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo DT tích luỹ · ${num(totalCS)} lượt CS từ CRM)</span></div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1180px">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${['LEAD ID','CỬA HÀNG','NGƯỜI ĐẠI DIỆN','SĐT','TỈNH/TP','VÙNG','MÔ HÌNH','SALES','CS CUỐI','CHƯA LIÊN HỆ','DT TÍCH LUỸ','TRẠNG THÁI'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i>=9&&i<=10?(i===10?'right':'center'):'left'};font-size:11px;font-weight:700;color:${i===9?'#dc2626':i===10?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${['LEAD ID','CỬA HÀNG','NGƯỜI ĐẠI DIỆN','SĐT','TỈNH/TP','VÙNG','MÔ HÌNH','SALES','SỐ LẦN CS','CS CUỐI','CHƯA LIÊN HỆ','DT TÍCH LUỸ','TRẠNG THÁI'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===8||i===10?'center':i===11?'right':'left'};font-size:11px;font-weight:700;color:${i===10?'#dc2626':i===11?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
 }
