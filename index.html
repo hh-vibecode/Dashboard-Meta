@@ -1256,42 +1256,32 @@ function renderSaleSi(){
       </tr></thead><tbody>${salesRows}</tbody>
     </table></div></div>
 
-    <div class="sec-label">VIII. Top Khách Theo Doanh Thu <span style="font-weight:400;font-size:11px;color:var(--muted)">(giá trị đơn cộng dồn)</span></div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted);width:44px">#</th>
-        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TÊN KHÁCH</th>
-        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">CỬA HÀNG</th>
-        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TỈNH/TP</th>
-        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">MIỀN</th>
-        <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH THU</th>
-      </tr></thead><tbody>${topCust.length?topCust.map((c,i)=>`<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:800;color:${i<3?'#f59e0b':'var(--muted)'}">${i+1}</td>
-        <td style="padding:9px 14px;font-size:13px;font-weight:700">${c.name}</td>
-        <td style="padding:9px 14px;font-size:12px;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.store||'—'}</td>
-        <td style="padding:9px 14px;font-size:12px">${c.city||'—'}</td>
-        <td style="padding:9px 14px;font-size:11px"><span style="padding:1px 7px;border-radius:12px;background:var(--bg2);font-weight:600">${c.region}</span></td>
-        <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green);white-space:nowrap">${vnd(c.rev)}</td>
-      </tr>`).join(''):'<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted)">Chưa có khách có doanh thu</td></tr>'}</tbody>
-    </table></div></div>
-
-    <div class="charts-2col-grid">
-      <div>
-        <div class="sec-label">IX. Doanh Thu Theo Miền</div>
-        <div class="tov-card" style="padding:18px">${revRegion.length?revRegion.map(x=>`<div style="margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:13px;font-weight:700"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${x.color};margin-right:7px"></span>${x.name}</span><span style="font-size:14px;font-weight:800;color:${x.color}">${vnd(x.rev)}</span></div>
-          <div style="height:8px;background:var(--bg2);border-radius:5px"><div style="height:8px;border-radius:5px;background:${x.color};width:${(x.rev/revRegionMax*100).toFixed(0)}%"></div></div>
-        </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}</div>
+    <div class="sec-label">VIII. Doanh Thu Khách Sỉ <span style="font-weight:400;font-size:11px;color:var(--muted)">(giá trị đơn cộng dồn)</span></div>
+    <div style="display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:16px;align-items:start">
+      <div class="tov-card" style="padding:0;overflow:hidden">
+        <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:14px 14px 8px">🏆 Top Khách Theo DT</div>
+        ${topCust.length?topCust.map((c,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 14px;border-top:1px solid var(--border)">
+          <span style="font-size:13px;font-weight:800;color:${i<3?'#f59e0b':'var(--muted)'};width:18px;text-align:center">${i+1}</span>
+          <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</div><div style="font-size:10px;color:var(--muted)">${c.city||c.region}</div></div>
+          <span style="font-weight:800;color:var(--green);white-space:nowrap;font-size:12px">${vnd(c.rev)}</span>
+        </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}
       </div>
-      <div>
-        <div class="sec-label">X. Doanh Thu Theo Thành Phố <span style="font-weight:400;font-size:11px;color:var(--muted)">(top 10)</span></div>
-        <div class="tov-card" style="padding:18px">${revCity.length?revCity.map(([city,rv],i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <span style="font-size:12px;color:var(--muted);font-weight:700;width:16px;text-align:center">${i+1}</span>
+      <div class="tov-card" style="padding:16px">
+        <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">🗺️ Theo Miền</div>
+        ${revRegion.length?revRegion.map(x=>`<div style="margin-bottom:13px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-size:12px;font-weight:700"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${x.color};margin-right:6px"></span>${x.name}</span><span style="font-size:12px;font-weight:800;color:${x.color};white-space:nowrap">${vnd(x.rev)}</span></div>
+          <div style="height:7px;background:var(--bg2);border-radius:5px"><div style="height:7px;border-radius:5px;background:${x.color};width:${(x.rev/revRegionMax*100).toFixed(0)}%"></div></div>
+        </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}
+      </div>
+      <div class="tov-card" style="padding:16px">
+        <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">🏙️ Theo Thành Phố <span style="font-weight:400;text-transform:none">(top 10)</span></div>
+        ${revCity.length?revCity.map(([city,rv],i)=>`<div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">
+          <span style="font-size:11px;color:var(--muted);font-weight:700;width:14px;text-align:center">${i+1}</span>
           <div style="flex:1;min-width:0">
-            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;gap:8px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${city}</span><span style="color:var(--green);font-weight:700;white-space:nowrap">${vnd(rv)}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;gap:6px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${city}</span><span style="color:var(--green);font-weight:700;white-space:nowrap">${vnd(rv)}</span></div>
             <div style="height:6px;background:var(--bg2);border-radius:4px;margin-top:3px"><div style="height:6px;background:var(--accent);border-radius:4px;width:${(rv/revCityMax*100).toFixed(0)}%"></div></div>
           </div>
-        </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}</div>
+        </div>`).join(''):'<div style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</div>'}
       </div>
     </div>`;
   // Donut: doanh thu Online vs Offline
