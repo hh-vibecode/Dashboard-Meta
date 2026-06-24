@@ -241,7 +241,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <nav>
       <div class="nav-item" onclick="switchPage('sale-overview')" id="nav-sale-overview"><span class="nav-icon">🗄️</span><span class="nav-label">Data Hub</span></div>
       <div class="nav-item" onclick="switchPage('sale-si')" id="nav-sale-si"><span class="nav-icon">🏪</span><span class="nav-label">Báo Cáo Sỉ</span></div>
-      <div class="nav-item" onclick="switchPage('sale-si-data')" id="nav-sale-si-data"><span class="nav-icon">👤</span><span class="nav-label">Data Khách Sỉ</span></div>
+      <div class="nav-item" onclick="switchPage('sale-si-data')" id="nav-sale-si-data"><span class="nav-icon">👤</span><span class="nav-label">CRM Khách Sỉ</span></div>
       <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo Online</span></div>
     </nav>
     <div class="sb-section" style="margin-top:12px">QC</div>
@@ -292,7 +292,7 @@ const COL_SALE={
 };
 const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
 const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
-const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:22,TOTAL_REV:23,CUST_TYPE:24,MA_KH:26};
+const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,MODEL:15,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:23,TOTAL_REV:24,CUST_TYPE:25,MA_KH:26};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
 let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,sbCollapsed=false;
@@ -1263,8 +1263,26 @@ function renderSaleSiData(){
   const daysBadge=ci=>{if(ci.days===null)return'<span style="color:#dc2626;font-weight:800">Chưa CS</span>';
     const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
     return`<span style="color:${c};font-weight:800">${ci.days} ngày</span>`;};
-  const bodyRows=enriched.map(({r,ci,rev})=>`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:8px 12px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap">${r[COL_SI.LEAD_ID]||'—'}</td>
+  const histMap=getSiCrmHistory();
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const careOf=r=>histMap[norm(r[COL_SI.MA_KH])]||histMap[norm(r[COL_SI.LEAD_ID])]||[];
+  const bodyRows=enriched.map(({r,ci,rev},i)=>{
+    const recs=careOf(r);
+    const detail=recs.length?`<div style="padding:10px 14px 16px 40px;background:var(--bg2)">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:6px">📋 Lịch sử chăm sóc (${recs.length} lượt)</div>
+      <table style="width:100%;border-collapse:collapse;background:var(--surface);border-radius:8px;overflow:hidden">
+        <thead><tr style="border-bottom:1px solid var(--border)">${['NGÀY CS','HÌNH THỨC','NỘI DUNG CHĂM SÓC','KẾT QUẢ','TÌNH TRẠNG','NGÀY HẸN'].map(h=>`<th style="padding:7px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+        <tbody>${recs.map(c=>`<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:7px 12px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[COL_SICRM.DATE]||'—'}</td>
+          <td style="padding:7px 12px;font-size:12px;white-space:nowrap">${c[COL_SICRM.FORM]||'—'}</td>
+          <td style="padding:7px 12px;font-size:12px"><div style="max-width:430px;white-space:normal;line-height:1.4">${c[COL_SICRM.CONTENT]||'—'}</div></td>
+          <td style="padding:7px 12px;font-size:12px"><div style="max-width:300px;white-space:normal;line-height:1.4">${c[COL_SICRM.RESULT]||'—'}</div></td>
+          <td style="padding:7px 12px;font-size:11px;white-space:nowrap">${c[COL_SICRM.STATUS]||'—'}</td>
+          <td style="padding:7px 12px;font-size:12px;white-space:nowrap;color:#ca8a04;font-weight:600">${c[COL_SICRM.NEXT_DATE]||'—'}</td>
+        </tr>`).join('')}</tbody></table></div>`
+      :'<div style="padding:16px 40px;color:var(--muted);font-size:12px">Chưa có lịch sử chăm sóc trong CRM</div>';
+    return`<tr class="si-cust-row" onclick="toggleSiCust(${i})" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap"><span id="si-arrow-${i}" style="color:var(--muted);font-size:9px;margin-right:5px">▶</span>${r[COL_SI.LEAD_ID]||'—'}</td>
       <td style="padding:8px 12px;font-size:13px;font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r[COL_SI.STORE]||r[COL_SI.REP]||'').replace(/"/g,'')}">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px">${r[COL_SI.REP]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;color:var(--muted)">${r[COL_SI.PHONE]||'—'}</td>
@@ -1277,20 +1295,15 @@ function renderSaleSiData(){
       <td style="padding:8px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
       <td style="padding:8px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
       <td style="padding:8px 12px;font-size:11px;color:var(--muted)">${r[COL_SI.STATUS]||'—'}</td>
-    </tr>`).join('');
+    </tr>
+    <tr id="si-detail-${i}" style="display:none"><td colspan="13" style="padding:0;border-bottom:2px solid var(--border)">${detail}</td></tr>`;}).join('');
   elp.innerHTML=`
-    <div class="page-title">Data Khách Hàng Sỉ</div>
-    <div class="page-sub">Chân dung & theo dõi khách sỉ (Master ⨝ CRM) · ${total} khách · 📅 ${curPeriodLabel()}</div>
-    <div class="kpi-grid">
-      ${mkKpi('👥','Tổng Khách',num(total),'trong kỳ','g-blue')}
-      ${mkKpi('🛒','KH Đã Mua',num(hasRev),pct(total?hasRev/total*100:0)+' có doanh thu','g-green')}
-      ${mkKpi('💰','Tổng DT Tích Luỹ',vnd(totalRev),'cộng dồn tất cả KH','g-teal')}
-      ${mkKpi('🔔','Lâu Chưa Tương Tác',num(coldLeads),'≥10 ngày / chưa CS','g-red')}
-    </div>
-    <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo DT tích luỹ · ${num(totalCS)} lượt CS từ CRM)</span></div>
+    <div class="page-title">CRM Khách Hàng Sỉ</div>
+    <div class="page-sub">Thông tin khách sỉ (Master ⨝ CRM) · click 1 khách để xem lịch sử chăm sóc · ${total} khách · 📅 ${curPeriodLabel()}</div>
+    <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo giá trị KH · ${num(totalCS)} lượt CS từ CRM)</span></div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1180px">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${['LEAD ID','CỬA HÀNG','NGƯỜI ĐẠI DIỆN','SĐT','TỈNH/TP','VÙNG','MÔ HÌNH','SALES','SỐ LẦN CS','CS CUỐI','CHƯA LIÊN HỆ','DT TÍCH LUỸ','TRẠNG THÁI'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===8||i===10?'center':i===11?'right':'left'};font-size:11px;font-weight:700;color:${i===10?'#dc2626':i===11?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${['LEAD ID','CỬA HÀNG','NGƯỜI ĐẠI DIỆN','SĐT','TỈNH/TP','VÙNG','MÔ HÌNH','SALES','SỐ LẦN CS','CS CUỐI','CHƯA LIÊN HỆ','GIÁ TRỊ KH','TRẠNG THÁI'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===8||i===10?'center':i===11?'right':'left'};font-size:11px;font-weight:700;color:${i===10?'#dc2626':i===11?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
 }
@@ -1542,6 +1555,15 @@ function buildOnlineCampTable(){
 }
 
 function toggleSiCities(){const e=document.getElementById('siCitiesFull');if(e)e.style.display=e.style.display==='none'?'':'none';}
+function toggleSiCust(i){const d=document.getElementById('si-detail-'+i),a=document.getElementById('si-arrow-'+i);if(d){const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}}
+// Lịch sử chăm sóc theo khách (tất cả lượt CS, sắp mới→cũ), keyed theo Mã KH/Lead ID
+function getSiCrmHistory(){
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const m={};
+  saleSiCrmRows.forEach(r=>{const id=norm(r[COL_SICRM.LEAD_ID]);if(!id)return;(m[id]=m[id]||[]).push(r);});
+  Object.values(m).forEach(a=>a.sort((x,y)=>{const dx=parseDate(x[COL_SICRM.DATE]),dy=parseDate(y[COL_SICRM.DATE]);return(dy?dy:0)-(dx?dx:0);}));
+  return m;
+}
 let _vnSvgCache=null;
 async function buildVnMap(colors){
   const box=document.getElementById('vnMapBox');if(!box)return;
