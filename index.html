@@ -1292,11 +1292,15 @@ function renderSaleSiData(){
   const toN=vndNum;
   const crmMap=getSiCrmMap();
   // Gắn thông tin CS từ CRM vào từng khách, sắp theo doanh thu tích luỹ
-  const enriched=rows.map(r=>({r,ci:siContactInfo(r,crmMap),rev:toN(r[COL_SI.TOTAL_REV])})).sort((a,b)=>b.rev-a.rev);
-  const total=rows.length;
+  const baseEnriched=rows.map(r=>({r,ci:siContactInfo(r,crmMap),rev:toN(r[COL_SI.TOTAL_REV])})).sort((a,b)=>b.rev-a.rev);
+  // Khách cần chăm sóc: chưa CS lần nào hoặc ≥10 ngày chưa CS
+  const needCare=x=>x.ci.days===null||x.ci.days>=10;
+  const needCareCount=baseEnriched.filter(needCare).length;
+  const enriched=window._siNeedCare?baseEnriched.filter(needCare):baseEnriched;
+  const total=enriched.length;
   const totalRev=enriched.reduce((s,x)=>s+x.rev,0);
   const hasRev=enriched.filter(x=>x.rev>0).length;
-  const coldLeads=enriched.filter(x=>x.ci.days===null||x.ci.days>=10).length;
+  const coldLeads=needCareCount;
   const totalCS=enriched.reduce((s,x)=>s+x.ci.count,0);
   const daysBadge=ci=>{if(ci.days===null)return'<span style="color:#dc2626;font-weight:800">Chưa CS</span>';
     const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
@@ -1322,7 +1326,10 @@ function renderSaleSiData(){
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
     <div class="page-sub">Thông tin khách sỉ (Master ⨝ CRM) · click 👤 để mở hồ sơ đầy đủ · ${total} khách${hasRange?' được CS':''} · 📅 ${curPeriodLabel()}</div>
-    <div class="sec-label">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(sắp theo giá trị KH · ${num(totalCS)} lượt CS từ CRM)</span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 10px">
+      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách · sắp theo giá trị KH)</span></div>
+      <button onclick="toggleSiNeedCare()" style="cursor:pointer;border:1.5px solid ${window._siNeedCare?'#dc2626':'var(--border)'};background:${window._siNeedCare?'#dc2626':'var(--surface)'};color:${window._siNeedCare?'#fff':'#dc2626'};border-radius:20px;padding:7px 15px;font-size:12px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;transition:all .15s">🔔 ${window._siNeedCare?'Đang lọc: cần CS — bỏ lọc':'Khách cần chăm sóc'} <span style="background:${window._siNeedCare?'rgba(255,255,255,.25)':'#fee2e2'};color:${window._siNeedCare?'#fff':'#dc2626'};border-radius:10px;padding:1px 8px;font-size:11px">${num(needCareCount)}</span></button>
+    </div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:900px">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         ${['NGÀY TẠO','TÊN KHÁCH','NGUỒN','SỐ LẦN LH','CS CUỐI','CHƯA LH','GIÁ TRỊ KH','TRẠNG THÁI','HỒ SƠ'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===3||i===5||i===8?'center':i===6?'right':'left'};font-size:11px;font-weight:700;color:${i===5?'#dc2626':i===6?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
@@ -1644,6 +1651,7 @@ function buildOnlineCampTable(){
 }
 
 function toggleSiCities(){const e=document.getElementById('siCitiesFull');if(e)e.style.display=e.style.display==='none'?'':'none';}
+function toggleSiNeedCare(){window._siNeedCare=!window._siNeedCare;renderSaleSiData();}
 function toggleSiCust(i){const d=document.getElementById('si-detail-'+i),a=document.getElementById('si-arrow-'+i);if(d){const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}}
 // Lịch sử chăm sóc theo khách (tất cả lượt CS, sắp mới→cũ), keyed theo Mã KH/Lead ID
 function getSiCrmHistory(){
