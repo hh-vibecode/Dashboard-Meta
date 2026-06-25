@@ -203,7 +203,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div style="font-size:12px;color:#64748b">Đăng nhập để tiếp tục</div>
     </div>
     <input id="loginUser" placeholder="Tên đăng nhập" autocomplete="username" style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:10px;outline:none" onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
-    <input id="loginPass" type="password" placeholder="Mật khẩu" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doLogin()">
+    <div style="position:relative">
+      <input id="loginPass" type="password" placeholder="Mật khẩu" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:11px 42px 11px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doLogin()">
+      <button type="button" id="loginEye" onclick="togglePass()" title="Hiện/ẩn mật khẩu" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;padding:4px 6px;line-height:1;color:#94a3b8">👁</button>
+    </div>
     <div id="loginErr" style="color:#dc2626;font-size:12px;min-height:16px;margin:6px 2px"></div>
     <button onclick="doLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#4361ee,#7c3aed);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Đăng nhập</button>
     <div id="loginIp" style="font-size:10px;color:#94a3b8;text-align:center;margin-top:14px"></div>
@@ -345,8 +348,9 @@ function toggleSidebar(){
 })();
 
 // ── Auth: khoá dashboard + phân quyền (client-side) ──
-const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'}};
+const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'}};
 const AUTH_ALLOWED_IPS=[]; // thêm IP máy bạn vào đây (vd '113.161.x.x') để vào thẳng khỏi đăng nhập
+function togglePass(){const p=document.getElementById('loginPass'),e=document.getElementById('loginEye');if(!p)return;if(p.type==='password'){p.type='text';e.textContent='🙈';e.style.color='#4361ee';}else{p.type='password';e.textContent='👁';e.style.color='#94a3b8';}}
 function doLogin(){
   const u=(document.getElementById('loginUser').value||'').trim().toLowerCase();
   const p=document.getElementById('loginPass').value||'';
