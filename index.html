@@ -251,13 +251,13 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="app-body">
   <div class="sidebar" id="sidebar">
     <div class="sb-strip"></div>
-    <div class="sb-section">Marketing</div>
-    <nav>
+    <div class="sb-section" id="sec-marketing-label">Marketing</div>
+    <nav id="sec-marketing">
       <div class="nav-item active" onclick="switchPage('overview')" id="nav-overview"><span class="nav-icon">📊</span><span class="nav-label">Tổng Quan</span></div>
       <div class="nav-item" onclick="switchPage('detail')" id="nav-detail"><span class="nav-icon">📋</span><span class="nav-label">Chi Tiết</span></div>
     </nav>
-    <div class="sb-section" style="margin-top:12px">Sale</div>
-    <nav>
+    <div class="sb-section" id="sec-sale-label" style="margin-top:12px">Sale</div>
+    <nav id="sec-sale">
       <div class="nav-item" onclick="switchPage('sale-overview')" id="nav-sale-overview"><span class="nav-icon">🗄️</span><span class="nav-label">Data Hub</span></div>
       <div class="nav-item" onclick="toggleSiGroup()" id="nav-si-group"><span class="nav-icon">🏪</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Báo Cáo Sỉ<span id="si-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
       <div id="si-subnav">
@@ -266,8 +266,8 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       </div>
       <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo Online</span></div>
     </nav>
-    <div class="sb-section" style="margin-top:12px">QC</div>
-    <nav>
+    <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
+    <nav id="sec-qc">
       <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Đối Soát</span></div>
     </nav>
   </div>
@@ -355,13 +355,31 @@ function doLogin(){
   const u=(document.getElementById('loginUser').value||'').trim().toLowerCase();
   const p=document.getElementById('loginPass').value||'';
   const acc=AUTH_USERS[u];
-  if(acc&&acc.pass===p){localStorage.setItem('dashRole',acc.role);localStorage.setItem('dashUser',u);document.getElementById('loginGate').style.display='none';}
+  if(acc&&acc.pass===p){localStorage.setItem('dashRole',acc.role);localStorage.setItem('dashUser',u);document.getElementById('loginGate').style.display='none';applyRole();}
   else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
+}
+// Phân quyền: role => danh sách trang được xem (null = xem hết)
+const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data']};
+function applyRole(){
+  const role=localStorage.getItem('dashRole')||'admin';
+  const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
+  document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el=>{
+    const id=el.id.replace('nav-','');if(id==='si-group')return;
+    el.style.display=(allowed&&allowed.indexOf(id)<0)?'none':'';
+  });
+  const grp=document.getElementById('nav-si-group');
+  if(grp){const ok=!allowed||allowed.indexOf('sale-si')>=0||allowed.indexOf('sale-si-data')>=0;grp.style.display=ok?'':'none';}
+  [['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
+    const n=document.getElementById(nav);if(!n)return;
+    const vis=[...n.querySelectorAll('.nav-item')].some(it=>it.style.display!=='none');
+    const l=document.getElementById(lab);if(l)l.style.display=vis?'':'none';n.style.display=vis?'':'none';
+  });
+  if(allowed&&allowed.length)switchPage(allowed[0]);
 }
 function logout(){localStorage.removeItem('dashRole');localStorage.removeItem('dashUser');document.getElementById('loginGate').style.display='flex';}
 function initAuth(){
   const gate=document.getElementById('loginGate');if(!gate)return;
-  if(localStorage.getItem('dashRole')){gate.style.display='none';return;}
+  if(localStorage.getItem('dashRole')){gate.style.display='none';applyRole();return;}
   gate.style.display='flex';
   fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{
     const ipEl=document.getElementById('loginIp');if(ipEl)ipEl.textContent='IP của bạn: '+d.ip+' · gửi IP này cho admin để vào thẳng';
