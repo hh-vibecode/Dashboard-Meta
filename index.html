@@ -2089,7 +2089,9 @@ function renderQcDoiSoat(){
   const inSiMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&siMphones.has(p))||(n&&siMnames.has(n));};
   const tiemSiMissRows=tiemSi.filter(r=>!inSiMaster(r)); const tiemSiMiss=tiemSiMissRows.length;
   const caredKeys=new Set(saleSiCrmRows.map(r=>normKey(r[COL_SICRM.LEAD_ID])).filter(Boolean));
-  const siCared=r=>caredKeys.has(normKey(r[COL_SI.MA_KH]))||caredKeys.has(normKey(r[COL_SI.LEAD_ID]));
+  // 1 khách có thể có nhiều dòng master (vd SI0122 + ONL1201) → khớp thêm theo SĐT để không sót chăm sóc
+  const caredPhones=new Set(saleSiCrmRows.map(r=>last9(r[COL_SICRM.PHONE])).filter(Boolean));
+  const siCared=r=>caredKeys.has(normKey(r[COL_SI.MA_KH]))||caredKeys.has(normKey(r[COL_SI.LEAD_ID]))||(last9(r[COL_SI.PHONE])&&caredPhones.has(last9(r[COL_SI.PHONE])));
   const siMJ=saleSiRows.filter(r=>inFloor(r[COL_SI.DATE])&&okB(brandSi,r));
   const siOnline=siMJ.filter(r=>U(r[COL_SI.SOURCE]).includes('ONLINE'));
   const siCaredN=siMJ.filter(siCared).length;
