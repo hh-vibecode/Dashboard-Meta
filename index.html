@@ -2054,6 +2054,16 @@ function buildGroupedTable(rows,saleStats){
 // ── CHI TIẾT ──
 function renderDetail(camps,period,filteredRows,saleStats){
   const maxSpend=Math.max(...camps.map(c=>c.spend),1);
+  // Trạng thái campaign theo ngày: 1 ngày → ngày đó; nhiều ngày/toàn bộ → ngày gần nhất có dữ liệu
+  const fromVal=(document.getElementById('dateFrom')||{}).value||'',toVal=(document.getElementById('dateTo')||{}).value||'';
+  const single=fromVal&&fromVal===toVal;
+  let refDay=single?localDate(fromVal):null;
+  if(!single)filteredRows.forEach(r=>{const d=parseDate(r[COL.DATE]);if(d&&(!refDay||d>refDay))refDay=d;});
+  const sameDay=(a,b)=>!!a&&!!b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+  const spendOnRef={};
+  filteredRows.forEach(r=>{const d=parseDate(r[COL.DATE]);if(refDay&&sameDay(d,refDay)){const c=(r[COL.CAMPAIGN]||'').trim();spendOnRef[c]=(spendOnRef[c]||0)+toNum(r[COL.SPEND]);}});
+  const refLabel=refDay?fmtDate(refDay):'';
+  const statusBadge=name=>{const run=(spendOnRef[name]||0)>0;return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;${run?'background:#dcfce7;color:#16a34a':'background:#f1f5f9;color:#94a3b8'}">${run?'🟢 Đang chạy':'⚪ Đã tắt'}</span>`;};
   const rows=camps.map(g=>{
     const cpm=g.mess>0?g.spend/g.mess:0;
     const actr=g.n>0?g.ctr/g.n:0;
@@ -2066,6 +2076,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
       <td style="width:32px;text-align:center;font-size:11px;color:var(--muted)" id="arrow-${safeId}">▶</td>
       <td class="name" title="${g.name}">${g.name}</td>
       <td>${getBrandBadge(g.name)}</td>
+      <td>${statusBadge(g.name)}</td>
       <td class="num"><div class="bar-cell"><span>${vnd(g.spend)}</span><div class="bar-bg"><div class="bar-fill" style="width:${bp}%;background:var(--accent)"></div></div></div></td>
       <td class="num">${num(g.mess)}</td>
       <td class="num">${g.comments>0?num(g.comments):'—'}</td>
@@ -2076,7 +2087,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
       <td class="num" style="${dsColor}">${cs&&cs.orders>0?vnd(cs.revenue/cs.orders):'—'}</td>
       <td class="num" style="${dsColor}">${cs&&g.mess>0?pct(cs.orders/g.mess*100):'—'}</td>
     </tr>
-    <tr id="ads-${safeId}" style="display:none"><td colspan="12" style="padding:0">
+    <tr id="ads-${safeId}" style="display:none"><td colspan="13" style="padding:0">
       <div style="background:var(--bg2);border-top:1px solid var(--border)" id="ads-content-${safeId}"></div>
     </td></tr>`;
   }).join('');
@@ -2105,7 +2116,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
       <div class="tbl-scroll"><table>
         <thead><tr>
           <th style="width:32px"></th>
-          <th>Tên chiến dịch</th><th>Brand</th>
+          <th>Tên chiến dịch</th><th>Brand</th><th>Trạng thái${refLabel?' ('+refLabel+')':''}</th>
           <th>Chi phí</th><th>Mess</th><th>Comment</th><th>CP/Mess</th>
           <th>ADS/DS</th><th>Doanh số</th><th>Đơn chốt</th><th>DS TB/Đơn</th><th>Tỷ lệ chốt</th>
         </tr></thead>
