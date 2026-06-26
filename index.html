@@ -2318,6 +2318,18 @@ function renderQcDoiSoat(){
     onl:onlDup.map(g=>g.map(r=>[r[COL_SAONL.MA_KH],r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],'',r[COL_SAONL.PHONE],r[COL_SAONL.DATE]]))
   };
 
+  // ===== Check lỗi trạng thái: chưa cập nhật / bỏ trống / chọn sai =====
+  const okSi=s=>/ra đơn/i.test(s||'');                       // Tình trạng hợp tác: Đã/Chưa ra đơn
+  const okOnl=s=>/chăm sóc|chốt|mất|dài hạn/i.test(s||'');   // Trạng thái CRM online
+  const blank='<span style="color:#e11d48;font-weight:700">(trống)</span>';
+  const siStatusErr=saleSiRows.filter(r=>{const s=(r[COL_SI.STATUS]||'').trim();return !okSi(s);});
+  const onlStatusErr=saleOnlRows.filter(r=>{const s=(r[COL_SAONL.STATUS]||'').trim();return !okOnl(s);});
+  const sErrN=siStatusErr.length, oErrN=onlStatusErr.length;
+  window._qcStatusErr={
+    si:siStatusErr.map(r=>[r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],(r[COL_SI.STATUS]||'').trim()||blank]),
+    onl:onlStatusErr.map(r=>[r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.CHANNEL],(r[COL_SAONL.STATUS]||'').trim()||blank])
+  };
+
   // ===== Helpers card =====
   const RED='#ef4444', GRN='var(--green)';
   // màu theo chỉ số: mess / lead đạt / tiềm năng / lẻ / sỉ / chốt / sđt
@@ -2474,6 +2486,14 @@ function renderQcDoiSoat(){
         </div>
         ${(siDupN+onlDupN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách trùng</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện trùng</div>'}
       </div>
+      <div class="qc-card" style="--qa:#f59e0b;margin-top:14px${(sErrN+oErrN)>0?';cursor:pointer':''}"${(sErrN+oErrN)>0?' onclick="qcShowStatusErr()"':''}>
+        <div class="qc-h" style="color:var(--text)">🚦 Kiểm Tra Lỗi Trạng Thái <span style="font-weight:600;color:var(--muted);text-transform:none">(chưa cập nhật / bỏ trống / chọn sai · Tình trạng hợp tác Sỉ & Trạng thái CRM Online)</span></div>
+        <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
+          <div style="display:flex;align-items:center;gap:11px">${ic('🏪')}<div><div style="font-size:24px;font-weight:900;color:${sErrN>0?'#e11d48':GRN}">${num(sErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Master Sỉ · tình trạng hợp tác</div></div></div>
+          <div style="display:flex;align-items:center;gap:11px">${ic('🌐')}<div><div style="font-size:24px;font-weight:900;color:${oErrN>0?'#e11d48':GRN}">${num(oErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Sale Online · trạng thái CRM</div></div></div>
+        </div>
+        ${(sErrN+oErrN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không có lỗi trạng thái</div>'}
+      </div>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
@@ -2515,6 +2535,26 @@ function dataModal(d){
     </div></div>`;
 }
 function saonlShow(key){const d=(window._saonlLists||{})[key];if(d)dataModal(d);}
+// Modal lỗi trạng thái (Sỉ + Online)
+function qcShowStatusErr(){
+  const d=window._qcStatusErr||{si:[],onl:[]};
+  const sect=(title,cols,rows,color)=>`<div style="margin:6px 0 14px">
+    <div style="font-size:13px;font-weight:800;color:var(--text);margin:8px 4px">${title} <span style="color:var(--muted);font-weight:600;font-size:12px">· ${rows.length} lỗi</span></div>
+    ${rows.length?`<table style="width:100%;border-collapse:collapse"><thead><tr>${cols.map(c=>`<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);position:sticky;top:0;background:var(--bg2);white-space:nowrap">${c}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr style="border-bottom:1px solid var(--border)">${row.map((v,j)=>`<td style="padding:7px 12px;font-size:12px;${j===1?'font-weight:700;color:var(--text)':'color:var(--text2)'}">${(v==null||v==='')?'—':v}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<div style="padding:8px 12px;color:var(--green);font-size:12px;font-weight:700">✓ Không có lỗi</div>'}
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:980px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">🚦 Lỗi Trạng Thái — chưa cập nhật / bỏ trống / chọn sai</div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="overflow:auto;padding:0 8px 8px">
+        ${sect('🏪 Master Sỉ — Tình trạng hợp tác',['Mã KH/Lead ID','Tên','SĐT','Nguồn','Tình trạng'],d.si,'#7c3aed')}
+        ${sect('🌐 Sale Online — Trạng thái CRM',['Lead ID','Tên','SĐT','Kênh','Trạng thái'],d.onl,'#0891b2')}
+      </div>
+    </div></div>`;
+}
 // Modal danh sách data trùng lặp (cùng người, khác bản ghi)
 function qcShowDups(){
   const d=window._qcDups||{si:[],onl:[]};
