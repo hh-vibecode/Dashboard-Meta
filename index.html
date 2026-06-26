@@ -1090,7 +1090,7 @@ function siContactInfo(masterRow,histMap){
   const recs=siCareRecords(masterRow,histMap);
   const today=new Date();today.setHours(0,0,0,0);
   let last=null,lastStr='',status='',next='',reason='';
-  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=((r[COL_SICRM.NEXT_ACTION]||'').trim()||(r[COL_SICRM.RESULT]||'').trim()||(r[COL_SICRM.CONTENT]||'').trim());}});
+  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=(r[COL_SICRM.NEED_HELP]||'').trim();}});
   const count=recs.length;
   let expected=0;for(const rec of recs){const e=vndNum(rec[COL_SICRM.EXPECTED]);if(e>0){expected=e;break;}}  // giá trị dự kiến (lượt CS gần nhất có)
   if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
