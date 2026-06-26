@@ -1535,6 +1535,8 @@ function renderSaleOnl(){
   const longCare=rows.filter(r=>st(r,'dài hạn')).length;
   const closed=rows.filter(r=>st(r,'chốt')).length;
   const lost=rows.filter(r=>st(r,'mất')).length;
+  const dataOnl=rows.filter(r=>(r[COL_SAONL.SOURCE]||'').toLowerCase().includes('online')).length;
+  const dataOff=rows.filter(r=>(r[COL_SAONL.SOURCE]||'').toLowerCase().includes('offline')).length;
   // Lead by channel
   const byChan={};
   rows.forEach(r=>{const c=(r[COL_SAONL.CHANNEL]||'Khác').trim();byChan[c]=(byChan[c]||0)+1;});
@@ -1602,6 +1604,8 @@ function renderSaleOnl(){
       ${mkKpi('⏳','CS Dài Hạn',num(longCare),'theo dõi lâu','g-yellow')}
       ${mkKpi('✅','Đã Chốt',num(closed),'đã ra đơn','g-green')}
       ${mkKpi('❌','Mất Lead',num(lost),'không thành','g-red')}
+      ${mkKpi('🌐','Data Online',num(dataOnl),'nguồn online','g-teal')}
+      ${mkKpi('🏪','Data Offline',num(dataOff),'nguồn offline','g-purple')}
     </div>
 
     <div class="charts-2col-grid">
