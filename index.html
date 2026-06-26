@@ -2191,11 +2191,7 @@ function renderQcDoiSoat(){
 
     <div class="qc-group" style="--qg:#f59e0b">
       <div class="qc-group-h">📈 Đánh Giá Chung</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
-        <div class="qc-card" style="--qa:#4361ee"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
-        <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Xu Hướng Lead Đạt & Chốt Đơn</div><div style="height:230px"><canvas id="cQcTrend"></canvas></div></div>
-        <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Doanh Số Chốt Theo Ngày</div><div style="height:230px"><canvas id="cQcRev"></canvas></div></div>
-      </div>
+      <div class="qc-card" style="--qa:#4361ee;max-width:680px"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
@@ -2203,33 +2199,6 @@ function renderQcDoiSoat(){
       "Chưa phân về master" đối chiếu theo SĐT (9 số cuối) hoặc tên khách. "Đã chăm sóc" khớp Mã KH/Lead ID với CRM Sỉ.
       Số 5 bỏ trống theo cấu trúc gốc. Mọi chỉ số tính từ 01/06/2026 trở đi.
     </div>`;
-
-  // ===== Vẽ biểu đồ =====
-  const gridC='var(--border)', mutedC='var(--muted)';
-  const tEl=document.getElementById('cQcTrend');
-  if(tEl&&days.length){
-    chartQcTrend=new Chart(tEl,{type:'line',
-      data:{labels:tLabels,datasets:[
-        {label:'Lead đạt',data:days.map(x=>x.dat),borderColor:'#4361ee',backgroundColor:'#4361ee',tension:.35,pointRadius:2,borderWidth:2},
-        {label:'Lead tiềm năng',data:days.map(x=>x.tiem),borderColor:'#0abf7a',backgroundColor:'#0abf7a',tension:.35,pointRadius:2,borderWidth:2},
-        {label:'Số đơn chốt',data:days.map(x=>x.chot),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.35,pointRadius:2,borderWidth:2},
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-        plugins:{legend:{position:'top',labels:{boxWidth:10,boxHeight:10,usePointStyle:true,font:{size:11,family:'Inter'},color:mutedC}}},
-        scales:{x:{grid:{display:false},ticks:{color:mutedC,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8}},
-          y:{grid:{color:gridC},border:{display:false},ticks:{color:mutedC,font:{size:10},precision:0}}}}});
-  }
-  const rEl=document.getElementById('cQcRev');
-  if(rEl&&days.length){
-    chartQcRev=new Chart(rEl,{type:'line',
-      data:{labels:tLabels,datasets:[{label:'Doanh số chốt',data:days.map(x=>x.rev),borderColor:'#0abf7a',
-        backgroundColor:'rgba(10,191,122,.16)',fill:true,tension:.35,pointRadius:2,borderWidth:2}]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false}},
-        scales:{x:{grid:{display:false},ticks:{color:mutedC,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8}},
-          y:{grid:{color:gridC},border:{display:false},ticks:{color:mutedC,font:{size:10},
-            callback:v=>new Intl.NumberFormat('vi-VN',{notation:'compact',maximumFractionDigits:1}).format(v)+'₫'}}}}});
-  }
 }
 
 // ── SALE CHI TIẾT ──
