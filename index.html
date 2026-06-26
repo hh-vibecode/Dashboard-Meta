@@ -2100,6 +2100,23 @@ function renderQcDoiSoat(){
 
   const siOnlineCared=siOnline.filter(siCared).length;
 
+  // ===== Thời gian TB từ lead → đơn chốt =====
+  // Online: ngày tạo (saleOnl) → ngày chốt; bỏ bản ghi ngày sai (chốt < tạo)
+  let onlDiffs=[];
+  onlClosed.forEach(r=>{const c=parseDate(r[COL_SAONL.DATE]),k=parseDate(r[COL_SAONL.DATE_CLOSE]);if(!c||!k)return;const diff=Math.round((k-c)/864e5);if(diff>=0)onlDiffs.push(diff);});
+  const onlAvgDays=onlDiffs.length?onlDiffs.reduce((a,b)=>a+b,0)/onlDiffs.length:null;
+  // Sỉ: ngày tạo (master sỉ, join theo Mã KH/Lead ID) → ngày chốt đơn (CRM sỉ)
+  const siCreateByKey={};
+  saleSiRows.forEach(r=>{const c=parseDate(r[COL_SI.DATE]),b=brandSi(r);[normKey(r[COL_SI.MA_KH]),normKey(r[COL_SI.LEAD_ID])].forEach(k=>{if(k)siCreateByKey[k]={d:c,b};});});
+  let siDiffs=[];
+  saleSiCrmRows.forEach(r=>{const close=parseDate(r[COL_SICRM.CLOSE_DATE]);if(!close)return;
+    if(fromD&&close<fromD)return;if(toD&&close>toD)return;
+    const info=siCreateByKey[normKey(r[COL_SICRM.LEAD_ID])];if(!info||!info.d)return;
+    if(qb!=='all'&&info.b!==qb)return;
+    const diff=Math.round((close-info.d)/864e5);if(diff>=0)siDiffs.push(diff);});
+  const siAvgDays=siDiffs.length?siDiffs.reduce((a,b)=>a+b,0)/siDiffs.length:null;
+  const fmtDays=d=>d==null?'—':((Math.round(d*10)/10)+'').replace(/\.0$/,'')+' ngày';
+
   // ===== Helpers card =====
   const RED='#ef4444', GRN='var(--green)';
   // màu theo chỉ số: mess / lead đạt / tiềm năng / lẻ / sỉ / chốt / sđt
@@ -2217,7 +2234,19 @@ function renderQcDoiSoat(){
 
     <div class="qc-group" style="--qg:#f59e0b">
       <div class="qc-group-h">📈 Đánh Giá Chung</div>
-      <div class="qc-card" style="--qa:#4361ee;max-width:680px"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
+        <div class="qc-card" style="--qa:#4361ee;flex:1 1 420px;max-width:640px"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
+        <div style="display:flex;flex-direction:column;gap:14px;flex:1 1 250px;min-width:240px">
+          <div class="qc-card" style="--qa:#0891b2">
+            <div class="qc-h">⏱️ TG TB Lead Tiềm Năng → Đơn (Online)</div>
+            ${single('⏱️',fmtDays(onlAvgDays),onlDiffs.length+' đơn · ngày tạo → ngày chốt','#0891b2')}
+          </div>
+          <div class="qc-card" style="--qa:#7c3aed">
+            <div class="qc-h">⏱️ TG TB Lead Tiềm Năng → Đơn (Sỉ)</div>
+            ${single('⏱️',fmtDays(siAvgDays),siDiffs.length+' đơn · ngày tạo → ngày chốt','#7c3aed')}
+          </div>
+        </div>
+      </div>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
