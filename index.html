@@ -2065,10 +2065,11 @@ function renderQcDoiSoat(){
   const mkpi=calcKPI(mktJ);
   const totalSpend=mkpi.totalSpend, totalMess=mkpi.totalMess;
 
-  // ===== NGUONONL (datahub) =====
+  // ===== NGUONONL (datahub) — phễu cộng dồn: chốt ⊂ tiềm năng ⊂ đạt ⊂ mess =====
+  // (đơn chốt vốn là tiềm năng & đạt; tiềm năng vốn là đạt)
   const onlJ=onlineRows.filter(r=>inFloor(r[COL_ONL.DATE])&&okB(brandOnl,r));
-  const datRows=onlJ.filter(r=>tagHas(r,'LEAD ĐẠT'));
-  const tiemRows=onlJ.filter(r=>tagHas(r,'TIỀM NĂNG'));
+  const datRows=onlJ.filter(r=>tagHas(r,'LEAD ĐẠT')||tagHas(r,'TIỀM NĂNG')||tagHas(r,'CHỐT'));
+  const tiemRows=onlJ.filter(r=>tagHas(r,'TIỀM NĂNG')||tagHas(r,'CHỐT'));   // chốt cũng được coi là tiềm năng
   const tiemLe=tiemRows.filter(r=>tagHas(r,'KH LẺ'));
   const tiemSi=tiemRows.filter(r=>tagHas(r,'KH SỈ'));
   const nDat=datRows.length, nTiem=tiemRows.length;
