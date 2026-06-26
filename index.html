@@ -2113,13 +2113,15 @@ function renderQcDoiSoat(){
   let onlDiffs=[];
   onlClosed.forEach(r=>{const c=parseDate(r[COL_SAONL.DATE]),k=parseDate(r[COL_SAONL.DATE_CLOSE]);if(!c||!k)return;const diff=Math.round((k-c)/864e5);if(diff>=0)onlDiffs.push(diff);});
   const onlAvgDays=onlDiffs.length?onlDiffs.reduce((a,b)=>a+b,0)/onlDiffs.length:null;
-  // Sỉ: ngày tạo (master sỉ, join theo Mã KH/Lead ID) → ngày chốt đơn (CRM sỉ)
+  // Sỉ: CHỈ tính data nguồn Online; ngày tạo (master sỉ, join Mã KH/Lead ID/SĐT) → ngày chốt đơn (CRM sỉ)
   const siCreateByKey={};
-  saleSiRows.forEach(r=>{const c=parseDate(r[COL_SI.DATE]),b=brandSi(r);[normKey(r[COL_SI.MA_KH]),normKey(r[COL_SI.LEAD_ID])].forEach(k=>{if(k)siCreateByKey[k]={d:c,b};});});
+  saleSiRows.forEach(r=>{const e={d:parseDate(r[COL_SI.DATE]),b:brandSi(r),onl:U(r[COL_SI.SOURCE]).includes('ONLINE')};const ph=last9(r[COL_SI.PHONE]);[normKey(r[COL_SI.MA_KH]),normKey(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(k)siCreateByKey[k]=e;});});
   let siDiffs=[];
   saleSiCrmRows.forEach(r=>{const close=parseDate(r[COL_SICRM.CLOSE_DATE]);if(!close)return;
     if(fromD&&close<fromD)return;if(toD&&close>toD)return;
-    const info=siCreateByKey[normKey(r[COL_SICRM.LEAD_ID])];if(!info||!info.d)return;
+    const ph=last9(r[COL_SICRM.PHONE]);
+    const info=siCreateByKey[normKey(r[COL_SICRM.LEAD_ID])]||(ph?siCreateByKey['PH:'+ph]:null);
+    if(!info||!info.d||!info.onl)return;
     if(qb!=='all'&&info.b!==qb)return;
     const diff=Math.round((close-info.d)/864e5);if(diff>=0)siDiffs.push(diff);});
   const siAvgDays=siDiffs.length?siDiffs.reduce((a,b)=>a+b,0)/siDiffs.length:null;
