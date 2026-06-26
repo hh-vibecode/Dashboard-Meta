@@ -1704,10 +1704,13 @@ function buildOnlineCampTable(){
   onlineRows.forEach(r=>{
     const adId=(r[COL_ONL.AD_ID]||'').trim();
     const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Data chưa phân loại');
-    if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,moi:0,cu:0,total:0};
+    if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0};
     const tag=(r[COL_ONL.TAG]||'');
-    if(hasTag(tag,'TIỀM NĂNG'))byCamp[camp].tiem++;
-    if(hasTag(tag,'LEAD ĐẠT'))byCamp[camp].dat++;
+    const isChot=hasTag(tag,'CHỐT'),isTiem=hasTag(tag,'TIỀM NĂNG');
+    // phễu cộng dồn: chốt ⊂ tiềm năng ⊂ đạt
+    if(isTiem||isChot)byCamp[camp].tiem++;
+    if(hasTag(tag,'LEAD ĐẠT')||isTiem||isChot)byCamp[camp].dat++;
+    if(isChot)byCamp[camp].chot++;
     if(hasTag(tag,'KH LẺ'))byCamp[camp].le++;
     if(hasTag(tag,'KH SỈ'))byCamp[camp].si++;
     const nw=(r[COL_ONL.NEWOLD]||'').trim().toLowerCase();
@@ -1718,7 +1721,7 @@ function buildOnlineCampTable(){
   // Phân nhóm chiến dịch theo thương hiệu
   const BRANDS=[['CT','Chánh Tâm','#2563eb'],['HT','Hiền Thuỷ','#ca8a04'],['Shidai','Shidai','#7c3aed'],['TTV','Tự Tại Viên','#0abf7a'],['Other','Chưa phân loại / chưa khớp','#64748b']];
   const grpRank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
-  const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,moi:a.moi+s.moi,cu:a.cu+s.cu,total:a.total+s.total}),{tiem:0,dat:0,le:0,si:0,moi:0,cu:0,total:0});
+  const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,chot:a.chot+s.chot,moi:a.moi+s.moi,cu:a.cu+s.cu,total:a.total+s.total}),{tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0});
   const cell=(v,color)=>`<td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?color:'var(--muted)'}">${v||'—'}</td>`;
 
   // Gom theo brand
@@ -1732,13 +1735,13 @@ function buildOnlineCampTable(){
     const sorted=grpByBrand[k].sort(([a],[b])=>{const ra=grpRank(a),rb=grpRank(b);if(ra!==rb)return ra-rb;return a.localeCompare(b,'vi');});
     const subRows=sorted.map(([camp,s])=>`<tr class="onl-sub onl-sub-${k}" style="display:none;background:var(--bg2);border-bottom:1px solid var(--border)">
       <td style="padding:8px 14px 8px 38px;font-size:12px;font-weight:500;color:var(--text2);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">↳ ${camp}</td>
-      ${cell(s.tiem,'#ca8a04')}${cell(s.dat,'var(--green)')}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
+      ${cell(s.dat,'var(--green)')}${cell(s.tiem,'#ca8a04')}${cell(s.chot,'#e11d48')}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
       <td style="padding:8px 14px;text-align:center;font-size:13px;font-weight:800">${s.total}</td>
       ${cell(s.moi,'#0abf7a')}${cell(s.cu,'#f97316')}
     </tr>`).join('');
     const brandRow=`<tr onclick="toggleOnlBrand('${k}')" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 14px;font-size:13px;font-weight:800;color:${color}"><span id="onl-arrow-${k}" style="display:inline-block;width:14px;color:var(--muted);font-size:10px">▶</span> ${label} <span style="font-weight:400;color:var(--muted);font-size:11px">(${sorted.length} chiến dịch)</span></td>
-      ${cell(t.tiem,'#ca8a04')}${cell(t.dat,'var(--green)')}${cell(t.le,'#2563eb')}${cell(t.si,'#7c3aed')}
+      ${cell(t.dat,'var(--green)')}${cell(t.tiem,'#ca8a04')}${cell(t.chot,'#e11d48')}${cell(t.le,'#2563eb')}${cell(t.si,'#7c3aed')}
       <td style="padding:10px 14px;text-align:center;font-size:14px;font-weight:800">${t.total}</td>
       ${cell(t.moi,'#0abf7a')}${cell(t.cu,'#f97316')}
     </tr>`;
@@ -1748,8 +1751,9 @@ function buildOnlineCampTable(){
   <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
     <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
       <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THƯƠNG HIỆU</th>
-      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#ca8a04">TIỀM NĂNG</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">LEAD ĐẠT</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#ca8a04">TIỀM NĂNG</th>
+      <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#e11d48">CHỐT ĐƠN</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#2563eb">KH LẺ</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#7c3aed">KH SỈ</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">TỔNG</th>
@@ -1759,8 +1763,9 @@ function buildOnlineCampTable(){
     <tbody>${bodyRows}</tbody>
     <tfoot><tr style="background:var(--bg2);border-top:2px solid var(--border)">
       <td style="padding:10px 14px;font-size:12px;font-weight:800">TỔNG CỘNG</td>
-      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#ca8a04">${grand.tiem}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:var(--green)">${grand.dat}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#ca8a04">${grand.tiem}</td>
+      <td style="padding:10px 14px;text-align:center;font-weight:800;color:#e11d48">${grand.chot}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:#2563eb">${grand.le}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:#7c3aed">${grand.si}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800">${grand.total}</td>
