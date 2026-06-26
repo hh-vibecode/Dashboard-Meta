@@ -2178,8 +2178,8 @@ function renderQcDoiSoat(){
       rows:tiemLeMissRows.map(r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE],r[COL_ONL.SOURCE],r[COL_ONL.TAG],r[COL_ONL.STAFF]])},
     m10:{title:'Tiềm năng sỉ chưa phân về master Sỉ',cols:['Ngày tạo','Tên khách','SĐT','Nguồn đơn','Thẻ','NV cập nhật'],
       rows:tiemSiMissRows.map(r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE],r[COL_ONL.SOURCE],r[COL_ONL.TAG],r[COL_ONL.STAFF]])},
-    m12:{title:'Lead Online (sỉ) chưa được chăm sóc',cols:['Ngày tạo','Người đại diện','Cửa hàng','SĐT','Tỉnh/TP','Sales','Mã KH'],
-      rows:siOnlNotCaredRows.map(r=>[r[COL_SI.DATE],r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.PHONE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.MA_KH]])}
+    m12:{title:'Lead Online (sỉ) chưa được chăm sóc',cols:['Ngày tạo','Người đại diện','Cửa hàng','Nguồn data','SĐT','Tỉnh/TP','Sales','Mã KH'],
+      rows:siOnlNotCaredRows.map(r=>[r[COL_SI.DATE],r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.CHANNEL]||r[COL_SI.SOURCE],r[COL_SI.PHONE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.MA_KH]])}
   };
 
   const c1=C('1','Cost TB / Lead','#4361ee',
