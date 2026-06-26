@@ -1089,13 +1089,13 @@ function getSiCrmMap(){
 function siContactInfo(masterRow,histMap){
   const recs=siCareRecords(masterRow,histMap);
   const today=new Date();today.setHours(0,0,0,0);
-  let last=null,lastStr='',status='',next='';
-  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();}});
+  let last=null,lastStr='',status='',next='',reason='';
+  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=((r[COL_SICRM.NEXT_ACTION]||'').trim()||(r[COL_SICRM.RESULT]||'').trim()||(r[COL_SICRM.CONTENT]||'').trim());}});
   const count=recs.length;
   let expected=0;for(const rec of recs){const e=vndNum(rec[COL_SICRM.EXPECTED]);if(e>0){expected=e;break;}}  // giá trị dự kiến (lượt CS gần nhất có)
   if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
-  return {days,lastStr,count,status,next,expected};
+  return {days,lastStr,count,status,next,expected,reason};
 }
 // Gộp lịch sử CS của 1 khách từ 3 khoá (Mã KH + Lead ID + SĐT), khử trùng theo dòng, sắp mới→cũ
 function siCareRecords(masterRow,histMap){
@@ -1444,10 +1444,9 @@ function renderSaleSiData(){
       <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
-      <td style="padding:9px 12px;text-align:right;font-weight:700;color:${ci.expected>0?'#7c3aed':'var(--muted)'};white-space:nowrap">${ci.expected>0?vnd(ci.expected):'—'}</td>
-      <td style="padding:9px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--text2)"><div style="max-width:340px;white-space:normal;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${(ci.reason||'').replace(/"/g,'&quot;')}">${ci.reason||'<span style=\"color:var(--muted)\">—</span>'}</div></td>
       <td style="padding:9px 12px">${statusChip(r[COL_SI.STATUS])}</td>
-      <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${fbAvatar}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
+      <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${(()=>{const aR=(r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID]||r[COL_SI.PHONE]||'').toString().trim();const aU=aR?localStorage.getItem('siAva:'+aR.replace(/[^A-Za-z0-9._-]/g,'')):'';return aU?`<img src="${aU}" style="width:30px;height:30px;border-radius:50%;object-fit:cover">`:fbAvatar;})()}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
     </tr>`).join('');
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
@@ -1484,16 +1483,25 @@ function renderSaleSiData(){
       </div>
     </div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1080px;table-layout:fixed">
-      <colgroup>${['8%','20%','8%','7%','9%','8%','12%','12%','9%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <colgroup>${['8%','18%','7%','6%','8%','7%','24%','13%','9%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['GIÁ TRỊ DỰ KIẾN','right','#7c3aed'],['GIÁ TRỊ KH','right','var(--green)'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['LÝ DO TỒN ĐỌNG','left','#ca8a04'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
   if(window._siSearchFocus){window._siSearchFocus=false;const sb=document.getElementById('siSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
 
 function closeSiProfile(){const m=document.getElementById('siProfileModal');if(m)m.style.display='none';}
+// Chọn & lưu ảnh đại diện khách (thu nhỏ 240px, lưu localStorage)
+function siPickAvatar(key){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();
+    rd.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const max=240;let w=img.width,h=img.height;if(w>h){if(w>max){h=h*max/w;w=max;}}else{if(h>max){w=w*max/h;h=max;}}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);let url;try{url=c.toDataURL('image/jpeg',.85);localStorage.setItem(key,url);}catch(e){alert('Không lưu được ảnh (dung lượng quá lớn).');return;}if(window._siCurProfile!=null)openSiProfile(window._siCurProfile);};img.src=rd.result;};
+    rd.readAsDataURL(f);};
+  inp.click();
+}
 function openSiProfile(i){
+  window._siCurProfile=i;
   const x=(window._siProfiles||[])[i];if(!x)return;
   const r=x.r,ci=x.ci,rev=x.rev;
   const recs=siCareRecords(r,window._siHist||{});
@@ -1513,15 +1521,20 @@ function openSiProfile(i){
       <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:#ca8a04;font-weight:600">${c[COL_SICRM.NEXT_DATE]||'—'}</td>
     </tr>`).join('')}</tbody></table>`:'<div style="padding:14px;color:var(--muted);font-size:13px;text-align:center">Chưa có lịch sử chăm sóc trong CRM</div>';
   const name=siPersonName(r[COL_SI.REP],r[COL_SI.STORE])||'Khách hàng';
+  const avaRaw=(r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID]||r[COL_SI.PHONE]||'').toString().trim();
+  const avaKey=avaRaw?'siAva:'+avaRaw.replace(/[^A-Za-z0-9._-]/g,''):'';
+  const avaUrl=avaKey?localStorage.getItem(avaKey):'';
+  const avaImg=avaUrl?`<img src="${avaUrl}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.7)">`:`<svg viewBox="0 0 40 40" width="56" height="56"><circle cx="20" cy="20" r="20" fill="rgba(255,255,255,.25)"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>`;
   let modal=document.getElementById('siProfileModal');
   if(!modal){modal=document.createElement('div');modal.id='siProfileModal';document.body.appendChild(modal);}
   modal.innerHTML=`<div onclick="closeSiProfile()" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:36px 18px;overflow:auto">
     <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:18px;max-width:960px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden">
       <div style="background:linear-gradient(135deg,#4361ee,#7c3aed);padding:22px 26px;display:flex;align-items:center;gap:16px;color:#fff;position:relative">
-        <svg viewBox="0 0 40 40" width="56" height="56"><circle cx="20" cy="20" r="20" fill="rgba(255,255,255,.25)"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>
+        ${avaImg}
         <div style="flex:1">
           <div style="font-size:20px;font-weight:800">${name}</div>
           <div style="font-size:13px;opacity:.9">${r[COL_SI.STORE]||''} ${r[COL_SI.MA_KH]?'· '+r[COL_SI.MA_KH]:''}</div>
+          ${avaKey?`<button onclick="siPickAvatar('${avaKey}')" style="margin-top:6px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:7px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">📷 ${avaUrl?'Đổi ảnh':'Thêm ảnh đại diện'}</button>`:''}
         </div>
         ${sttChip}
         <span onclick="closeSiProfile()" style="cursor:pointer;font-size:22px;line-height:1;padding:4px 8px;opacity:.85">✕</span>
@@ -2153,6 +2166,12 @@ function renderQcDoiSoat(){
   const tiemRows=onlJ.filter(r=>tagHas(r,'TIỀM NĂNG')||tagHas(r,'CHỐT'));   // chốt cũng được coi là tiềm năng
   const tiemLe=tiemRows.filter(r=>tagHas(r,'KH LẺ'));
   const tiemSi=tiemRows.filter(r=>tagHas(r,'KH SỈ'));
+  // Tách Lẻ (Sale Online) vs Sỉ cho phần Chất Lượng Data
+  const chotRows=onlJ.filter(r=>tagHas(r,'CHỐT'));
+  const datLe=datRows.filter(r=>tagHas(r,'KH LẺ')).length, datSi=datRows.filter(r=>tagHas(r,'KH SỈ')).length;
+  const chotLe=chotRows.filter(r=>tagHas(r,'KH LẺ')).length, chotSi=chotRows.filter(r=>tagHas(r,'KH SỈ')).length;
+  const datPhoneLe=datRows.filter(r=>tagHas(r,'KH LẺ')&&(r[COL_ONL.PHONE]||'').trim()).length;
+  const datPhoneSi=datRows.filter(r=>tagHas(r,'KH SỈ')&&(r[COL_ONL.PHONE]||'').trim()).length;
   const nDat=datRows.length, nTiem=tiemRows.length;
   const datPhone=datRows.filter(r=>(r[COL_ONL.PHONE]||'').trim()).length;
   const costPerMess=totalMess>0?totalSpend/totalMess:0;   // CP / mess thường
@@ -2261,14 +2280,22 @@ function renderQcDoiSoat(){
   const c1=C('1','Cost TB / Lead','#4361ee',
     single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),cMess)
     +`<div style="display:flex;gap:7px;margin-top:11px">${badge('Mess thường '+vndK(costPerMess),cMess)}${badge('Tiềm năng '+vndK(costPerTiem),cTiem)}</div>`);
-  const c2=C('2','Tổng Mess / Lead Đạt','#0abf7a',
-    seq('💬',[num(totalMess),num(nDat)])+footPct('% Lead đạt',P(nDat,totalMess),PC[1]));
-  const c3=C('3','Tổng Mess / Lead Đạt / Lead Tiềm Năng','#2563eb',
-    seq('👥',[num(totalMess),num(nDat),num(nTiem)])
-    +subRow(subc('100%','% Tổng mess',PC[0])+subc(P(nDat,totalMess),'% Lead đạt',PC[1])+subc(P(nTiem,totalMess),'% Tiềm năng',PC[2])));
-  const c4=C('4','Tổng Tiềm Năng / Lẻ / Sỉ','#7c3aed',
-    seq('👥',[num(nTiem),num(tiemLe.length),num(tiemSi.length)])
-    +subRow(subc(P(tiemLe.length,nTiem),'Tiềm năng lẻ',PC[1])+subc(P(tiemSi.length,nTiem),'Tiềm năng sỉ',PC[2])));
+  // Sale Online (Lẻ)
+  const cLe1=C('','Tổng Mess / Đạt Lẻ / Tiềm Năng Lẻ','#0abf7a',
+    seq('💬',[num(totalMess),num(datLe),num(tiemLe.length)])
+    +subRow(subc(P(datLe,totalMess),'% Đạt/mess',PC[1])+subc(P(tiemLe.length,datLe),'% TN/đạt',PC[2])));
+  const cLe2=C('','SĐT Thu Về (Lẻ)','#0891b2',seq('📞',[num(datLe),num(datPhoneLe)])+footPct('% thu về',P(datPhoneLe,datLe),cPhone));
+  const cLe3=C('','Đơn Chốt Lẻ / Tiềm Năng / Đạt','#e11d48',
+    seq('✅',[num(datLe),num(tiemLe.length),num(chotLe)])
+    +subRow(subc(P(chotLe,tiemLe.length),'Chốt/TN',cChot)+subc(P(chotLe,datLe),'Chốt/đạt',cChot)));
+  // Sỉ
+  const cSi1=C('','Tổng Mess / Đạt Sỉ / Tiềm Năng Sỉ','#7c3aed',
+    seq('🏪',[num(totalMess),num(datSi),num(tiemSi.length)])
+    +subRow(subc(P(datSi,totalMess),'% Đạt/mess',PC[1])+subc(P(tiemSi.length,datSi),'% TN/đạt',PC[2])));
+  const cSi2=C('','SĐT Thu Về (Sỉ)','#0891b2',seq('📞',[num(datSi),num(datPhoneSi)])+footPct('% thu về',P(datPhoneSi,datSi),cPhone));
+  const cSi3=C('','Đơn Chốt Sỉ / Tiềm Năng / Đạt','#e11d48',
+    seq('✅',[num(datSi),num(tiemSi.length),num(chotSi)])
+    +subRow(subc(P(chotSi,tiemSi.length),'Chốt/TN',cChot)+subc(P(chotSi,datSi),'Chốt/đạt',cChot)));
 
   const c6=C('6','Data Tiềm Năng Chưa Phân Về Sale Onl','#7c3aed',
     single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?RED:GRN),tiemLeMiss>0?'m6':null);
@@ -2326,8 +2353,18 @@ function renderQcDoiSoat(){
     </div>
 
     <div class="qc-group" style="--qg:#4361ee;margin-top:16px">
-      <div class="qc-group-h">📊 Chất Lượng Data</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">${c1}${c2}${c3}${c4}</div>
+      <div class="qc-group-h">💸 Chất Lượng Data — Chi Phí (Ads chung)</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">${c1}</div>
+    </div>
+
+    <div class="qc-group" style="--qg:#0abf7a">
+      <div class="qc-group-h">🛒 Chất Lượng Data — Sale Online (Lẻ)</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${cLe1}${cLe2}${cLe3}</div>
+    </div>
+
+    <div class="qc-group" style="--qg:#7c3aed">
+      <div class="qc-group-h">🏪 Chất Lượng Data — Sỉ</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${cSi1}${cSi2}${cSi3}</div>
     </div>
 
     <div class="qc-group" style="--qg:#0abf7a">
