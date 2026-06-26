@@ -2010,118 +2010,96 @@ function renderDetail(camps,period,filteredRows,saleStats){
 }
 
 // ── QC: BÁO CÁO ĐỐI SOÁT ──
+// Lấy toàn bộ dữ liệu từ T6/2026 đổ đi (mọi nguồn). Funnel: Mess → Lead đạt → Lead tiềm năng → (lẻ/sỉ)
 function renderQcDoiSoat(){
   const el=document.getElementById('page-qc-doisoat');
-  if(!crmHubRows.length&&!saleRowsRaw.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
-  const upId=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
-  const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
-  const isMat=r=>/mất/i.test(r[COL_SALE.STATUS]||'');
-  const adCampMap=buildAdCampMap();
+  if(!onlineRows.length&&!saleOnlRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  const FLOOR=new Date(2026,5,1);            // 01/06/2026
+  const inFloor=ds=>{const d=parseDate(ds);return d&&d>=FLOOR;};
+  const U=s=>(s||'').toString().toUpperCase();
+  const tagHas=(r,kw)=>U(r[COL_ONL.TAG]).includes(kw);
+  const normName=s=>(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/\s+/g,' ').trim();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const normKey=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const P=(a,b)=>b>0?pct(a/b*100):'—';
 
-  // ===== A. LUỒNG LEAD =====
-  const nguonTotal=onlineRows.length;
-  const nguonDat=onlineRows.filter(r=>(r[COL_ONL.TAG]||'').toUpperCase().includes('LEAD ĐẠT')).length;
-  const masterOnline=crmHubRows.filter(r=>(r[COL_CRM.SOURCE]||'').toLowerCase()==='online');
-  const saleLeadSet=new Set(saleRowsRaw.map(r=>upId(r[COL_SALE.LEAD_ID])).filter(Boolean));
-  const masterLeadSet=new Set(crmHubRows.map(r=>upId(r[COL_CRM.LEAD_ID])).filter(Boolean));
-  const boQuen=masterOnline.filter(r=>{const id=upId(r[COL_CRM.LEAD_ID]);return id&&!saleLeadSet.has(id);});
-  const lac=saleRowsRaw.filter(r=>{const id=upId(r[COL_SALE.LEAD_ID]);return id&&!masterLeadSet.has(id);});
-  const saleChot=saleRowsRaw.filter(isChot).length;
+  // ===== MKT — chi phí & mess (campaign-level, T6/2026+) =====
+  const mktJ=allRows.filter(r=>inFloor(r[COL.DATE]));
+  const mkpi=calcKPI(mktJ);
+  const totalSpend=mkpi.totalSpend, totalMess=mkpi.totalMess;
 
-  // ===== B. ĐỐI SOÁT DOANH SỐ =====
-  const closed=saleRowsRaw.filter(isChot);
-  const closedRev=closed.reduce((s,r)=>s+vndNum(r[COL_SALE.REVENUE]),0);
-  const closedNoRev=closed.filter(r=>vndNum(r[COL_SALE.REVENUE])<=0);
-  const closedNoDate=closed.filter(r=>!(r[COL_SALE.DATE_CLOSE]||'').trim());
+  // ===== NGUONONL (datahub) T6/2026+ =====
+  const onlJ=onlineRows.filter(r=>inFloor(r[COL_ONL.DATE]));
+  const datRows=onlJ.filter(r=>tagHas(r,'LEAD ĐẠT'));
+  const tiemRows=onlJ.filter(r=>tagHas(r,'TIỀM NĂNG'));
+  const tiemLe=tiemRows.filter(r=>tagHas(r,'KH LẺ'));
+  const tiemSi=tiemRows.filter(r=>tagHas(r,'KH SỈ'));
+  const nDat=datRows.length, nTiem=tiemRows.length;
+  const datPhone=datRows.filter(r=>(r[COL_ONL.PHONE]||'').trim()).length;
+  const costPerLead=nDat>0?totalSpend/nDat:0;
 
-  // ===== C. CHẤT LƯỢNG NHẬP LIỆU =====
-  const idCount={};saleRowsRaw.forEach(r=>{const id=upId(r[COL_SALE.LEAD_ID]);if(id)idCount[id]=(idCount[id]||0)+1;});
-  const dupIds=Object.entries(idCount).filter(([,c])=>c>1);
-  const noId=saleRowsRaw.filter(r=>!(r[COL_SALE.LEAD_ID]||'').trim());
-  const noPhone=saleRowsRaw.filter(r=>!(r[COL_SALE.PHONE]||'').trim());
-  const badDate=closed.filter(r=>{const dc=parseDate(r[COL_SALE.DATE_CLOSE]),dt=parseDate(r[COL_SALE.DATE_CREATE]);return dc&&dt&&dc<dt;});
-  const adNoMatch=saleRowsRaw.filter(r=>{const a=(r[COL_SALE.AD_ID]||'').trim();return /^\d{8,}$/.test(a)&&!adCampMap[a];});
+  // ===== MASTER SALE ONLINE (saleOnlRows) =====
+  const onlMphones=new Set(saleOnlRows.map(r=>last9(r[COL_SAONL.PHONE])).filter(Boolean));
+  const onlMnames=new Set(saleOnlRows.map(r=>normName(r[COL_SAONL.NAME])).filter(Boolean));
+  const inOnlMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&onlMphones.has(p))||(n&&onlMnames.has(n));};
+  const tiemLeMiss=tiemLe.filter(r=>!inOnlMaster(r)).length;
+  const onlMJ=saleOnlRows.filter(r=>inFloor(r[COL_SAONL.DATE]));
+  const onlClosed=onlMJ.filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||''));
+  const onlClosedRev=onlClosed.reduce((s,r)=>s+vndNum(r[COL_SAONL.REVENUE]),0);
 
-  // ===== D. CHẤM ĐIỂM SALE =====
-  const bySale={};
-  saleRowsRaw.forEach(r=>{
-    const s=(r[COL_SALE.SALES_PERSON]||'').trim()||'Chưa phân công';
-    if(!bySale[s])bySale[s]={leads:0,chot:0,mat:0,rev:0};
-    bySale[s].leads++;
-    if(isChot(r)){bySale[s].chot++;bySale[s].rev+=vndNum(r[COL_SALE.REVENUE]);}
-    if(isMat(r))bySale[s].mat++;
-  });
-  const saleRows=Object.entries(bySale).sort((a,b)=>b[1].rev-a[1].rev).map(([s,d])=>{
-    const cr=d.leads>0?d.chot/d.leads*100:0;
-    return`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 14px;font-weight:700">${s}</td>
-      <td style="padding:9px 14px;text-align:center;font-weight:700">${d.leads}</td>
-      <td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--green)">${d.chot}</td>
-      <td style="padding:9px 14px;text-align:center;color:${d.mat>0?'#ef4444':'var(--muted)'}">${d.mat||'—'}</td>
-      <td style="padding:9px 14px;text-align:center;font-weight:700;color:${cr>=20?'var(--green)':cr>=10?'#f59e0b':'#ef4444'}">${pct(cr)}</td>
-      <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${d.rev>0?vnd(d.rev):'—'}</td>
-    </tr>`;}).join('');
-
-  // Helpers render
-  const issue=(icon,label,n,danger)=>`<div style="background:var(--bg2);border-radius:12px;padding:13px 15px;border-left:4px solid ${n>0&&danger?'#ef4444':n>0?'#f59e0b':'var(--green)'}">
-    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase">${icon} ${label}</div>
-    <div style="font-size:24px;font-weight:800;color:${n>0&&danger?'#ef4444':n>0?'#f59e0b':'var(--green)'};margin-top:3px">${n}</div></div>`;
-  const leadTable=(rows,cols,cells,empty)=>`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-    <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">${cols.map(c=>`<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">${c}</th>`).join('')}</tr></thead>
-    <tbody>${rows.length?rows.map(cells).join(''):`<tr><td colspan="${cols.length}" style="padding:20px;text-align:center;color:var(--green)">✓ ${empty}</td></tr>`}</tbody>
-  </table></div></div>`;
-  const td=(v,st='')=>`<td style="padding:8px 12px;font-size:12px;${st}">${v||'—'}</td>`;
+  // ===== MASTER SỈ (saleSiRows) + CRM Sỉ =====
+  const siMphones=new Set(saleSiRows.map(r=>last9(r[COL_SI.PHONE])).filter(Boolean));
+  const siMnames=new Set();
+  saleSiRows.forEach(r=>{[r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.FANPAGE]].forEach(v=>{const n=normName(v);if(n)siMnames.add(n);});});
+  const inSiMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&siMphones.has(p))||(n&&siMnames.has(n));};
+  const tiemSiMiss=tiemSi.filter(r=>!inSiMaster(r)).length;
+  const caredKeys=new Set(saleSiCrmRows.map(r=>normKey(r[COL_SICRM.LEAD_ID])).filter(Boolean));
+  const siCared=r=>caredKeys.has(normKey(r[COL_SI.MA_KH]))||caredKeys.has(normKey(r[COL_SI.LEAD_ID]));
+  const siMJ=saleSiRows.filter(r=>inFloor(r[COL_SI.DATE]));
+  const siOnline=siMJ.filter(r=>U(r[COL_SI.SOURCE]).includes('ONLINE'));
+  const siCaredN=siMJ.filter(siCared).length;
+  const siOnlNotCared=siOnline.filter(r=>!siCared(r)).length;
+  const siChot=siMJ.filter(r=>vndNum(r[COL_SI.TOTAL_REV])>0).length;
+  const siRev=siMJ.reduce((s,r)=>s+vndNum(r[COL_SI.TOTAL_REV]),0);
 
   el.innerHTML=`
     <div class="page-title">QC — Báo Cáo Đối Soát</div>
-    <div class="page-sub">Đối soát dữ liệu giữa Nguồn · Master · CRM Sale · kiểm tra sale làm đúng quy trình</div>
+    <div class="page-sub">Toàn bộ dữ liệu từ T6/2026 đổ đi · funnel Mess → Lead đạt → Tiềm năng → (Lẻ/Sỉ)</div>
 
-    <div class="sec-label">A. Luồng Lead — Online</div>
+    <div class="sec-label">I. Chất Lượng Data <span style="font-weight:400;font-size:11px;color:var(--muted)">(nguồn → lead)</span></div>
     <div class="kpi-grid">
-      ${mkKpi('📥','Nguồn (NGUONONL)',num(nguonTotal),num(nguonDat)+' tag lead đạt','g-blue')}
-      ${mkKpi('🗂️','Lên Master (online)',num(masterOnline.length),'lead đã đạt chuẩn','g-teal')}
-      ${mkKpi('💬','CRM Sale tracking',num(saleRowsRaw.length),saleChot+' đã chốt','g-yellow')}
-      ${mkKpi('⚠️','Lead Bỏ Quên',num(boQuen.length),'ở master, sale chưa tracking','g-red')}
+      ${mkKpi('💸','Tổng Chi Phí',vnd(totalSpend),'quảng cáo Meta','g-purple')}
+      ${mkKpi('🎯','CP / Lead Đạt',vnd(costPerLead),'chi phí ÷ lead đạt','g-yellow')}
+      ${mkKpi('💬','Tổng Mess',num(totalMess),'lượt trò chuyện từ ads','g-green')}
+      ${mkKpi('✅','Lead Đạt',num(nDat),P(nDat,totalMess)+' / tổng mess','g-teal')}
+      ${mkKpi('⭐','Lead Tiềm Năng',num(nTiem),P(nTiem,nDat)+' /đạt · '+P(nTiem,totalMess)+' /mess','g-orange')}
+      ${mkKpi('🛒','TN Khách Lẻ',num(tiemLe.length),P(tiemLe.length,nTiem)+' / tiềm năng','g-blue')}
+      ${mkKpi('🏪','TN Khách Sỉ',num(tiemSi.length),P(tiemSi.length,nTiem)+' / tiềm năng','g-purple')}
     </div>
-    <div class="sec-label">Lead bỏ quên <span style="font-weight:400;font-size:11px;color:var(--muted)">(có ở Master nhưng không có trong CRM Sale — sale chưa chăm sóc)</span></div>
-    ${leadTable(boQuen,['LEAD ID','HỌ TÊN','SĐT','KÊNH','SALES PHỤ TRÁCH','NGÀY TẠO'],r=>`<tr style="border-bottom:1px solid var(--border)">
-      ${td(r[COL_CRM.LEAD_ID],'font-weight:600;color:var(--muted)')}${td(r[COL_CRM.NAME],'font-weight:600')}${td(r[COL_CRM.PHONE])}${td(r[COL_CRM.CHANNEL])}${td(r[COL_CRM.SALES]||'<span style=\"color:#ef4444\">Chưa phân công</span>')}${td(r[COL_CRM.DATE])}</tr>`,'Không có lead bỏ quên')}
-    <div class="sec-label" style="margin-top:14px">Lead lạc <span style="font-weight:400;font-size:11px;color:var(--muted)">(CRM Sale có Lead ID không tồn tại ở Master — nhập sai ID)</span></div>
-    ${leadTable(lac,['LEAD ID','HỌ TÊN','SĐT','SALES','TRẠNG THÁI'],r=>`<tr style="border-bottom:1px solid var(--border)">
-      ${td(r[COL_SALE.LEAD_ID],'font-weight:600;color:#ef4444')}${td(r[COL_SALE.NAME],'font-weight:600')}${td(r[COL_SALE.PHONE])}${td(r[COL_SALE.SALES_PERSON])}${td(r[COL_SALE.STATUS])}</tr>`,'Không có lead lạc')}
 
-    <div class="sec-label" style="margin-top:18px">B. Đối Soát Doanh Số</div>
+    <div class="sec-label" style="margin-top:18px">II. Chất Lượng Xử Lý Data — Online</div>
     <div class="kpi-grid">
-      ${mkKpi('✅','Đơn Chốt',num(closed.length),'tổng đơn đã chốt','g-green')}
-      ${mkKpi('💰','Doanh Số Chốt',vnd(closedRev),'tổng từ CRM sale','g-teal')}
-      ${mkKpi('❗','Chốt Thiếu Doanh Thu',num(closedNoRev.length),'đơn chốt nhưng trống DS','g-red')}
-      ${mkKpi('📅','Chốt Thiếu Ngày',num(closedNoDate.length),'đơn chốt thiếu ngày chốt','g-yellow')}
+      ${mkKpi('📤','TN Lẻ Chưa Vào Master',num(tiemLeMiss),'còn lại / '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?'g-red':'g-green')}
+      ${mkKpi('📞','SĐT Thu Về',num(datPhone),P(datPhone,nDat)+' / lead đạt','g-yellow')}
+      ${mkKpi('✅','Đơn Chốt (onl)',num(onlClosed.length),P(onlClosed.length,nTiem)+' /tiềm năng · '+P(onlClosed.length,nDat)+' /đạt','g-green')}
+      ${mkKpi('💰','Doanh Số Chốt',vnd(onlClosedRev),num(onlClosed.length)+' đơn · master onl','g-teal')}
     </div>
-    ${closedNoRev.length?leadTable(closedNoRev,['LEAD ID','HỌ TÊN','SALES','SẢN PHẨM','NGÀY CHỐT'],r=>`<tr style="border-bottom:1px solid var(--border)">
-      ${td(r[COL_SALE.LEAD_ID],'font-weight:600')}${td(r[COL_SALE.NAME])}${td(r[COL_SALE.SALES_PERSON])}${td(r[COL_SALE.PRODUCT])}${td(r[COL_SALE.DATE_CLOSE])}</tr>`,''):''}
 
-    <div class="sec-label" style="margin-top:18px">C. Chất Lượng Nhập Liệu (CRM Sale)</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px">
-      ${issue('🆔','Lead ID trùng',dupIds.length,true)}
-      ${issue('␀','Thiếu Lead ID',noId.length,true)}
-      ${issue('📞','Thiếu SĐT',noPhone.length,false)}
-      ${issue('🔀','Ngày chốt < ngày tạo',badDate.length,true)}
-      ${issue('🎯','Ad ID không khớp campaign',adNoMatch.length,false)}
-      ${issue('📋','Tổng dòng CRM Sale',saleRowsRaw.length,false)}
+    <div class="sec-label" style="margin-top:18px">III. Chất Lượng Xử Lý Data — Sỉ</div>
+    <div class="kpi-grid">
+      ${mkKpi('📤','TN Sỉ Chưa Vào Master',num(tiemSiMiss),'còn lại / '+tiemSi.length+' tiềm năng sỉ',tiemSiMiss>0?'g-red':'g-green')}
+      ${mkKpi('📥','Data Online Đã Về',num(siOnline.length),'lead onl vào master sỉ','g-blue')}
+      ${mkKpi('💬','Đã Chăm Sóc',num(siCaredN),'/ '+siMJ.length+' KH sỉ (có CRM)','g-teal')}
+      ${mkKpi('⏳','Online Chưa Chăm',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',siOnlNotCared>0?'g-red':'g-green')}
+      ${mkKpi('🎯','Tỉ Lệ Chốt (sỉ)',P(siChot,siMJ.length),num(siChot)+' chốt / '+siMJ.length+' KH','g-orange')}
+      ${mkKpi('💰','Doanh Số Sỉ',vnd(siRev),'giá trị cộng dồn','g-green')}
     </div>
-    ${dupIds.length?`<div class="sec-label" style="margin-top:8px">Lead ID bị trùng</div>${leadTable(dupIds,['LEAD ID','SỐ LẦN XUẤT HIỆN'],([id,c])=>`<tr style="border-bottom:1px solid var(--border)">${td(id,'font-weight:700;color:#ef4444')}${td(c+' lần')}</tr>`,'')}`:''}
 
-    <div class="sec-label" style="margin-top:18px">D. Chấm Điểm Theo Sale</div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
-        <th style="padding:9px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">LEADS</th>
-        <th style="padding:9px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">ĐÃ CHỐT</th>
-        <th style="padding:9px 14px;text-align:center;font-size:11px;font-weight:700;color:#ef4444">MẤT LEAD</th>
-        <th style="padding:9px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">TỶ LỆ CHỐT</th>
-        <th style="padding:9px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--muted)">DOANH SỐ</th>
-      </tr></thead><tbody>${saleRows}</tbody>
-    </table></div></div>`;
+    <div style="margin-top:16px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
+      <b>Ghi chú đối soát:</b> "Lead đạt"/"Lead tiềm năng"/"KH lẻ"/"KH sỉ" lấy theo thẻ gắn ở tab nguồn online (datahub).
+      Đối chiếu "đã vào master" khớp theo SĐT (9 số cuối) hoặc tên khách. "Đã chăm sóc" khớp Mã KH/Lead ID với tab CRM Sỉ.
+      Mọi chỉ số tính từ 01/06/2026 trở đi.
+    </div>`;
 }
 
 // ── SALE CHI TIẾT ──
