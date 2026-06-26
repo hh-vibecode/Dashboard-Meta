@@ -1089,13 +1089,13 @@ function getSiCrmMap(){
 function siContactInfo(masterRow,histMap){
   const recs=siCareRecords(masterRow,histMap);
   const today=new Date();today.setHours(0,0,0,0);
-  let last=null,lastStr='',status='',next='',reason='';
-  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=(r[COL_SICRM.NEED_HELP]||'').trim();}});
+  let last=null,lastStr='',status='',next='',reason='',result='';
+  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=(r[COL_SICRM.NEED_HELP]||'').trim();result=(r[COL_SICRM.RESULT]||'').trim();}});
   const count=recs.length;
   let expected=0;for(const rec of recs){const e=vndNum(rec[COL_SICRM.EXPECTED]);if(e>0){expected=e;break;}}  // giá trị dự kiến (lượt CS gần nhất có)
   if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
-  return {days,lastStr,count,status,next,expected,reason};
+  return {days,lastStr,count,status,next,expected,reason,result};
 }
 // Gộp lịch sử CS của 1 khách từ 3 khoá (Mã KH + Lead ID + SĐT), khử trùng theo dòng, sắp mới→cũ
 function siCareRecords(masterRow,histMap){
@@ -1138,8 +1138,12 @@ function renderSaleSi(){
   const newInPeriod=rows.filter(r=>inR(parseDate(r[COL_SI.DATE]))).length;
   const crmMap=getSiCrmHistory();
   const ciOf=r=>siContactInfo(r,crmMap);
-  // tiềm năng nhưng chưa ra đơn: chưa ra đơn & có giá trị dự kiến trong CRM
-  const tiemRows=rows.filter(r=>!isDon(r)&&ciOf(r).expected>0);
+  // "Chưa ra đơn" = Tiềm năng chưa ra đơn + Tệp phổ thông + Mất kết nối
+  const lostRe=/chưa nghe|chua nghe|chưa ph|chua ph|không liên|khong lien|mất liên|mat lien|không nghe|khong nghe|chưa h[oồ]i|chua hoi/i;
+  const notYetRows=rows.filter(r=>!isDon(r));
+  const tiemRows=notYetRows.filter(r=>ciOf(r).expected>0);
+  const lostRows=notYetRows.filter(r=>{const ci=ciOf(r);return ci.expected<=0&&lostRe.test(ci.result||'');});
+  const phoRows=notYetRows.filter(r=>{const ci=ciOf(r);return ci.expected<=0&&!lostRe.test(ci.result||'');});
   const tiemNoDon=tiemRows.length;
   // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0)
   const srcByKey={};rows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(k&&!srcByKey[k])srcByKey[k]=src;});});
@@ -1156,10 +1160,13 @@ function renderSaleSi(){
     online:{title:'Khách nguồn Online',cols:siCols,rows:siMap(rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online'))},
     offline:{title:'Khách nguồn Offline (tự khai thác)',cols:siCols,rows:siMap(rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline'))},
     closed:{title:'Khách đã ra đơn',cols:siCols,rows:siMap(rows.filter(isDon))},
-    notYet:{title:'Khách chưa ra đơn',cols:siCols,rows:siMap(rows.filter(r=>!isDon(r)))},
+    notYet:{title:'Khách chưa ra đơn',cols:siCols,rows:siMap(notYetRows)},
     tiem:{title:'Tiềm năng nhưng chưa ra đơn',cols:siCols,rows:siMap(tiemRows)},
+    pho:{title:'Tệp phổ thông (chưa ra đơn)',cols:siCols,rows:siMap(phoRows)},
+    lost:{title:'Mất kết nối (chưa ra đơn)',cols:siCols,rows:siMap(lostRows)},
     closes:{title:'Đơn chốt theo ngày (CRM)',cols:closeCols,rows:closeList},
   };
+  window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length};
   // ── Doanh thu: top khách / theo miền / theo thành phố ──
   const custRev=rows.map(r=>({name:siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),store:(r[COL_SI.STORE]||'').trim(),city:(r[COL_SI.CITY]||'Chưa rõ').trim(),region:siRegion(r[COL_SI.CITY]),rev:toN(r[COL_SI.TOTAL_REV])})).filter(x=>x.rev>0).sort((a,b)=>b.rev-a.rev);
   const topCust=custRev.slice(0,12);
@@ -1275,10 +1282,9 @@ function renderSaleSi(){
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái đơn</div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
         ${siClk('closed',mkKpi('✅','Đã Ra Đơn',num(closed),pct(closed/total*100)+' tổng KH','g-green'))}
-        ${siClk('notYet',mkKpi('⏳','Chưa Ra Đơn',num(notYet),'đang theo đuổi','g-yellow'))}
-        ${siClk('tiem',mkKpi('⭐','Tiềm Năng Chưa Ra Đơn',num(tiemNoDon),'có giá trị dự kiến','g-purple'))}
+        <div onclick="siShowNotYet()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Đơn',num(notYet),'tiềm năng + phổ thông + mất kết nối','g-yellow')}</div>
       </div>
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
@@ -1387,6 +1393,29 @@ function renderSaleSi(){
   buildVnMap([regionData[0].color,regionData[1].color,regionData[2].color]);
 }
 function siShow(key){const d=(window._siLists||{})[key];if(d)dataModal(d);}
+// "Chưa ra đơn" → mở phân loại 3 nhóm; bấm tiếp từng nhóm để xem data
+function siShowNotYet(){
+  const d=window._siNotYet||{total:0,tiem:0,pho:0,lost:0};
+  const card=(key,label,val,color,desc)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 180px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
+    <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${desc}</div>
+    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:760px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">⏳ Chưa Ra Đơn — phân loại <span style="color:var(--muted);font-weight:600;font-size:13px">· ${num(d.total)} khách</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('tiem','Tiềm năng chưa ra đơn',d.tiem,'#7c3aed','có giá trị dự kiến (đang đàm phán)')}
+        ${card('pho','Tệp phổ thông',d.pho,'#0891b2','chưa có dự kiến · vẫn theo dõi')}
+        ${card('lost','Mất kết nối',d.lost,'#e11d48','không nghe máy / chưa phản hồi')}
+      </div>
+    </div></div>`;
+}
 
 function renderSaleSiData(){
   const elp=document.getElementById('page-sale-si-data');
