@@ -2076,7 +2076,7 @@ function renderQcDoiSoat(){
   const onlMphones=new Set(onlMaster.map(r=>last9(r[COL_SAONL.PHONE])).filter(Boolean));
   const onlMnames=new Set(onlMaster.map(r=>normName(r[COL_SAONL.NAME])).filter(Boolean));
   const inOnlMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&onlMphones.has(p))||(n&&onlMnames.has(n));};
-  const tiemLeMiss=tiemLe.filter(r=>!inOnlMaster(r)).length;
+  const tiemLeMissRows=tiemLe.filter(r=>!inOnlMaster(r)); const tiemLeMiss=tiemLeMissRows.length;
   const onlMJ=saleOnlRows.filter(r=>inFloor(r[COL_SAONL.DATE])&&okB(brandSaonl,r));
   const onlClosed=onlMJ.filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||''));
   const onlClosedRev=onlClosed.reduce((s,r)=>s+vndNum(r[COL_SAONL.REVENUE]),0);
@@ -2087,13 +2087,13 @@ function renderQcDoiSoat(){
   const siMnames=new Set();
   siMaster.forEach(r=>{[r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.FANPAGE]].forEach(v=>{const n=normName(v);if(n)siMnames.add(n);});});
   const inSiMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&siMphones.has(p))||(n&&siMnames.has(n));};
-  const tiemSiMiss=tiemSi.filter(r=>!inSiMaster(r)).length;
+  const tiemSiMissRows=tiemSi.filter(r=>!inSiMaster(r)); const tiemSiMiss=tiemSiMissRows.length;
   const caredKeys=new Set(saleSiCrmRows.map(r=>normKey(r[COL_SICRM.LEAD_ID])).filter(Boolean));
   const siCared=r=>caredKeys.has(normKey(r[COL_SI.MA_KH]))||caredKeys.has(normKey(r[COL_SI.LEAD_ID]));
   const siMJ=saleSiRows.filter(r=>inFloor(r[COL_SI.DATE])&&okB(brandSi,r));
   const siOnline=siMJ.filter(r=>U(r[COL_SI.SOURCE]).includes('ONLINE'));
   const siCaredN=siMJ.filter(siCared).length;
-  const siOnlNotCared=siOnline.filter(r=>!siCared(r)).length;
+  const siOnlNotCaredRows=siOnline.filter(r=>!siCared(r)); const siOnlNotCared=siOnlNotCaredRows.length;
   // Card 13: chỉ tính data nguồn ONLINE (offline không đưa vào)
   const siChot=siOnline.filter(r=>vndNum(r[COL_SI.TOTAL_REV])>0).length;
   const siRev=siOnline.reduce((s,r)=>s+vndNum(r[COL_SI.TOTAL_REV]),0);
@@ -2116,7 +2116,18 @@ function renderQcDoiSoat(){
     return `<div style="display:flex;align-items:center;gap:11px">${ic(e)}<div style="display:flex;align-items:baseline;flex-wrap:wrap">${inner}</div></div>`;};
   const footPct=(lbl,b,c)=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px"><span style="font-size:11.5px;color:var(--muted)">${lbl}</span>${badge(b,c)}</div>`;
   const subRow=html=>`<div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">${html}</div>`;
-  const C=(n,title,accent,body)=>`<div class="qc-card" style="--qa:${accent}"><div class="qc-h">${n}. ${title}</div>${body}</div>`;
+  // click = key trong _qcLists (chỉ gắn khi có data để xem)
+  const C=(n,title,accent,body,click)=>`<div class="qc-card" style="--qa:${accent}${click?';cursor:pointer':''}"${click?` onclick="qcShowList('${click}')"`:''}><div class="qc-h">${n}. ${title}</div>${body}${click?`<div style="margin-top:9px;font-size:10.5px;font-weight:800;color:${accent}">👆 bấm để xem danh sách</div>`:''}</div>`;
+
+  // Danh sách chi tiết để bấm xem (dash 6/10/12)
+  window._qcLists={
+    m6:{title:'Tiềm năng lẻ chưa phân về master Online',cols:['Ngày tạo','Tên khách','SĐT','Nguồn đơn','Thẻ','NV cập nhật'],
+      rows:tiemLeMissRows.map(r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE],r[COL_ONL.SOURCE],r[COL_ONL.TAG],r[COL_ONL.STAFF]])},
+    m10:{title:'Tiềm năng sỉ chưa phân về master Sỉ',cols:['Ngày tạo','Tên khách','SĐT','Nguồn đơn','Thẻ','NV cập nhật'],
+      rows:tiemSiMissRows.map(r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE],r[COL_ONL.SOURCE],r[COL_ONL.TAG],r[COL_ONL.STAFF]])},
+    m12:{title:'Lead Online (sỉ) chưa được chăm sóc',cols:['Ngày tạo','Người đại diện','Cửa hàng','SĐT','Tỉnh/TP','Sales','Mã KH'],
+      rows:siOnlNotCaredRows.map(r=>[r[COL_SI.DATE],r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.PHONE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.MA_KH]])}
+  };
 
   const c1=C('1','Cost TB / Lead','#4361ee',
     single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),cMess)
@@ -2131,7 +2142,7 @@ function renderQcDoiSoat(){
     +subRow(subc(P(tiemLe.length,nTiem),'Tiềm năng lẻ',PC[1])+subc(P(tiemSi.length,nTiem),'Tiềm năng sỉ',PC[2])));
 
   const c6=C('6','Data Tiềm Năng Chưa Phân Về Sale Onl','#7c3aed',
-    single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?RED:GRN));
+    single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?RED:GRN),tiemLeMiss>0?'m6':null);
   const c7=C('7','Lead Đạt / SĐT Thu Về','#0abf7a',
     seq('📞',[num(nDat),num(datPhone)])+footPct('% thu về',P(datPhone,nDat),PC[1]));
   const c8=C('8','Lead Đạt / Tiềm Năng / Đơn Chốt','#0abf7a',
@@ -2141,11 +2152,11 @@ function renderQcDoiSoat(){
     single('💰',vnd(onlClosedRev),num(onlClosed.length)+' đơn',cRev));
 
   const c10=C('10','Data Tiềm Năng Chưa Phân Về Sale Sỉ','#7c3aed',
-    single('🗄️',num(tiemSiMiss),'/ '+tiemSi.length+' tiềm năng sỉ',tiemSiMiss>0?RED:GRN));
+    single('🗄️',num(tiemSiMiss),'/ '+tiemSi.length+' tiềm năng sỉ',tiemSiMiss>0?RED:GRN),tiemSiMiss>0?'m10':null);
   const c11=C('11','Data Online Đã Về / Đã Được Chăm Sóc','#0abf7a',
     seq('✅',[num(siOnline.length),num(siOnlineCared)])+footPct('% đã chăm',P(siOnlineCared,siOnline.length),PC[1]));
   const c12=C('12','Lead Data Onl Chưa Được Chăm Sóc','#f59e0b',
-    single('🧍',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',siOnlNotCared>0?RED:GRN));
+    single('🧍',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',siOnlNotCared>0?RED:GRN),siOnlNotCared>0?'m12':null);
   const c13=C('13','Tỉ Lệ Chốt / Doanh Số Chốt','#f59e0b',
     `<div style="display:flex;align-items:center;gap:15px">${ic('📈')}
       <div><div class="qc-big" style="font-size:26px;color:${cChot}">${P(siChot,siOnline.length)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Tỉ lệ chốt (onl)</div></div>
@@ -2215,6 +2226,23 @@ function renderQcDoiSoat(){
       Số 5 bỏ trống theo cấu trúc gốc. Chỉ số theo khoảng thời gian đang chọn (MKT chỉ có data từ T6/2026).
     </div>`;
 }
+// Modal danh sách data (bấm vào dash 6/10/12)
+function qcShowList(key){
+  const d=(window._qcLists||{})[key]; if(!d||!d.rows.length)return;
+  const head=d.cols.map(c=>`<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);position:sticky;top:0;background:var(--bg2);white-space:nowrap">${c}</th>`).join('');
+  const body=d.rows.map(row=>`<tr style="border-bottom:1px solid var(--border)">${row.map((v,i)=>`<td style="padding:8px 12px;font-size:12px;${i===1?'font-weight:700;color:var(--text)':'color:var(--text2)'}">${(v==null||v==='')?'—':v}</td>`).join('')}</tr>`).join('');
+  let m=document.getElementById('qcModal');
+  if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:960px;width:100%;max-height:84vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">${d.title} <span style="color:var(--muted);font-weight:600;font-size:13px">· ${d.rows.length} data</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+    </div></div>`;
+}
+function qcCloseModal(){const m=document.getElementById('qcModal');if(m)m.innerHTML='';}
 
 // ── SALE CHI TIẾT ──
 function renderSaleDetail(){
