@@ -1132,7 +1132,9 @@ function renderSaleSi(){
   const isDon=r=>hasStatus(r,'đã ra đơn')||toN(r[COL_SI.TOTAL_REV])>0;
   const total=rows.length;
   // Nguồn khách: tách theo tệp KHÁCH MỚI trong kỳ → Online + Offline + Khác = Tổng khách mới
-  const newRows=rows.filter(r=>inR(parseDate(r[COL_SI.DATE])));
+  // Không chọn ngày = toàn bộ tệp (kể cả khách thiếu ngày tạo); có chọn ngày mới lọc theo ngày
+  const hasDF=!!(fromD||toD);
+  const newRows=hasDF?rows.filter(r=>inR(parseDate(r[COL_SI.DATE]))):rows.slice();
   const newInPeriod=newRows.length;
   const fromOnl=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online').length;
   const selfSource=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline').length;
