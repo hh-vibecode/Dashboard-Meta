@@ -2125,6 +2125,26 @@ function renderQcDoiSoat(){
   const siAvgDays=siDiffs.length?siDiffs.reduce((a,b)=>a+b,0)/siDiffs.length:null;
   const fmtDays=d=>d==null?'—':((Math.round(d*10)/10)+'').replace(/\.0$/,'')+' ngày';
 
+  // ===== Check lỗi data: trùng lặp (cùng người — khớp SĐT/công ty/tên — nhưng khác bản ghi) =====
+  const BADCO=/mo moi|khach le|chua co|chua ro|cua hang moi|ban le|chua phan/;
+  const coKey=s=>{const n=normName(s);return (n.length>=5&&!BADCO.test(n))?n:'';};
+  const nmKey=s=>{const n=normName(s);return (n.includes(' ')&&n.length>=5)?n:'';};
+  const clustersBy=(rows,keyFns)=>{
+    const parent=rows.map((_,i)=>i);
+    const find=x=>{while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+    const km={};
+    rows.forEach((r,i)=>{keyFns.forEach(fn=>{const k=fn(r);if(!k)return;if(km[k]!=null)parent[find(i)]=find(km[k]);else km[k]=i;});});
+    const g={};rows.forEach((r,i)=>{const p=find(i);(g[p]=g[p]||[]).push(r);});
+    return Object.values(g).filter(a=>a.length>1);
+  };
+  const siDup=clustersBy(saleSiRows,[r=>{const p=last9(r[COL_SI.PHONE]);return p?'P'+p:'';},r=>{const c=coKey(r[COL_SI.STORE]);return c?'C'+c:'';}]);
+  const onlDup=clustersBy(saleOnlRows,[r=>{const p=last9(r[COL_SAONL.PHONE]);return p?'P'+p:'';},r=>{const n=nmKey(r[COL_SAONL.NAME]);return n?'N'+n:'';}]);
+  const siDupN=siDup.reduce((s,g)=>s+g.length,0), onlDupN=onlDup.reduce((s,g)=>s+g.length,0);
+  window._qcDups={
+    si:siDup.map(g=>g.map(r=>[r[COL_SI.MA_KH],r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE],r[COL_SI.PHONE],r[COL_SI.DATE]])),
+    onl:onlDup.map(g=>g.map(r=>[r[COL_SAONL.MA_KH],r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],'',r[COL_SAONL.PHONE],r[COL_SAONL.DATE]]))
+  };
+
   // ===== Helpers card =====
   const RED='#ef4444', GRN='var(--green)';
   // màu theo chỉ số: mess / lead đạt / tiềm năng / lẻ / sỉ / chốt / sđt
@@ -2255,6 +2275,14 @@ function renderQcDoiSoat(){
           </div>
         </div>
       </div>
+      <div class="qc-card" style="--qa:#e11d48;margin-top:14px${(siDupN+onlDupN)>0?';cursor:pointer':''}"${(siDupN+onlDupN)>0?' onclick="qcShowDups()"':''}>
+        <div class="qc-h" style="color:var(--text)">🛠️ Kiểm Tra Lỗi Data — Trùng Lặp <span style="font-weight:600;color:var(--muted);text-transform:none">(cùng người: SĐT / công ty / tên — nhưng khác bản ghi & Mã KH)</span></div>
+        <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
+          <div style="display:flex;align-items:center;gap:11px">${ic('🏪')}<div><div style="font-size:24px;font-weight:900;color:${siDup.length>0?'#e11d48':GRN}">${siDup.length}<span style="font-size:13px;color:var(--muted);font-weight:700"> nhóm</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Master Sỉ · ${siDupN} bản ghi</div></div></div>
+          <div style="display:flex;align-items:center;gap:11px">${ic('🌐')}<div><div style="font-size:24px;font-weight:900;color:${onlDup.length>0?'#e11d48':GRN}">${onlDup.length}<span style="font-size:13px;color:var(--muted);font-weight:700"> nhóm</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Sale Online · ${onlDupN} bản ghi</div></div></div>
+        </div>
+        ${(siDupN+onlDupN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách trùng</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện trùng</div>'}
+      </div>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
@@ -2280,6 +2308,25 @@ function qcShowList(key){
     </div></div>`;
 }
 function qcCloseModal(){const m=document.getElementById('qcModal');if(m)m.innerHTML='';}
+// Modal danh sách data trùng lặp (cùng người, khác bản ghi)
+function qcShowDups(){
+  const d=window._qcDups||{si:[],onl:[]};
+  const cols=['Mã KH','Lead ID','Tên / Người ĐD','Công ty / Cửa hàng','SĐT','Ngày tạo'];
+  const th=cols.map(c=>`<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);position:sticky;top:0;background:var(--bg2);white-space:nowrap">${c}</th>`).join('');
+  const sect=(title,clusters,color)=>`<div style="margin:4px 0 16px">
+    <div style="font-size:13px;font-weight:800;color:var(--text);margin:10px 4px 8px">${title} <span style="color:var(--muted);font-weight:600;font-size:12px">· ${clusters.length} nhóm trùng</span></div>
+    ${clusters.length?`<table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${clusters.map((g,i)=>`<tr><td colspan="6" style="background:${color}18;color:${color};font-weight:800;font-size:11px;padding:5px 12px">● Nhóm ${i+1} — ${g.length} bản ghi cùng người</td></tr>`+g.map(row=>`<tr style="border-bottom:1px solid var(--border)">${row.map((v,j)=>`<td style="padding:7px 12px;font-size:12px;${j<2?'font-weight:700;color:var(--text)':'color:var(--text2)'}">${(v==null||v==='')?'—':v}</td>`).join('')}</tr>`).join('')).join('')}</tbody></table>`:'<div style="padding:8px 12px;color:var(--green);font-size:12px;font-weight:700">✓ Không phát hiện trùng</div>'}
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:1000px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">🛠️ Lỗi Data — Trùng Lặp (cùng người, khác bản ghi / Mã KH)</div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="overflow:auto;padding:0 8px 8px">${sect('🏪 Master Data Sỉ',d.si,'#7c3aed')}${sect('🌐 Master Sale Online',d.onl,'#0891b2')}</div>
+    </div></div>`;
+}
 
 // ── SALE CHI TIẾT ──
 function renderSaleDetail(){
