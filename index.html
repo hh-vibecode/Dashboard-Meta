@@ -2365,20 +2365,21 @@ function renderQcDoiSoat(){
   // ===== GỘP: 1 dashboard kiểm tra lỗi (trùng lặp + trạng thái + thiếu trường) =====
   const siDupSet=new Set();siDup.forEach(g=>g.forEach(r=>siDupSet.add(r)));
   const onlDupSet=new Set();onlDup.forEach(g=>g.forEach(r=>onlDupSet.add(r)));
+  const dupWhy=(r,phoneCol,storeCol,nameCol)=>{const w=[];if(phoneCol!=null&&(r[phoneCol]||'').trim())w.push('SĐT '+(r[phoneCol]||'').trim());if(storeCol!=null&&(r[storeCol]||'').trim())w.push('“'+(r[storeCol]||'').trim()+'”');else if(nameCol!=null&&(r[nameCol]||'').trim())w.push('“'+(r[nameCol]||'').trim()+'”');return w.length?'Trùng lặp ('+w.join(' / ')+')':'Trùng lặp';};
   const siErrRows=[];
   saleSiRows.forEach(r=>{const errs=[];
     const mf=[];if(bl(r[COL_SI.DATE]))mf.push('Ngày tạo');if(bl(r[COL_SI.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SI.REP])&&bl(r[COL_SI.STORE]))mf.push('Tên');if(bl(r[COL_SI.PHONE]))mf.push('SĐT');
-    if(mf.length)errs.push('Thiếu '+mf.join(', '));
-    if(!okSi((r[COL_SI.STATUS]||'').trim()))errs.push((r[COL_SI.STATUS]||'').trim()?'Trạng thái sai':'Trạng thái trống');
-    if(siDupSet.has(r))errs.push('Trùng lặp');
+    if(mf.length)errs.push('Thiếu trường: '+mf.join(', '));
+    const st=(r[COL_SI.STATUS]||'').trim();if(!okSi(st))errs.push(st?'Trạng thái sai: “'+st+'” (ngoài 4 trạng thái)':'Trạng thái: bỏ trống');
+    if(siDupSet.has(r))errs.push(dupWhy(r,COL_SI.PHONE,COL_SI.STORE,COL_SI.REP));
     if(errs.length)siErrRows.push([r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],'<b style="color:#e11d48">'+errs.join(' · ')+'</b>']);});
   const onlErrRows=[];
   saleOnlRows.forEach(r=>{const errs=[];
     const mf=[];if(bl(r[COL_SAONL.DATE]))mf.push('Ngày tạo');if(bl(r[COL_SAONL.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SAONL.NAME])&&bl(r[COL_SAONL.PHONE]))mf.push('Tên & SĐT');
     if(/^chốt/i.test(r[COL_SAONL.STATUS]||'')){if(vndNum(r[COL_SAONL.REVENUE])<=0)mf.push('Doanh thu chốt');if(bl(r[COL_SAONL.DATE_CLOSE]))mf.push('Ngày chốt');}
-    if(mf.length)errs.push('Thiếu '+mf.join(', '));
-    if(!okOnl((r[COL_SAONL.STATUS]||'').trim()))errs.push((r[COL_SAONL.STATUS]||'').trim()?'Trạng thái sai':'Trạng thái trống');
-    if(onlDupSet.has(r))errs.push('Trùng lặp');
+    if(mf.length)errs.push('Thiếu trường: '+mf.join(', '));
+    const st=(r[COL_SAONL.STATUS]||'').trim();if(!okOnl(st))errs.push(st?'Trạng thái sai: “'+st+'”':'Trạng thái: bỏ trống');
+    if(onlDupSet.has(r))errs.push(dupWhy(r,COL_SAONL.PHONE,null,COL_SAONL.NAME));
     if(errs.length)onlErrRows.push([r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.SOURCE],'<b style="color:#e11d48">'+errs.join(' · ')+'</b>']);});
   const siErrN=siErrRows.length, onlErrN=onlErrRows.length;
   window._qcErrors={si:siErrRows,onl:onlErrRows};
