@@ -285,7 +285,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     </nav>
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
     <nav id="sec-qc">
-      <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Đối Soát</span></div>
+      <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Chung</span></div>
     </nav>
   </div>
 
@@ -309,8 +309,8 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>
     </div>
     <div class="tab-page" id="page-qc-doisoat">
-      <div class="page-title">QC — Báo Cáo Đối Soát</div>
-      <div class="page-sub">Đối soát số liệu</div>
+      <div class="page-title">QC — Báo Cáo Chung</div>
+      <div class="page-sub">Đang tải…</div>
       <div style="padding:80px 20px;text-align:center;color:var(--muted)">
         <div style="font-size:48px;margin-bottom:12px">🧾</div>
         <div style="font-size:15px;font-weight:700;color:var(--text2)">Báo cáo đối soát — đang phát triển</div>
@@ -830,7 +830,7 @@ function clearFilter(){
   const bf=document.getElementById('brandFilter');if(bf)bf.value='all';
   const pf=document.getElementById('prodFilter');if(pf)pf.value='all';
   if(allRows.length)renderAll(allRows);
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();
 }
 function localDate(str,end=false){
   const p=str.split('-');
@@ -853,7 +853,7 @@ function curPeriodLabel(){
 // Đổi ngày → re-render cả MKT lẫn các báo cáo Sale
 function onDateChange(){
   if(allRows.length)applyFilter();
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();
 }
 function applyQuickFilter(){
   const v=document.getElementById('quickFilter').value;
@@ -2027,14 +2027,13 @@ function renderDetail(camps,period,filteredRows,saleStats){
 }
 
 // ── QC: BÁO CÁO ĐỐI SOÁT ──
-// Lấy toàn bộ dữ liệu từ T6/2026 đổ đi (mọi nguồn). Funnel: Mess → Lead đạt → Lead tiềm năng → (lẻ/sỉ)
+// Theo bộ lọc thời gian đang chọn (MKT vốn chỉ có data từ T6/2026). Funnel: Mess → Lead đạt → Tiềm năng → (lẻ/sỉ)
 function renderQcDoiSoat(){
   const el=document.getElementById('page-qc-doisoat');
   if(!onlineRows.length&&!saleOnlRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
-  if(chartQcTrend){chartQcTrend.destroy();chartQcTrend=null;}
-  if(chartQcRev){chartQcRev.destroy();chartQcRev=null;}
-  const FLOOR=new Date(2026,5,1);            // 01/06/2026
-  const inFloor=ds=>{const d=parseDate(ds);return d&&d>=FLOOR;};
+  const _f=document.getElementById('dateFrom'), _t=document.getElementById('dateTo');
+  const fromD=_f&&_f.value?localDate(_f.value):null, toD=_t&&_t.value?localDate(_t.value,true):null;
+  const inFloor=ds=>{const d=parseDate(ds);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
   const U=s=>(s||'').toString().toUpperCase();
   const tagHas=(r,kw)=>U(r[COL_ONL.TAG]).includes(kw);
   const normName=s=>(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/\s+/g,' ').trim();
@@ -2042,13 +2041,28 @@ function renderQcDoiSoat(){
   const normKey=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const P=(a,b)=>b>0?pct(a/b*100):'—';
 
-  // ===== MKT — chi phí & mess (campaign-level, T6/2026+) =====
-  const mktJ=allRows.filter(r=>inFloor(r[COL.DATE]));
+  // ===== Bộ lọc brand =====
+  const qbEl=document.getElementById('qcBrand'); const qb=qbEl?qbEl.value:'all';
+  const adCampMap=buildAdCampMap();
+  const brandText=s=>{const n=(s||'').toString();
+    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
+    if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
+    if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
+    if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';
+    return null;};
+  const adBrand=a=>{a=(a||'').toString().trim();return a&&adCampMap[a]?brandText(adCampMap[a]):null;};
+  const brandOnl=r=>adBrand(r[COL_ONL.AD_ID])||brandText(r[COL_ONL.SOURCE]);
+  const brandSaonl=r=>brandText(r[COL_SAONL.CHANNEL])||adBrand(r[COL_SAONL.AD_ID]);
+  const brandSi=r=>brandText(r[COL_SI.CHANNEL])||adBrand(r[COL_SI.AD_ID]);
+  const okB=(fn,r)=>qb==='all'||fn(r)===qb;
+
+  // ===== MKT — chi phí & mess =====
+  const mktJ=allRows.filter(r=>inFloor(r[COL.DATE])&&(qb==='all'||brandText(r[COL.CAMPAIGN])===qb));
   const mkpi=calcKPI(mktJ);
   const totalSpend=mkpi.totalSpend, totalMess=mkpi.totalMess;
 
-  // ===== NGUONONL (datahub) T6/2026+ =====
-  const onlJ=onlineRows.filter(r=>inFloor(r[COL_ONL.DATE]));
+  // ===== NGUONONL (datahub) =====
+  const onlJ=onlineRows.filter(r=>inFloor(r[COL_ONL.DATE])&&okB(brandOnl,r));
   const datRows=onlJ.filter(r=>tagHas(r,'LEAD ĐẠT'));
   const tiemRows=onlJ.filter(r=>tagHas(r,'TIỀM NĂNG'));
   const tiemLe=tiemRows.filter(r=>tagHas(r,'KH LẺ'));
@@ -2060,23 +2074,25 @@ function renderQcDoiSoat(){
   const costPerTiem=nTiem>0?totalSpend/nTiem:0;            // CP / mess tiềm năng
 
   // ===== MASTER SALE ONLINE (saleOnlRows) =====
-  const onlMphones=new Set(saleOnlRows.map(r=>last9(r[COL_SAONL.PHONE])).filter(Boolean));
-  const onlMnames=new Set(saleOnlRows.map(r=>normName(r[COL_SAONL.NAME])).filter(Boolean));
+  const onlMaster=qb==='all'?saleOnlRows:saleOnlRows.filter(r=>brandSaonl(r)===qb);
+  const onlMphones=new Set(onlMaster.map(r=>last9(r[COL_SAONL.PHONE])).filter(Boolean));
+  const onlMnames=new Set(onlMaster.map(r=>normName(r[COL_SAONL.NAME])).filter(Boolean));
   const inOnlMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&onlMphones.has(p))||(n&&onlMnames.has(n));};
   const tiemLeMiss=tiemLe.filter(r=>!inOnlMaster(r)).length;
-  const onlMJ=saleOnlRows.filter(r=>inFloor(r[COL_SAONL.DATE]));
+  const onlMJ=saleOnlRows.filter(r=>inFloor(r[COL_SAONL.DATE])&&okB(brandSaonl,r));
   const onlClosed=onlMJ.filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||''));
   const onlClosedRev=onlClosed.reduce((s,r)=>s+vndNum(r[COL_SAONL.REVENUE]),0);
 
   // ===== MASTER SỈ (saleSiRows) + CRM Sỉ =====
-  const siMphones=new Set(saleSiRows.map(r=>last9(r[COL_SI.PHONE])).filter(Boolean));
+  const siMaster=qb==='all'?saleSiRows:saleSiRows.filter(r=>brandSi(r)===qb);
+  const siMphones=new Set(siMaster.map(r=>last9(r[COL_SI.PHONE])).filter(Boolean));
   const siMnames=new Set();
-  saleSiRows.forEach(r=>{[r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.FANPAGE]].forEach(v=>{const n=normName(v);if(n)siMnames.add(n);});});
+  siMaster.forEach(r=>{[r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.FANPAGE]].forEach(v=>{const n=normName(v);if(n)siMnames.add(n);});});
   const inSiMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&siMphones.has(p))||(n&&siMnames.has(n));};
   const tiemSiMiss=tiemSi.filter(r=>!inSiMaster(r)).length;
   const caredKeys=new Set(saleSiCrmRows.map(r=>normKey(r[COL_SICRM.LEAD_ID])).filter(Boolean));
   const siCared=r=>caredKeys.has(normKey(r[COL_SI.MA_KH]))||caredKeys.has(normKey(r[COL_SI.LEAD_ID]));
-  const siMJ=saleSiRows.filter(r=>inFloor(r[COL_SI.DATE]));
+  const siMJ=saleSiRows.filter(r=>inFloor(r[COL_SI.DATE])&&okB(brandSi,r));
   const siOnline=siMJ.filter(r=>U(r[COL_SI.SOURCE]).includes('ONLINE'));
   const siCaredN=siMJ.filter(siCared).length;
   const siOnlNotCared=siOnline.filter(r=>!siCared(r)).length;
@@ -2084,17 +2100,6 @@ function renderQcDoiSoat(){
   const siRev=siMJ.reduce((s,r)=>s+vndNum(r[COL_SI.TOTAL_REV]),0);
 
   const siOnlineCared=siOnline.filter(siCared).length;
-
-  // ===== Dữ liệu biểu đồ theo ngày (T6/2026+) =====
-  const trend={};
-  const dKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const dLbl=d=>String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
-  const bump=(ds,f,amt)=>{const d=parseDate(ds);if(!d||d<FLOOR)return;const k=dKey(d);(trend[k]=trend[k]||{d,dat:0,tiem:0,chot:0,rev:0})[f]+=(amt==null?1:amt);};
-  datRows.forEach(r=>bump(r[COL_ONL.DATE],'dat'));
-  tiemRows.forEach(r=>bump(r[COL_ONL.DATE],'tiem'));
-  onlClosed.forEach(r=>{const cd=r[COL_SAONL.DATE_CLOSE]||r[COL_SAONL.DATE];bump(cd,'chot');bump(cd,'rev',vndNum(r[COL_SAONL.REVENUE]));});
-  const days=Object.values(trend).sort((a,b)=>a.d-b.d);
-  const tLabels=days.map(x=>dLbl(x.d));
 
   // ===== Helpers card =====
   const RED='#ef4444', GRN='var(--green)';
@@ -2165,9 +2170,18 @@ function renderQcDoiSoat(){
 
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-      <div><div class="page-title">QC — Báo Cáo Đối Soát</div>
+      <div><div class="page-title">QC — Báo Cáo Chung</div>
       <div class="page-sub">Theo dõi chất lượng data & hiệu quả xử lý · Mess → Lead đạt → Tiềm năng → Lẻ/Sỉ</div></div>
-      <div class="stat-chip">📅 Từ 01/06/2026 đổ đi</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <select id="qcBrand" onchange="renderQcDoiSoat()" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer">
+          <option value="all"${qb==='all'?' selected':''}>🏷️ Tất cả brand</option>
+          <option value="CT"${qb==='CT'?' selected':''}>Chánh Tâm</option>
+          <option value="HT"${qb==='HT'?' selected':''}>Hiền Thuỷ</option>
+          <option value="Shidai"${qb==='Shidai'?' selected':''}>Shidai</option>
+          <option value="TTV"${qb==='TTV'?' selected':''}>Tự Tại Viên</option>
+        </select>
+        <div class="stat-chip">📅 ${curPeriodLabel()}</div>
+      </div>
     </div>
 
     <div class="qc-group" style="--qg:#4361ee;margin-top:16px">
@@ -2197,7 +2211,7 @@ function renderQcDoiSoat(){
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
       <b>Ghi chú:</b> "Lead đạt"/"Tiềm năng"/"KH lẻ"/"KH sỉ" theo thẻ gắn ở tab nguồn online (datahub).
       "Chưa phân về master" đối chiếu theo SĐT (9 số cuối) hoặc tên khách. "Đã chăm sóc" khớp Mã KH/Lead ID với CRM Sỉ.
-      Số 5 bỏ trống theo cấu trúc gốc. Mọi chỉ số tính từ 01/06/2026 trở đi.
+      Số 5 bỏ trống theo cấu trúc gốc. Chỉ số theo khoảng thời gian đang chọn (MKT chỉ có data từ T6/2026).
     </div>`;
 }
 
