@@ -2342,6 +2342,25 @@ function renderQcDoiSoat(){
     onl:onlStatusErr.map(r=>[r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.CHANNEL],(r[COL_SAONL.STATUS]||'').trim()||blank])
   };
 
+  // ===== Check thiếu trường quan trọng (ảnh hưởng số liệu báo cáo) =====
+  const bl=v=>!(v||'').toString().trim();
+  const onlMissing=[];
+  saleOnlRows.forEach(r=>{const e=[];
+    if(bl(r[COL_SAONL.DATE]))e.push('Ngày tạo');
+    if(bl(r[COL_SAONL.SOURCE]))e.push('Nguồn');
+    if(bl(r[COL_SAONL.NAME])&&bl(r[COL_SAONL.PHONE]))e.push('Tên & SĐT');
+    if(/^chốt/i.test(r[COL_SAONL.STATUS]||'')){if(vndNum(r[COL_SAONL.REVENUE])<=0)e.push('Doanh thu chốt');if(bl(r[COL_SAONL.DATE_CLOSE]))e.push('Ngày chốt');}
+    if(e.length)onlMissing.push([r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.DATE],r[COL_SAONL.STATUS],'<b style="color:#e11d48">'+e.join(', ')+'</b>']);});
+  const siMissing=[];
+  saleSiRows.forEach(r=>{const e=[];
+    if(bl(r[COL_SI.DATE]))e.push('Ngày tạo');
+    if(bl(r[COL_SI.SOURCE]))e.push('Nguồn');
+    if(bl(r[COL_SI.REP])&&bl(r[COL_SI.STORE]))e.push('Tên');
+    if(bl(r[COL_SI.PHONE]))e.push('SĐT');
+    if(e.length)siMissing.push([r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.DATE],r[COL_SI.SOURCE],'<b style="color:#e11d48">'+e.join(', ')+'</b>']);});
+  const mOnlN=onlMissing.length, mSiN=siMissing.length;
+  window._qcMissing={onl:onlMissing,si:siMissing};
+
   // ===== Helpers card =====
   const RED='#ef4444', GRN='var(--green)';
   // màu theo chỉ số: mess / lead đạt / tiềm năng / lẻ / sỉ / chốt / sđt
@@ -2508,6 +2527,14 @@ function renderQcDoiSoat(){
         </div>
         ${(sErrN+oErrN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không có lỗi trạng thái</div>'}
       </div>
+      <div class="qc-card" style="--qa:#e11d48;margin-top:14px${(mOnlN+mSiN)>0?';cursor:pointer':''}"${(mOnlN+mSiN)>0?' onclick="qcShowMissing()"':''}>
+        <div class="qc-h" style="color:var(--text)">🧩 Thiếu Trường Quan Trọng <span style="font-weight:600;color:var(--muted);text-transform:none">(bỏ trống trường ảnh hưởng số liệu: ngày, nguồn, tên/SĐT, doanh thu/ngày chốt)</span></div>
+        <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
+          <div style="display:flex;align-items:center;gap:11px">${ic('🌐')}<div><div style="font-size:24px;font-weight:900;color:${mOnlN>0?'#e11d48':GRN}">${num(mOnlN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Báo Cáo Online</div></div></div>
+          <div style="display:flex;align-items:center;gap:11px">${ic('🏪')}<div><div style="font-size:24px;font-weight:900;color:${mSiN>0?'#e11d48':GRN}">${num(mSiN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Master Sỉ</div></div></div>
+        </div>
+        ${(mOnlN+mSiN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không thiếu trường</div>'}
+      </div>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
@@ -2566,6 +2593,26 @@ function qcShowStatusErr(){
       <div style="overflow:auto;padding:0 8px 8px">
         ${sect('🏪 Master Sỉ — Tình trạng hợp tác',['Mã KH/Lead ID','Tên','SĐT','Nguồn','Tình trạng'],d.si,'#7c3aed')}
         ${sect('🌐 Sale Online — Trạng thái CRM',['Lead ID','Tên','SĐT','Kênh','Trạng thái'],d.onl,'#0891b2')}
+      </div>
+    </div></div>`;
+}
+// Modal thiếu trường quan trọng (Online + Sỉ)
+function qcShowMissing(){
+  const d=window._qcMissing||{onl:[],si:[]};
+  const sect=(title,cols,rows)=>`<div style="margin:6px 0 14px">
+    <div style="font-size:13px;font-weight:800;color:var(--text);margin:8px 4px">${title} <span style="color:var(--muted);font-weight:600;font-size:12px">· ${rows.length} data</span></div>
+    ${rows.length?`<table style="width:100%;border-collapse:collapse"><thead><tr>${cols.map(c=>`<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);position:sticky;top:0;background:var(--bg2);white-space:nowrap">${c}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr style="border-bottom:1px solid var(--border)">${row.map((v,j)=>`<td style="padding:7px 12px;font-size:12px;${j===1?'font-weight:700;color:var(--text)':'color:var(--text2)'}">${(v==null||v==='')?'—':v}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<div style="padding:8px 12px;color:var(--green);font-size:12px;font-weight:700">✓ Không thiếu trường</div>'}
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:1000px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">🧩 Thiếu Trường Quan Trọng — ảnh hưởng số liệu</div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="overflow:auto;padding:0 8px 8px">
+        ${sect('🌐 Báo Cáo Online',['Lead ID','Tên','SĐT','Ngày tạo','Trạng thái','Trường thiếu'],d.onl)}
+        ${sect('🏪 Master Sỉ',['Mã KH/Lead ID','Tên','SĐT','Ngày tạo','Nguồn','Trường thiếu'],d.si)}
       </div>
     </div></div>`;
 }
