@@ -132,6 +132,14 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 [data-theme="dark"] .kpi .kpi-sub{color:rgba(255,255,255,.7)!important}
 [data-theme="dark"] .kpi .kpi-icon{color:#fff!important}
 
+/* QC CARDS (đối soát) */
+.qc-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px 17px;position:relative;overflow:hidden}
+.qc-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--qa,var(--accent))}
+.qc-h{font-size:11px;font-weight:800;color:var(--qa,var(--text));text-transform:uppercase;letter-spacing:.02em;margin-bottom:12px;line-height:1.35;min-height:30px}
+.qc-sec{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text);margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.qc-big{font-size:29px;font-weight:900;line-height:1;color:var(--text);letter-spacing:-.02em}
+.qc-num3{font-size:24px;font-weight:900;line-height:1.05;color:var(--text);letter-spacing:-.01em}
+
 /* CHARTS */
 .charts-2col-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
 .chart-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
@@ -317,7 +325,7 @@ const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:1
 const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,ADDRESS:12,LICENSE:13,FANPAGE:14,MODEL:15,SHOWROOM:16,FINANCE:17,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:23,TOTAL_REV:24,CUST_TYPE:25,MA_KH:26,NOTE:28};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
-let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,sbCollapsed=false;
+let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -2014,6 +2022,8 @@ function renderDetail(camps,period,filteredRows,saleStats){
 function renderQcDoiSoat(){
   const el=document.getElementById('page-qc-doisoat');
   if(!onlineRows.length&&!saleOnlRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  if(chartQcTrend){chartQcTrend.destroy();chartQcTrend=null;}
+  if(chartQcRev){chartQcRev.destroy();chartQcRev=null;}
   const FLOOR=new Date(2026,5,1);            // 01/06/2026
   const inFloor=ds=>{const d=parseDate(ds);return d&&d>=FLOOR;};
   const U=s=>(s||'').toString().toUpperCase();
@@ -2036,7 +2046,9 @@ function renderQcDoiSoat(){
   const tiemSi=tiemRows.filter(r=>tagHas(r,'KH SỈ'));
   const nDat=datRows.length, nTiem=tiemRows.length;
   const datPhone=datRows.filter(r=>(r[COL_ONL.PHONE]||'').trim()).length;
-  const costPerLead=nDat>0?totalSpend/nDat:0;
+  const costPerMess=totalMess>0?totalSpend/totalMess:0;   // CP / mess thường
+  const costPerDat=nDat>0?totalSpend/nDat:0;               // CP / mess đạt
+  const costPerTiem=nTiem>0?totalSpend/nTiem:0;            // CP / mess tiềm năng
 
   // ===== MASTER SALE ONLINE (saleOnlRows) =====
   const onlMphones=new Set(saleOnlRows.map(r=>last9(r[COL_SAONL.PHONE])).filter(Boolean));
@@ -2062,44 +2074,135 @@ function renderQcDoiSoat(){
   const siChot=siMJ.filter(r=>vndNum(r[COL_SI.TOTAL_REV])>0).length;
   const siRev=siMJ.reduce((s,r)=>s+vndNum(r[COL_SI.TOTAL_REV]),0);
 
-  el.innerHTML=`
-    <div class="page-title">QC — Báo Cáo Đối Soát</div>
-    <div class="page-sub">Toàn bộ dữ liệu từ T6/2026 đổ đi · funnel Mess → Lead đạt → Tiềm năng → (Lẻ/Sỉ)</div>
+  const siOnlineCared=siOnline.filter(siCared).length;
 
-    <div class="sec-label">I. Chất Lượng Data <span style="font-weight:400;font-size:11px;color:var(--muted)">(nguồn → lead)</span></div>
-    <div class="kpi-grid">
-      ${mkKpi('💸','Tổng Chi Phí',vnd(totalSpend),'quảng cáo Meta','g-purple')}
-      ${mkKpi('🎯','CP / Lead Đạt',vnd(costPerLead),'chi phí ÷ lead đạt','g-yellow')}
-      ${mkKpi('💬','Tổng Mess',num(totalMess),'lượt trò chuyện từ ads','g-green')}
-      ${mkKpi('✅','Lead Đạt',num(nDat),P(nDat,totalMess)+' / tổng mess','g-teal')}
-      ${mkKpi('⭐','Lead Tiềm Năng',num(nTiem),P(nTiem,nDat)+' /đạt · '+P(nTiem,totalMess)+' /mess','g-orange')}
-      ${mkKpi('🛒','TN Khách Lẻ',num(tiemLe.length),P(tiemLe.length,nTiem)+' / tiềm năng','g-blue')}
-      ${mkKpi('🏪','TN Khách Sỉ',num(tiemSi.length),P(tiemSi.length,nTiem)+' / tiềm năng','g-purple')}
-    </div>
+  // ===== Dữ liệu biểu đồ theo ngày (T6/2026+) =====
+  const trend={};
+  const dKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const dLbl=d=>String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+  const bump=(ds,f,amt)=>{const d=parseDate(ds);if(!d||d<FLOOR)return;const k=dKey(d);(trend[k]=trend[k]||{d,dat:0,tiem:0,chot:0,rev:0})[f]+=(amt==null?1:amt);};
+  datRows.forEach(r=>bump(r[COL_ONL.DATE],'dat'));
+  tiemRows.forEach(r=>bump(r[COL_ONL.DATE],'tiem'));
+  onlClosed.forEach(r=>{const cd=r[COL_SAONL.DATE_CLOSE]||r[COL_SAONL.DATE];bump(cd,'chot');bump(cd,'rev',vndNum(r[COL_SAONL.REVENUE]));});
+  const days=Object.values(trend).sort((a,b)=>a.d-b.d);
+  const tLabels=days.map(x=>dLbl(x.d));
 
-    <div class="sec-label" style="margin-top:18px">II. Chất Lượng Xử Lý Data — Online</div>
-    <div class="kpi-grid">
-      ${mkKpi('📤','TN Lẻ Chưa Vào Master',num(tiemLeMiss),'còn lại / '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?'g-red':'g-green')}
-      ${mkKpi('📞','SĐT Thu Về',num(datPhone),P(datPhone,nDat)+' / lead đạt','g-yellow')}
-      ${mkKpi('✅','Đơn Chốt (onl)',num(onlClosed.length),P(onlClosed.length,nTiem)+' /tiềm năng · '+P(onlClosed.length,nDat)+' /đạt','g-green')}
-      ${mkKpi('💰','Doanh Số Chốt',vnd(onlClosedRev),num(onlClosed.length)+' đơn · master onl','g-teal')}
-    </div>
+  // ===== Helpers card =====
+  const RED='#ef4444', GRN='var(--green)';
+  const vndK=n=>{n=Math.round(n);const a=Math.abs(n);if(a>=1e6)return (n/1e6).toFixed(a>=1e7?0:1).replace(/\.0$/,'')+'tr';if(a>=1e3)return Math.round(n/1e3)+'k';return ''+n;};
+  const ic=e=>`<span style="font-size:25px;line-height:1;flex-shrink:0">${e}</span>`;
+  const badge=(t,c)=>`<span style="background:${c}22;color:${c};padding:3px 10px;border-radius:8px;font-size:13px;font-weight:800">${t}</span>`;
+  const subc=(v,l,c)=>`<div style="flex:1;text-align:center"><div style="font-size:14px;font-weight:800;color:${c}">${v}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${l}</div></div>`;
+  const single=(e,big,sub,c)=>`<div style="display:flex;align-items:center;gap:13px">${ic(e)}<div style="min-width:0"><div class="qc-big"${c?' style="color:'+c+'"':''}>${big}</div><div style="font-size:11.5px;color:var(--muted);margin-top:5px">${sub||''}</div></div></div>`;
+  const num3=(e,big)=>`<div style="display:flex;align-items:center;gap:11px">${ic(e)}<div class="qc-num3">${big}</div></div>`;
+  const footPct=(lbl,b,c)=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px"><span style="font-size:11.5px;color:var(--muted)">${lbl}</span>${badge(b,c)}</div>`;
+  const subRow=html=>`<div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">${html}</div>`;
+  const C=(n,title,accent,body)=>`<div class="qc-card" style="--qa:${accent}"><div class="qc-h">${n}. ${title}</div>${body}</div>`;
 
-    <div class="sec-label" style="margin-top:18px">III. Chất Lượng Xử Lý Data — Sỉ</div>
-    <div class="kpi-grid">
-      ${mkKpi('📤','TN Sỉ Chưa Vào Master',num(tiemSiMiss),'còn lại / '+tiemSi.length+' tiềm năng sỉ',tiemSiMiss>0?'g-red':'g-green')}
-      ${mkKpi('📥','Data Online Đã Về',num(siOnline.length),'lead onl vào master sỉ','g-blue')}
-      ${mkKpi('💬','Đã Chăm Sóc',num(siCaredN),'/ '+siMJ.length+' KH sỉ (có CRM)','g-teal')}
-      ${mkKpi('⏳','Online Chưa Chăm',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',siOnlNotCared>0?'g-red':'g-green')}
-      ${mkKpi('🎯','Tỉ Lệ Chốt (sỉ)',P(siChot,siMJ.length),num(siChot)+' chốt / '+siMJ.length+' KH','g-orange')}
-      ${mkKpi('💰','Doanh Số Sỉ',vnd(siRev),'giá trị cộng dồn','g-green')}
-    </div>
+  const c1=C('1','Cost TB / Lead','#4361ee',
+    single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),null)
+    +`<div style="display:flex;gap:7px;margin-top:11px">${badge('Mess thường '+vndK(costPerMess),'#4361ee')}${badge('Tiềm năng '+vndK(costPerTiem),'#ca8a04')}</div>`);
+  const c2=C('2','Lead Đạt / Tổng Mess','#0abf7a',
+    num3('💬',num(nDat)+' / '+num(totalMess))+footPct('% Lead đạt',P(nDat,totalMess),'#0abf7a'));
+  const c3=C('3','Lead Tiềm Năng / Lead Đạt / Tổng Mess','#2563eb',
+    num3('👥',num(nTiem)+' / '+num(nDat)+' / '+num(totalMess))
+    +subRow(subc(P(nTiem,totalMess),'% Tiềm năng','#0abf7a')+subc(P(nDat,totalMess),'% Lead đạt','#0abf7a')+subc('100%','% Tổng mess','#0abf7a')));
+  const c4=C('4','Lead Tiềm Năng Lẻ / Sỉ','#7c3aed',
+    num3('👥',num(tiemLe.length)+' / '+num(tiemSi.length)+' / '+num(nTiem))
+    +subRow(subc(P(tiemLe.length,nTiem),'Tiềm năng lẻ','#7c3aed')+subc(P(tiemSi.length,nTiem),'Tiềm năng sỉ','#ec4899')));
 
-    <div style="margin-top:16px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
-      <b>Ghi chú đối soát:</b> "Lead đạt"/"Lead tiềm năng"/"KH lẻ"/"KH sỉ" lấy theo thẻ gắn ở tab nguồn online (datahub).
-      Đối chiếu "đã vào master" khớp theo SĐT (9 số cuối) hoặc tên khách. "Đã chăm sóc" khớp Mã KH/Lead ID với tab CRM Sỉ.
-      Mọi chỉ số tính từ 01/06/2026 trở đi.
+  const c6=C('6','Data Tiềm Năng Chưa Phân Về Sale Onl','#7c3aed',
+    single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?RED:GRN));
+  const c7=C('7','SĐT Thu Về / Lead Đạt','#0abf7a',
+    num3('📞',num(datPhone)+' / '+num(nDat))+footPct('%',P(datPhone,nDat),'#0abf7a'));
+  const c8=C('8','Số Đơn Chốt / Tiềm Năng / Lead Đạt','#0abf7a',
+    num3('🛒',num(onlClosed.length)+' / '+num(nTiem)+' / '+num(nDat))
+    +subRow(subc(P(onlClosed.length,nTiem),'Chốt / Tiềm năng','#f59e0b')+subc(P(onlClosed.length,nDat),'Chốt / Lead đạt','#f59e0b')));
+  const c9=C('9','Doanh Số Chốt','#0abf7a',
+    single('💰',vnd(onlClosedRev),num(onlClosed.length)+' đơn',null));
+
+  const c10=C('10','Data Tiềm Năng Chưa Phân Về Sale Sỉ','#7c3aed',
+    single('🗄️',num(tiemSiMiss),'/ '+tiemSi.length+' tiềm năng sỉ',tiemSiMiss>0?RED:GRN));
+  const c11=C('11','Data Online Đã Về / Đã Được Chăm Sóc','#0abf7a',
+    num3('✅',num(siOnline.length)+' / '+num(siOnlineCared))+footPct('%',P(siOnlineCared,siOnline.length),'#0abf7a'));
+  const c12=C('12','Lead Data Onl Chưa Được Chăm Sóc','#f59e0b',
+    single('🧍',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',siOnlNotCared>0?RED:GRN));
+  const c13=C('13','Tỉ Lệ Chốt / Doanh Số Chốt','#f59e0b',
+    `<div style="display:flex;align-items:center;gap:15px">${ic('📈')}
+      <div><div class="qc-big" style="font-size:23px">${P(siChot,siMJ.length)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Tỉ lệ chốt</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:15px"><div class="qc-big" style="font-size:20px;color:${GRN}">${vnd(siRev)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Doanh số chốt</div></div>
+    </div>`);
+
+  // Funnel chuyển đổi
+  const fun=[['Tổng số mess',totalMess,'#4361ee'],['Lead đạt',nDat,'#0abf7a'],['Lead tiềm năng',nTiem,'#f59e0b'],['Số đơn chốt',onlClosed.length,'#ec4899']];
+  const fmax=totalMess||1;
+  const funnelHtml=fun.map(([lb,v,c],i)=>{
+    const w=Math.max(14,v/fmax*100);
+    return `<div style="display:flex;align-items:center;gap:9px;margin:9px 0">
+      <div style="width:92px;font-size:11px;color:var(--text2);text-align:right;flex-shrink:0">${lb}</div>
+      <div style="flex:1;display:flex;justify-content:center"><div style="width:${w}%;min-width:46px;height:30px;border-radius:7px;background:linear-gradient(90deg,${c},${c}bb);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800">${num(v)}</div></div>
+      <div style="width:54px;font-size:11px;color:var(--muted);flex-shrink:0">${i===0?'100%':P(v,totalMess)}</div>
     </div>`;
+  }).join('');
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div><div class="page-title">QC — Báo Cáo Đối Soát</div>
+      <div class="page-sub">Theo dõi chất lượng data & hiệu quả xử lý · Mess → Lead đạt → Tiềm năng → Lẻ/Sỉ</div></div>
+      <div class="stat-chip">📅 Từ 01/06/2026 đổ đi</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px">${c1}${c2}${c3}${c4}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px">
+      <div>
+        <div class="qc-sec">🎧 Chất Lượng Xử Lý Data (Online)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${c6}${c7}${c8}${c9}</div>
+      </div>
+      <div>
+        <div class="qc-sec">👥 Chất Lượng Xử Lý Data (Sỉ)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${c10}${c11}${c12}${c13}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:18px">
+      <div class="qc-card" style="--qa:#4361ee"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
+      <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Xu Hướng Lead Đạt & Chốt Đơn</div><div style="height:230px"><canvas id="cQcTrend"></canvas></div></div>
+      <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Doanh Số Chốt Theo Ngày</div><div style="height:230px"><canvas id="cQcRev"></canvas></div></div>
+    </div>
+
+    <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
+      <b>Ghi chú:</b> "Lead đạt"/"Tiềm năng"/"KH lẻ"/"KH sỉ" theo thẻ gắn ở tab nguồn online (datahub).
+      "Chưa phân về master" đối chiếu theo SĐT (9 số cuối) hoặc tên khách. "Đã chăm sóc" khớp Mã KH/Lead ID với CRM Sỉ.
+      Số 5 bỏ trống theo cấu trúc gốc. Mọi chỉ số tính từ 01/06/2026 trở đi.
+    </div>`;
+
+  // ===== Vẽ biểu đồ =====
+  const gridC='var(--border)', mutedC='var(--muted)';
+  const tEl=document.getElementById('cQcTrend');
+  if(tEl&&days.length){
+    chartQcTrend=new Chart(tEl,{type:'line',
+      data:{labels:tLabels,datasets:[
+        {label:'Lead đạt',data:days.map(x=>x.dat),borderColor:'#4361ee',backgroundColor:'#4361ee',tension:.35,pointRadius:2,borderWidth:2},
+        {label:'Lead tiềm năng',data:days.map(x=>x.tiem),borderColor:'#0abf7a',backgroundColor:'#0abf7a',tension:.35,pointRadius:2,borderWidth:2},
+        {label:'Số đơn chốt',data:days.map(x=>x.chot),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.35,pointRadius:2,borderWidth:2},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+        plugins:{legend:{position:'top',labels:{boxWidth:10,boxHeight:10,usePointStyle:true,font:{size:11,family:'Inter'},color:mutedC}}},
+        scales:{x:{grid:{display:false},ticks:{color:mutedC,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8}},
+          y:{grid:{color:gridC},border:{display:false},ticks:{color:mutedC,font:{size:10},precision:0}}}}});
+  }
+  const rEl=document.getElementById('cQcRev');
+  if(rEl&&days.length){
+    chartQcRev=new Chart(rEl,{type:'line',
+      data:{labels:tLabels,datasets:[{label:'Doanh số chốt',data:days.map(x=>x.rev),borderColor:'#0abf7a',
+        backgroundColor:'rgba(10,191,122,.16)',fill:true,tension:.35,pointRadius:2,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{x:{grid:{display:false},ticks:{color:mutedC,font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8}},
+          y:{grid:{color:gridC},border:{display:false},ticks:{color:mutedC,font:{size:10},
+            callback:v=>new Intl.NumberFormat('vi-VN',{notation:'compact',maximumFractionDigits:1}).format(v)+'₫'}}}}});
+  }
 }
 
 // ── SALE CHI TIẾT ──
