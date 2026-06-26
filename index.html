@@ -1131,11 +1131,14 @@ function renderSaleSi(){
   const hasStatus=(r,kw)=>(r[COL_SI.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const isDon=r=>hasStatus(r,'đã ra đơn')||toN(r[COL_SI.TOTAL_REV])>0;
   const total=rows.length;
-  const fromOnl=rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online').length;
-  const selfSource=rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline').length;
+  // Nguồn khách: tách theo tệp KHÁCH MỚI trong kỳ → Online + Offline + Khác = Tổng khách mới
+  const newRows=rows.filter(r=>inR(parseDate(r[COL_SI.DATE])));
+  const newInPeriod=newRows.length;
+  const fromOnl=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online').length;
+  const selfSource=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline').length;
+  const srcOther=newInPeriod-fromOnl-selfSource;
   const closed=rows.filter(isDon).length;
   const notYet=rows.filter(r=>!isDon(r)).length;
-  const newInPeriod=rows.filter(r=>inR(parseDate(r[COL_SI.DATE]))).length;
   const crmMap=getSiCrmHistory();
   const ciOf=r=>siContactInfo(r,crmMap);
   // "Chưa ra đơn" = Tiềm năng chưa ra đơn + Tệp phổ thông + Mất kết nối
@@ -1145,10 +1148,15 @@ function renderSaleSi(){
   const lostRows=notYetRows.filter(r=>{const ci=ciOf(r);return ci.expected<=0&&lostRe.test(ci.result||'');});
   const phoRows=notYetRows.filter(r=>{const ci=ciOf(r);return ci.expected<=0&&!lostRe.test(ci.result||'');});
   const tiemNoDon=tiemRows.length;
-  // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0)
-  const srcByKey={};rows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(k&&!srcByKey[k])srcByKey[k]=src;});});
+  // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0); tra cứu tên/SĐT từ master sỉ
+  const srcByKey={},nameByKey={},phoneByKey={};
+  rows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;});});
+  const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
   let onlRev=0,selfRev=0;const closeList=[];
-  saleSiCrmRows.forEach(r=>{const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);if(cv<=0||!inR(cd))return;const ph=last9(r[COL_SICRM.PHONE]);const src=srcByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||'';const on=src.includes('online');if(on)onlRev+=cv;else selfRev+=cv;closeList.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],r[COL_SICRM.NAME],r[COL_SICRM.PHONE],on?'Online':'Offline',vnd(cv)]);});
+  saleSiCrmRows.forEach(r=>{const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);if(cv<=0||!inR(cd))return;const ph=last9(r[COL_SICRM.PHONE]);const src=srcByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||'';const on=src.includes('online');if(on)onlRev+=cv;else selfRev+=cv;
+    const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    closeList.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],nm,pho,on?'Online':'Offline',vnd(cv)]);});
   const totalRev=onlRev+selfRev;
   // Danh sách chi tiết cho card (bấm để xem)
   const siCols=['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Trạng thái','DT cộng dồn'];
@@ -1156,9 +1164,10 @@ function renderSaleSi(){
   const closeCols=['Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Nguồn','Giá trị chốt'];
   window._siLists={
     total:{title:'Toàn bộ khách sỉ',cols:siCols,rows:siMap(rows)},
-    new:{title:'Khách mới trong kỳ',cols:siCols,rows:siMap(rows.filter(r=>inR(parseDate(r[COL_SI.DATE]))))},
-    online:{title:'Khách nguồn Online',cols:siCols,rows:siMap(rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online'))},
-    offline:{title:'Khách nguồn Offline (tự khai thác)',cols:siCols,rows:siMap(rows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline'))},
+    new:{title:'Khách mới trong kỳ',cols:siCols,rows:siMap(newRows)},
+    online:{title:'Khách mới nguồn Online',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online'))},
+    offline:{title:'Khách mới nguồn Offline (tự khai thác)',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline'))},
+    srcother:{title:'Khách mới chưa rõ nguồn',cols:siCols,rows:siMap(newRows.filter(r=>{const s=(r[COL_SI.SOURCE]||'').toLowerCase();return s!=='online'&&s!=='offline';}))},
     closed:{title:'Khách đã ra đơn',cols:siCols,rows:siMap(rows.filter(isDon))},
     notYet:{title:'Khách chưa ra đơn',cols:siCols,rows:siMap(notYetRows)},
     tiem:{title:'Tiềm năng nhưng chưa ra đơn',cols:siCols,rows:siMap(tiemRows)},
@@ -1273,11 +1282,12 @@ function renderSaleSi(){
 
     <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết · doanh thu tính theo ngày chốt đơn)</span></div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách</div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách <span style="font-weight:400;text-transform:none">(Online + Offline + Khác = Tổng khách mới)</span></div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(${srcOther>0?4:3},1fr);margin-bottom:0">
         ${siClk('new',mkKpi('✨','Tổng Khách Mới',num(newInPeriod),'tạo trong kỳ','g-teal'))}
-        ${siClk('online',mkKpi('🌐','Từ Online',num(fromOnl),pct(fromOnl/total*100)+' tổng','g-green'))}
-        ${siClk('offline',mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(selfSource/total*100)+' tổng','g-yellow'))}
+        ${siClk('online',mkKpi('🌐','Từ Online',num(fromOnl),pct(newInPeriod?fromOnl/newInPeriod*100:0)+' khách mới','g-green'))}
+        ${siClk('offline',mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(newInPeriod?selfSource/newInPeriod*100:0)+' khách mới','g-yellow'))}
+        ${srcOther>0?siClk('srcother',mkKpi('❔','Khác / Chưa Rõ',num(srcOther),'thiếu nguồn','g-red')):''}
       </div>
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
@@ -2339,11 +2349,13 @@ function renderQcDoiSoat(){
   const badge=(t,c)=>`<span style="background:${c}22;color:${c};padding:3px 10px;border-radius:8px;font-size:13px;font-weight:800">${t}</span>`;
   const subc=(v,l,c)=>`<div style="flex:1;text-align:center"><div style="font-size:15px;font-weight:800;color:${c}">${v}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${l}</div></div>`;
   const single=(e,big,sub,c)=>`<div style="display:flex;align-items:center;gap:13px">${ic(e)}<div style="min-width:0"><div class="qc-big"${c?' style="color:'+c+'"':''}>${big}</div><div style="font-size:11.5px;color:var(--muted);margin-top:5px">${sub||''}</div></div></div>`;
-  // màu theo VỊ TRÍ (lặp lại ở mọi card): [0]=số tổng · [1]=chi tiết 1 · [2]=chi tiết 2
-  const PC=['#2563eb','#0abf7a','#f59e0b'];
-  // chuỗi số "A / B / C": số tổng (đầu) to & nổi nhất, các số sau nhỏ hơn; màu theo vị trí
-  const seq=(e,vals)=>{const inner=vals.map((v,i)=>`<span style="font-size:${i===0?'30px':'19px'};font-weight:900;color:${PC[i]||PC[PC.length-1]};letter-spacing:-.01em">${v}</span>`).join('<span style="color:var(--muted);font-weight:600;font-size:18px;margin:0 4px">/</span>');
+  // 3 màu chuẩn: Lead đạt = xanh dương · Lead tiềm năng = tím · Lead chốt = xanh lá (mess/SĐT để trung tính)
+  const CDAT='#2563eb', CTIEM='#7c3aed', CCHOT='#0abf7a', NEU='#475569';
+  // chuỗi số "A / B / C": vals = [[value,color],...]; số đầu to & nổi nhất
+  const seq=(e,vals)=>{const inner=vals.map(([v,c],i)=>`<span style="font-size:${i===0?'30px':'19px'};font-weight:900;color:${c};letter-spacing:-.01em">${v}</span>`).join('<span style="color:var(--muted);font-weight:600;font-size:18px;margin:0 4px">/</span>');
     return `<div style="display:flex;align-items:center;gap:11px">${ic(e)}<div style="display:flex;align-items:baseline;flex-wrap:wrap">${inner}</div></div>`;};
+  // tiêu đề nhiều màu theo chỉ số: parts = [[text,color],...]
+  const T=parts=>parts.map(([t,c])=>`<span style="color:${c}">${t}</span>`).join('<span style="color:var(--muted);font-weight:700"> / </span>');
   const footPct=(lbl,b,c)=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px"><span style="font-size:11.5px;color:var(--muted)">${lbl}</span>${badge(b,c)}</div>`;
   const subRow=html=>`<div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">${html}</div>`;
   // click = key trong _qcLists (chỉ gắn khi có data để xem)
@@ -2359,46 +2371,46 @@ function renderQcDoiSoat(){
       rows:siOnlNotCaredRows.map(r=>[r[COL_SI.DATE],r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.CHANNEL]||r[COL_SI.SOURCE],r[COL_SI.PHONE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.MA_KH]])}
   };
 
-  const c1=C('1','Cost TB / Lead','#4361ee',
-    single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),cMess)
-    +`<div style="display:flex;gap:7px;margin-top:11px">${badge('Mess thường '+vndK(costPerMess),cMess)}${badge('Tiềm năng '+vndK(costPerTiem),cTiem)}</div>`);
+  const c1=C('1','Cost TB / Lead Đạt',CDAT,
+    single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),CDAT)
+    +`<div style="display:flex;gap:7px;margin-top:11px">${badge('Mess thường '+vndK(costPerMess),NEU)}${badge('Tiềm năng '+vndK(costPerTiem),CTIEM)}</div>`);
   // Sale Online (Lẻ)
-  const cLe1=C('','Tổng Mess / Đạt Lẻ / Tiềm Năng Lẻ','#0abf7a',
-    seq('💬',[num(totalMess),num(datLe),num(tiemLe.length)])
-    +subRow(subc(P(datLe,totalMess),'% Đạt/mess',PC[1])+subc(P(tiemLe.length,datLe),'% TN/đạt',PC[2])));
-  const cLe2=C('','SĐT Thu Về (Lẻ)','#0891b2',seq('📞',[num(datLe),num(datPhoneLe)])+footPct('% thu về',P(datPhoneLe,datLe),cPhone));
-  const cLe3=C('','Đạt Lẻ / Tiềm Năng / Đơn Chốt','#e11d48',
-    seq('✅',[num(datLe),num(tiemLe.length),num(chotLe)])
-    +subRow(subc(P(chotLe,tiemLe.length),'Chốt/TN',cChot)+subc(P(chotLe,datLe),'Chốt/đạt',cChot)));
+  const cLe1=C('',T([['Tổng Mess',NEU],['Lead Đạt Lẻ',CDAT],['Lead Tiềm Năng Lẻ',CTIEM]]),CDAT,
+    seq('💬',[[num(totalMess),NEU],[num(datLe),CDAT],[num(tiemLe.length),CTIEM]])
+    +subRow(subc(P(datLe,totalMess),'% Lead đạt/mess',CDAT)+subc(P(tiemLe.length,datLe),'% Tiềm năng/đạt',CTIEM)));
+  const cLe2=C('',T([['Lead Đạt Lẻ',CDAT],['SĐT Thu Về',NEU]]),CDAT,seq('📞',[[num(datLe),CDAT],[num(datPhoneLe),NEU]])+footPct('% SĐT thu về',P(datPhoneLe,datLe),CDAT));
+  const cLe3=C('',T([['Lead Đạt Lẻ',CDAT],['Lead Tiềm Năng',CTIEM],['Lead Chốt',CCHOT]]),CCHOT,
+    seq('✅',[[num(datLe),CDAT],[num(tiemLe.length),CTIEM],[num(chotLe),CCHOT]])
+    +subRow(subc(P(chotLe,tiemLe.length),'% Chốt/tiềm năng',CCHOT)+subc(P(chotLe,datLe),'% Chốt/đạt',CCHOT)));
   // Sỉ
-  const cSi1=C('','Tổng Mess / Đạt Sỉ / Tiềm Năng Sỉ','#7c3aed',
-    seq('🏪',[num(totalMess),num(datSi),num(tiemSi.length)])
-    +subRow(subc(P(datSi,totalMess),'% Đạt/mess',PC[1])+subc(P(tiemSi.length,datSi),'% TN/đạt',PC[2])));
-  const cSi2=C('','SĐT Thu Về (Sỉ)','#0891b2',seq('📞',[num(datSi),num(datPhoneSi)])+footPct('% thu về',P(datPhoneSi,datSi),cPhone));
-  const cSi3=C('','Đạt Sỉ / Tiềm Năng / Đơn Chốt','#e11d48',
-    seq('✅',[num(datSi),num(tiemSi.length),num(chotSi)])
-    +subRow(subc(P(chotSi,tiemSi.length),'Chốt/TN',cChot)+subc(P(chotSi,datSi),'Chốt/đạt',cChot)));
+  const cSi1=C('',T([['Tổng Mess',NEU],['Lead Đạt Sỉ',CDAT],['Lead Tiềm Năng Sỉ',CTIEM]]),CDAT,
+    seq('🏪',[[num(totalMess),NEU],[num(datSi),CDAT],[num(tiemSi.length),CTIEM]])
+    +subRow(subc(P(datSi,totalMess),'% Lead đạt/mess',CDAT)+subc(P(tiemSi.length,datSi),'% Tiềm năng/đạt',CTIEM)));
+  const cSi2=C('',T([['Lead Đạt Sỉ',CDAT],['SĐT Thu Về',NEU]]),CDAT,seq('📞',[[num(datSi),CDAT],[num(datPhoneSi),NEU]])+footPct('% SĐT thu về',P(datPhoneSi,datSi),CDAT));
+  const cSi3=C('',T([['Lead Đạt Sỉ',CDAT],['Lead Tiềm Năng',CTIEM],['Lead Chốt',CCHOT]]),CCHOT,
+    seq('✅',[[num(datSi),CDAT],[num(tiemSi.length),CTIEM],[num(chotSi),CCHOT]])
+    +subRow(subc(P(chotSi,tiemSi.length),'% Chốt/tiềm năng',CCHOT)+subc(P(chotSi,datSi),'% Chốt/đạt',CCHOT)));
 
-  const c6=C('6','Data Tiềm Năng Chưa Phân Về Sale Onl','#7c3aed',
-    single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?RED:GRN),tiemLeMiss>0?'m6':null);
-  const c7=C('7','Lead Đạt / SĐT Thu Về','#0abf7a',
-    seq('📞',[num(nDat),num(datPhone)])+footPct('% thu về',P(datPhone,nDat),PC[1]));
-  const c8=C('8','Lead Đạt / Tiềm Năng / Đơn Chốt','#0abf7a',
-    seq('🛒',[num(nDat),num(nTiem),num(onlClosed.length)])
-    +subRow(subc(P(onlClosed.length,nTiem),'Chốt / Tiềm năng',PC[2])+subc(P(onlClosed.length,nDat),'Chốt / Lead đạt',PC[1])));
-  const c9=C('9','Doanh Số Chốt','#0abf7a',
-    single('💰',vnd(onlClosedRev),num(onlClosed.length)+' đơn',cRev));
+  const c6=C('6',T([['Lead Tiềm Năng Chưa Phân Về Sale Onl',CTIEM]]),CTIEM,
+    single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',CTIEM),tiemLeMiss>0?'m6':null);
+  const c7=C('7',T([['Lead Đạt',CDAT],['SĐT Thu Về',NEU]]),CDAT,
+    seq('📞',[[num(nDat),CDAT],[num(datPhone),NEU]])+footPct('% SĐT thu về',P(datPhone,nDat),CDAT));
+  const c8=C('8',T([['Lead Đạt',CDAT],['Lead Tiềm Năng',CTIEM],['Lead Chốt',CCHOT]]),CCHOT,
+    seq('🛒',[[num(nDat),CDAT],[num(nTiem),CTIEM],[num(onlClosed.length),CCHOT]])
+    +subRow(subc(P(onlClosed.length,nTiem),'% Chốt/tiềm năng',CCHOT)+subc(P(onlClosed.length,nDat),'% Chốt/đạt',CCHOT)));
+  const c9=C('9',T([['Doanh Số Lead Chốt',CCHOT]]),CCHOT,
+    single('💰',vnd(onlClosedRev),num(onlClosed.length)+' đơn',CCHOT));
 
-  const c10=C('10','Data Tiềm Năng Chưa Phân Về Sale Sỉ','#7c3aed',
-    single('🗄️',num(tiemSiMiss),'/ '+tiemSi.length+' tiềm năng sỉ',tiemSiMiss>0?RED:GRN),tiemSiMiss>0?'m10':null);
-  const c11=C('11','Data Online Đã Về / Đã Được Chăm Sóc','#0abf7a',
-    seq('✅',[num(siOnline.length),num(siOnlineCared)])+footPct('% đã chăm',P(siOnlineCared,siOnline.length),PC[1]));
-  const c12=C('12','Lead Data Onl Chưa Được Chăm Sóc','#f59e0b',
-    single('🧍',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',siOnlNotCared>0?RED:GRN),siOnlNotCared>0?'m12':null);
-  const c13=C('13','Tỉ Lệ Chốt / Doanh Số Chốt','#f59e0b',
+  const c10=C('10',T([['Lead Tiềm Năng Chưa Phân Về Sale Sỉ',CTIEM]]),CTIEM,
+    single('🗄️',num(tiemSiMiss),'/ '+tiemSi.length+' tiềm năng sỉ',CTIEM),tiemSiMiss>0?'m10':null);
+  const c11=C('11',T([['Data Online Đã Về',CDAT],['Đã Chăm Sóc',CCHOT]]),CCHOT,
+    seq('✅',[[num(siOnline.length),CDAT],[num(siOnlineCared),CCHOT]])+footPct('% đã chăm',P(siOnlineCared,siOnline.length),CCHOT));
+  const c12=C('12',T([['Lead Online Chưa Được Chăm Sóc',CDAT]]),CDAT,
+    single('🧍',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',CDAT),siOnlNotCared>0?'m12':null);
+  const c13=C('13',T([['Tỉ Lệ Lead Chốt',CCHOT],['Doanh Số Chốt',CCHOT]]),CCHOT,
     `<div style="display:flex;align-items:center;gap:15px">${ic('📈')}
-      <div><div class="qc-big" style="font-size:26px;color:${cChot}">${P(siChot,siOnline.length)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Tỉ lệ chốt (onl)</div></div>
-      <div style="border-left:1px solid var(--border);padding-left:15px"><div class="qc-big" style="font-size:20px;color:${cRev}">${vnd(siRev)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Doanh số chốt</div></div>
+      <div><div class="qc-big" style="font-size:26px;color:${CCHOT}">${P(siChot,siOnline.length)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Tỉ lệ chốt (onl)</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:15px"><div class="qc-big" style="font-size:20px;color:${CCHOT}">${vnd(siRev)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Doanh số chốt</div></div>
     </div>`);
 
   // Funnel chuyển đổi: Mess → Lead đạt → SĐT thu về → Lead tiềm năng → Số đơn chốt
