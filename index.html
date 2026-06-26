@@ -133,15 +133,21 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 [data-theme="dark"] .kpi .kpi-icon{color:#fff!important}
 
 /* QC CARDS (đối soát) */
-.qc-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px 17px;position:relative;overflow:hidden}
+.qc-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px 17px;position:relative;overflow:hidden;min-height:152px;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(15,23,42,.06);transition:transform .18s,box-shadow .18s}
+.qc-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px -8px rgba(15,23,42,.2)}
 .qc-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--qa,var(--accent))}
+.qc-card>.qc-body{flex:1;display:flex;flex-direction:column;justify-content:center}
 .qc-h{font-size:11px;font-weight:800;color:var(--qa,var(--text));text-transform:uppercase;letter-spacing:.02em;margin-bottom:12px;line-height:1.35;min-height:30px}
 .qc-sec{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text);margin:0 0 12px;display:flex;align-items:center;gap:8px}
 .qc-big{font-size:29px;font-weight:900;line-height:1;color:var(--text);letter-spacing:-.02em}
 .qc-num3{font-size:24px;font-weight:900;line-height:1.05;color:var(--text);letter-spacing:-.01em}
-.qc-group{border:1.5px solid var(--border);border-radius:18px;padding:15px 16px 17px;margin-bottom:16px}
+.qc-group{border:1px solid var(--border);border-radius:18px;padding:16px 17px 18px;margin-bottom:18px;background:var(--surface);box-shadow:0 12px 30px -14px rgba(15,23,42,.22),0 4px 10px -5px rgba(15,23,42,.13);transition:transform .2s,box-shadow .2s}
+.qc-group:hover{transform:translateY(-3px);box-shadow:0 22px 46px -16px rgba(15,23,42,.3),0 8px 18px -8px rgba(15,23,42,.18)}
 .qc-group-h{font-size:12.5px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.05em;margin-bottom:13px;display:flex;align-items:center;gap:9px}
 .qc-group-h::before{content:'';width:4px;height:16px;border-radius:3px;background:var(--qg,var(--accent))}
+[data-theme="dark"] .qc-group{background:var(--bg2);box-shadow:0 14px 34px -14px rgba(0,0,0,.6),0 4px 10px -5px rgba(0,0,0,.4)}
+[data-theme="dark"] .qc-card{box-shadow:0 1px 3px rgba(0,0,0,.3)}
+[data-theme="dark"] .qc-card:hover{box-shadow:0 8px 22px -8px rgba(0,0,0,.55)}
 
 /* CHARTS */
 .charts-2col-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
@@ -2109,21 +2115,21 @@ function renderQcDoiSoat(){
   const c1=C('1','Cost TB / Lead','#4361ee',
     single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),cMess)
     +`<div style="display:flex;gap:7px;margin-top:11px">${badge('Mess thường '+vndK(costPerMess),cMess)}${badge('Tiềm năng '+vndK(costPerTiem),cTiem)}</div>`);
-  const c2=C('2','Lead Đạt / Tổng Mess','#0abf7a',
-    seq('💬',[{v:num(nDat),c:cDat},{v:num(totalMess),c:cMess}])+footPct('% Lead đạt',P(nDat,totalMess),cDat));
-  const c3=C('3','Lead Tiềm Năng / Lead Đạt / Tổng Mess','#2563eb',
-    seq('👥',[{v:num(nTiem),c:cTiem},{v:num(nDat),c:cDat},{v:num(totalMess),c:cMess}])
-    +subRow(subc(P(nTiem,totalMess),'% Tiềm năng',cTiem)+subc(P(nDat,totalMess),'% Lead đạt',cDat)+subc('100%','% Tổng mess',cMess)));
-  const c4=C('4','Lead Tiềm Năng Lẻ / Sỉ','#7c3aed',
-    seq('👥',[{v:num(tiemLe.length),c:cLe},{v:num(tiemSi.length),c:cSi},{v:num(nTiem),c:cTiem}])
+  const c2=C('2','Tổng Mess / Lead Đạt','#0abf7a',
+    seq('💬',[{v:num(totalMess),c:cMess},{v:num(nDat),c:cDat}])+footPct('% Lead đạt',P(nDat,totalMess),cDat));
+  const c3=C('3','Tổng Mess / Lead Đạt / Lead Tiềm Năng','#2563eb',
+    seq('👥',[{v:num(totalMess),c:cMess},{v:num(nDat),c:cDat},{v:num(nTiem),c:cTiem}])
+    +subRow(subc('100%','% Tổng mess',cMess)+subc(P(nDat,totalMess),'% Lead đạt',cDat)+subc(P(nTiem,totalMess),'% Tiềm năng',cTiem)));
+  const c4=C('4','Tổng Tiềm Năng / Lẻ / Sỉ','#7c3aed',
+    seq('👥',[{v:num(nTiem),c:cTiem},{v:num(tiemLe.length),c:cLe},{v:num(tiemSi.length),c:cSi}])
     +subRow(subc(P(tiemLe.length,nTiem),'Tiềm năng lẻ',cLe)+subc(P(tiemSi.length,nTiem),'Tiềm năng sỉ',cSi)));
 
   const c6=C('6','Data Tiềm Năng Chưa Phân Về Sale Onl','#7c3aed',
     single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?RED:GRN));
-  const c7=C('7','SĐT Thu Về / Lead Đạt','#0abf7a',
-    seq('📞',[{v:num(datPhone),c:cPhone},{v:num(nDat),c:cDat}])+footPct('% thu về',P(datPhone,nDat),cPhone));
-  const c8=C('8','Số Đơn Chốt / Tiềm Năng / Lead Đạt','#0abf7a',
-    seq('🛒',[{v:num(onlClosed.length),c:cChot},{v:num(nTiem),c:cTiem},{v:num(nDat),c:cDat}])
+  const c7=C('7','Lead Đạt / SĐT Thu Về','#0abf7a',
+    seq('📞',[{v:num(nDat),c:cDat},{v:num(datPhone),c:cPhone}])+footPct('% thu về',P(datPhone,nDat),cPhone));
+  const c8=C('8','Lead Đạt / Tiềm Năng / Đơn Chốt','#0abf7a',
+    seq('🛒',[{v:num(nDat),c:cDat},{v:num(nTiem),c:cTiem},{v:num(onlClosed.length),c:cChot}])
     +subRow(subc(P(onlClosed.length,nTiem),'Chốt / Tiềm năng',cChot)+subc(P(onlClosed.length,nDat),'Chốt / Lead đạt',cChot)));
   const c9=C('9','Doanh Số Chốt','#0abf7a',
     single('💰',vnd(onlClosedRev),num(onlClosed.length)+' đơn',cRev));
