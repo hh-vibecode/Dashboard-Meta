@@ -2306,7 +2306,7 @@ function renderQcDoiSoat(){
   const footPct=(lbl,b,c)=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px"><span style="font-size:11.5px;color:var(--muted)">${lbl}</span>${badge(b,c)}</div>`;
   const subRow=html=>`<div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">${html}</div>`;
   // click = key trong _qcLists (chỉ gắn khi có data để xem)
-  const C=(n,title,accent,body,click)=>`<div class="qc-card" style="--qa:${accent}${click?';cursor:pointer':''}"${click?` onclick="qcShowList('${click}')"`:''}><div class="qc-h">${n}. ${title}</div>${body}${click?`<div style="margin-top:9px;font-size:10.5px;font-weight:800;color:${accent}">👆 bấm để xem danh sách</div>`:''}</div>`;
+  const C=(n,title,accent,body,click)=>`<div class="qc-card" style="--qa:${accent}${click?';cursor:pointer':''}"${click?` onclick="qcShowList('${click}')"`:''}><div class="qc-h">${n?n+'. ':''}${title}</div>${body}${click?`<div style="margin-top:9px;font-size:10.5px;font-weight:800;color:${accent}">👆 bấm để xem danh sách</div>`:''}</div>`;
 
   // Danh sách chi tiết để bấm xem (dash 6/10/12)
   window._qcLists={
@@ -2326,7 +2326,7 @@ function renderQcDoiSoat(){
     seq('💬',[num(totalMess),num(datLe),num(tiemLe.length)])
     +subRow(subc(P(datLe,totalMess),'% Đạt/mess',PC[1])+subc(P(tiemLe.length,datLe),'% TN/đạt',PC[2])));
   const cLe2=C('','SĐT Thu Về (Lẻ)','#0891b2',seq('📞',[num(datLe),num(datPhoneLe)])+footPct('% thu về',P(datPhoneLe,datLe),cPhone));
-  const cLe3=C('','Đơn Chốt Lẻ / Tiềm Năng / Đạt','#e11d48',
+  const cLe3=C('','Đạt Lẻ / Tiềm Năng / Đơn Chốt','#e11d48',
     seq('✅',[num(datLe),num(tiemLe.length),num(chotLe)])
     +subRow(subc(P(chotLe,tiemLe.length),'Chốt/TN',cChot)+subc(P(chotLe,datLe),'Chốt/đạt',cChot)));
   // Sỉ
@@ -2334,7 +2334,7 @@ function renderQcDoiSoat(){
     seq('🏪',[num(totalMess),num(datSi),num(tiemSi.length)])
     +subRow(subc(P(datSi,totalMess),'% Đạt/mess',PC[1])+subc(P(tiemSi.length,datSi),'% TN/đạt',PC[2])));
   const cSi2=C('','SĐT Thu Về (Sỉ)','#0891b2',seq('📞',[num(datSi),num(datPhoneSi)])+footPct('% thu về',P(datPhoneSi,datSi),cPhone));
-  const cSi3=C('','Đơn Chốt Sỉ / Tiềm Năng / Đạt','#e11d48',
+  const cSi3=C('','Đạt Sỉ / Tiềm Năng / Đơn Chốt','#e11d48',
     seq('✅',[num(datSi),num(tiemSi.length),num(chotSi)])
     +subRow(subc(P(chotSi,tiemSi.length),'Chốt/TN',cChot)+subc(P(chotSi,datSi),'Chốt/đạt',cChot)));
 
