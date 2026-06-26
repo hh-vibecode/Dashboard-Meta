@@ -139,6 +139,9 @@ input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;
 .qc-sec{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text);margin:0 0 12px;display:flex;align-items:center;gap:8px}
 .qc-big{font-size:29px;font-weight:900;line-height:1;color:var(--text);letter-spacing:-.02em}
 .qc-num3{font-size:24px;font-weight:900;line-height:1.05;color:var(--text);letter-spacing:-.01em}
+.qc-group{border:1.5px solid var(--border);border-radius:18px;padding:15px 16px 17px;margin-bottom:16px}
+.qc-group-h{font-size:12.5px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.05em;margin-bottom:13px;display:flex;align-items:center;gap:9px}
+.qc-group-h::before{content:'';width:4px;height:16px;border-radius:3px;background:var(--qg,var(--accent))}
 
 /* CHARTS */
 .charts-2col-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
@@ -2089,59 +2092,68 @@ function renderQcDoiSoat(){
 
   // ===== Helpers card =====
   const RED='#ef4444', GRN='var(--green)';
+  // màu theo chỉ số: mess / lead đạt / tiềm năng / lẻ / sỉ / chốt / sđt
+  const cMess='#4361ee', cDat='#0abf7a', cTiem='#f59e0b', cLe='#7c3aed', cSi='#ec4899', cChot='#e11d48', cPhone='#0891b2', cRev='#0abf7a';
   const vndK=n=>{n=Math.round(n);const a=Math.abs(n);if(a>=1e6)return (n/1e6).toFixed(a>=1e7?0:1).replace(/\.0$/,'')+'tr';if(a>=1e3)return Math.round(n/1e3)+'k';return ''+n;};
   const ic=e=>`<span style="font-size:25px;line-height:1;flex-shrink:0">${e}</span>`;
   const badge=(t,c)=>`<span style="background:${c}22;color:${c};padding:3px 10px;border-radius:8px;font-size:13px;font-weight:800">${t}</span>`;
-  const subc=(v,l,c)=>`<div style="flex:1;text-align:center"><div style="font-size:14px;font-weight:800;color:${c}">${v}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${l}</div></div>`;
+  const subc=(v,l,c)=>`<div style="flex:1;text-align:center"><div style="font-size:15px;font-weight:800;color:${c}">${v}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">${l}</div></div>`;
   const single=(e,big,sub,c)=>`<div style="display:flex;align-items:center;gap:13px">${ic(e)}<div style="min-width:0"><div class="qc-big"${c?' style="color:'+c+'"':''}>${big}</div><div style="font-size:11.5px;color:var(--muted);margin-top:5px">${sub||''}</div></div></div>`;
-  const num3=(e,big)=>`<div style="display:flex;align-items:center;gap:11px">${ic(e)}<div class="qc-num3">${big}</div></div>`;
+  // chuỗi số "A / B / C": số đầu (chính) to & nổi nhất, các số sau nhỏ hơn, mỗi số theo màu chỉ số
+  const seq=(e,parts)=>{const inner=parts.map((p,i)=>`<span style="font-size:${i===0?'30px':'19px'};font-weight:900;color:${p.c};letter-spacing:-.01em">${p.v}</span>`).join('<span style="color:var(--muted);font-weight:600;font-size:18px;margin:0 4px">/</span>');
+    return `<div style="display:flex;align-items:center;gap:11px">${ic(e)}<div style="display:flex;align-items:baseline;flex-wrap:wrap">${inner}</div></div>`;};
   const footPct=(lbl,b,c)=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px"><span style="font-size:11.5px;color:var(--muted)">${lbl}</span>${badge(b,c)}</div>`;
   const subRow=html=>`<div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">${html}</div>`;
   const C=(n,title,accent,body)=>`<div class="qc-card" style="--qa:${accent}"><div class="qc-h">${n}. ${title}</div>${body}</div>`;
 
   const c1=C('1','Cost TB / Lead','#4361ee',
-    single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),null)
-    +`<div style="display:flex;gap:7px;margin-top:11px">${badge('Mess thường '+vndK(costPerMess),'#4361ee')}${badge('Tiềm năng '+vndK(costPerTiem),'#ca8a04')}</div>`);
+    single('🪙',vnd(costPerDat),'Tổng chi phí '+vnd(totalSpend),cMess)
+    +`<div style="display:flex;gap:7px;margin-top:11px">${badge('Mess thường '+vndK(costPerMess),cMess)}${badge('Tiềm năng '+vndK(costPerTiem),cTiem)}</div>`);
   const c2=C('2','Lead Đạt / Tổng Mess','#0abf7a',
-    num3('💬',num(nDat)+' / '+num(totalMess))+footPct('% Lead đạt',P(nDat,totalMess),'#0abf7a'));
+    seq('💬',[{v:num(nDat),c:cDat},{v:num(totalMess),c:cMess}])+footPct('% Lead đạt',P(nDat,totalMess),cDat));
   const c3=C('3','Lead Tiềm Năng / Lead Đạt / Tổng Mess','#2563eb',
-    num3('👥',num(nTiem)+' / '+num(nDat)+' / '+num(totalMess))
-    +subRow(subc(P(nTiem,totalMess),'% Tiềm năng','#0abf7a')+subc(P(nDat,totalMess),'% Lead đạt','#0abf7a')+subc('100%','% Tổng mess','#0abf7a')));
+    seq('👥',[{v:num(nTiem),c:cTiem},{v:num(nDat),c:cDat},{v:num(totalMess),c:cMess}])
+    +subRow(subc(P(nTiem,totalMess),'% Tiềm năng',cTiem)+subc(P(nDat,totalMess),'% Lead đạt',cDat)+subc('100%','% Tổng mess',cMess)));
   const c4=C('4','Lead Tiềm Năng Lẻ / Sỉ','#7c3aed',
-    num3('👥',num(tiemLe.length)+' / '+num(tiemSi.length)+' / '+num(nTiem))
-    +subRow(subc(P(tiemLe.length,nTiem),'Tiềm năng lẻ','#7c3aed')+subc(P(tiemSi.length,nTiem),'Tiềm năng sỉ','#ec4899')));
+    seq('👥',[{v:num(tiemLe.length),c:cLe},{v:num(tiemSi.length),c:cSi},{v:num(nTiem),c:cTiem}])
+    +subRow(subc(P(tiemLe.length,nTiem),'Tiềm năng lẻ',cLe)+subc(P(tiemSi.length,nTiem),'Tiềm năng sỉ',cSi)));
 
   const c6=C('6','Data Tiềm Năng Chưa Phân Về Sale Onl','#7c3aed',
     single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',tiemLeMiss>0?RED:GRN));
   const c7=C('7','SĐT Thu Về / Lead Đạt','#0abf7a',
-    num3('📞',num(datPhone)+' / '+num(nDat))+footPct('%',P(datPhone,nDat),'#0abf7a'));
+    seq('📞',[{v:num(datPhone),c:cPhone},{v:num(nDat),c:cDat}])+footPct('% thu về',P(datPhone,nDat),cPhone));
   const c8=C('8','Số Đơn Chốt / Tiềm Năng / Lead Đạt','#0abf7a',
-    num3('🛒',num(onlClosed.length)+' / '+num(nTiem)+' / '+num(nDat))
-    +subRow(subc(P(onlClosed.length,nTiem),'Chốt / Tiềm năng','#f59e0b')+subc(P(onlClosed.length,nDat),'Chốt / Lead đạt','#f59e0b')));
+    seq('🛒',[{v:num(onlClosed.length),c:cChot},{v:num(nTiem),c:cTiem},{v:num(nDat),c:cDat}])
+    +subRow(subc(P(onlClosed.length,nTiem),'Chốt / Tiềm năng',cChot)+subc(P(onlClosed.length,nDat),'Chốt / Lead đạt',cChot)));
   const c9=C('9','Doanh Số Chốt','#0abf7a',
-    single('💰',vnd(onlClosedRev),num(onlClosed.length)+' đơn',null));
+    single('💰',vnd(onlClosedRev),num(onlClosed.length)+' đơn',cRev));
 
   const c10=C('10','Data Tiềm Năng Chưa Phân Về Sale Sỉ','#7c3aed',
     single('🗄️',num(tiemSiMiss),'/ '+tiemSi.length+' tiềm năng sỉ',tiemSiMiss>0?RED:GRN));
   const c11=C('11','Data Online Đã Về / Đã Được Chăm Sóc','#0abf7a',
-    num3('✅',num(siOnline.length)+' / '+num(siOnlineCared))+footPct('%',P(siOnlineCared,siOnline.length),'#0abf7a'));
+    seq('✅',[{v:num(siOnline.length),c:cMess},{v:num(siOnlineCared),c:cDat}])+footPct('% đã chăm',P(siOnlineCared,siOnline.length),cDat));
   const c12=C('12','Lead Data Onl Chưa Được Chăm Sóc','#f59e0b',
     single('🧍',num(siOnlNotCared),siOnlNotCared>0?'lead onl còn tồn':'đã chăm hết',siOnlNotCared>0?RED:GRN));
   const c13=C('13','Tỉ Lệ Chốt / Doanh Số Chốt','#f59e0b',
     `<div style="display:flex;align-items:center;gap:15px">${ic('📈')}
-      <div><div class="qc-big" style="font-size:23px">${P(siChot,siMJ.length)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Tỉ lệ chốt</div></div>
-      <div style="border-left:1px solid var(--border);padding-left:15px"><div class="qc-big" style="font-size:20px;color:${GRN}">${vnd(siRev)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Doanh số chốt</div></div>
+      <div><div class="qc-big" style="font-size:26px;color:${cChot}">${P(siChot,siMJ.length)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Tỉ lệ chốt</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:15px"><div class="qc-big" style="font-size:20px;color:${cRev}">${vnd(siRev)}</div><div style="font-size:10px;color:var(--muted);margin-top:3px">Doanh số chốt</div></div>
     </div>`);
 
-  // Funnel chuyển đổi
-  const fun=[['Tổng số mess',totalMess,'#4361ee'],['Lead đạt',nDat,'#0abf7a'],['Lead tiềm năng',nTiem,'#f59e0b'],['Số đơn chốt',onlClosed.length,'#ec4899']];
+  // Funnel chuyển đổi: Mess → Lead đạt → SĐT thu về → Lead tiềm năng → Số đơn chốt
+  const fun=[['Tổng số mess',totalMess,'#4361ee'],['Lead đạt',nDat,'#0891f7'],['SĐT thu về',datPhone,'#0abf7a'],['Lead tiềm năng',nTiem,'#f59e0b'],['Số đơn chốt',onlClosed.length,'#ec4899']];
   const fmax=totalMess||1;
+  const wpct=v=>30+70*Math.sqrt(Math.max(0,v)/fmax);   // co giãn để các tầng nhỏ vẫn nhìn rõ mà vẫn thu hẹp dần
   const funnelHtml=fun.map(([lb,v,c],i)=>{
-    const w=Math.max(14,v/fmax*100);
-    return `<div style="display:flex;align-items:center;gap:9px;margin:9px 0">
-      <div style="width:92px;font-size:11px;color:var(--text2);text-align:right;flex-shrink:0">${lb}</div>
-      <div style="flex:1;display:flex;justify-content:center"><div style="width:${w}%;min-width:46px;height:30px;border-radius:7px;background:linear-gradient(90deg,${c},${c}bb);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:800">${num(v)}</div></div>
-      <div style="width:54px;font-size:11px;color:var(--muted);flex-shrink:0">${i===0?'100%':P(v,totalMess)}</div>
+    const wT=wpct(v), wB=wpct(fun[i+1]?fun[i+1][1]:v*0.82);
+    const t0=(50-wT/2).toFixed(1),t1=(50+wT/2).toFixed(1),b0=(50-wB/2).toFixed(1),b1=(50+wB/2).toFixed(1);
+    const clip=`polygon(${t0}% 0,${t1}% 0,${b1}% 100%,${b0}% 100%)`;
+    return `<div style="display:flex;align-items:center;gap:9px">
+      <div style="width:96px;font-size:11px;color:var(--text2);text-align:right;flex-shrink:0">${lb}</div>
+      <div style="flex:1;position:relative;height:40px">
+        <div style="position:absolute;inset:0;background:linear-gradient(90deg,${c},${c}cc);clip-path:${clip};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;letter-spacing:-.01em">${num(v)}</div>
+      </div>
+      <div style="width:52px;font-size:11px;color:var(--muted);flex-shrink:0;text-align:right">${i===0?'100%':P(v,totalMess)}</div>
     </div>`;
   }).join('');
 
@@ -2152,23 +2164,32 @@ function renderQcDoiSoat(){
       <div class="stat-chip">📅 Từ 01/06/2026 đổ đi</div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px">${c1}${c2}${c3}${c4}</div>
+    <div class="qc-group" style="--qg:#4361ee;margin-top:16px">
+      <div class="qc-group-h">📊 Chất Lượng Data</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">${c1}${c2}${c3}${c4}</div>
+    </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px">
-      <div>
-        <div class="qc-sec">🎧 Chất Lượng Xử Lý Data (Online)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${c6}${c7}${c8}${c9}</div>
-      </div>
-      <div>
-        <div class="qc-sec">👥 Chất Lượng Xử Lý Data (Sỉ)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${c10}${c11}${c12}${c13}</div>
+    <div class="qc-group" style="--qg:#0abf7a">
+      <div class="qc-group-h">🛒 Chất Lượng Xử Lý Data — Sale</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+        <div>
+          <div class="qc-sec">🎧 Online</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start;grid-auto-rows:min-content">${c6}${c7}${c8}${c9}</div>
+        </div>
+        <div>
+          <div class="qc-sec">👥 Sỉ</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start;grid-auto-rows:min-content">${c10}${c11}${c12}${c13}</div>
+        </div>
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:18px">
-      <div class="qc-card" style="--qa:#4361ee"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
-      <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Xu Hướng Lead Đạt & Chốt Đơn</div><div style="height:230px"><canvas id="cQcTrend"></canvas></div></div>
-      <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Doanh Số Chốt Theo Ngày</div><div style="height:230px"><canvas id="cQcRev"></canvas></div></div>
+    <div class="qc-group" style="--qg:#f59e0b">
+      <div class="qc-group-h">📈 Đánh Giá Chung</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div class="qc-card" style="--qa:#4361ee"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
+        <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Xu Hướng Lead Đạt & Chốt Đơn</div><div style="height:230px"><canvas id="cQcTrend"></canvas></div></div>
+        <div class="qc-card" style="--qa:#0abf7a"><div class="qc-h" style="color:var(--text)">Doanh Số Chốt Theo Ngày</div><div style="height:230px"><canvas id="cQcRev"></canvas></div></div>
+      </div>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
