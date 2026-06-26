@@ -1143,12 +1143,12 @@ function renderSaleSi(){
   const notYet=rows.filter(r=>!isDon(r)).length;
   const crmMap=getSiCrmHistory();
   const ciOf=r=>siContactInfo(r,crmMap);
-  // "Chưa ra đơn" = Tiềm năng chưa ra đơn + Tệp phổ thông + Mất kết nối
-  const lostRe=/chưa nghe|chua nghe|chưa ph|chua ph|không liên|khong lien|mất liên|mat lien|không nghe|khong nghe|chưa h[oồ]i|chua hoi/i;
+  // "Chưa ra đơn" lấy trực tiếp theo cột Tình trạng hợp tác: Tiềm năng / Tệp phổ thông / Mất kết nối
+  const stOf=r=>(r[COL_SI.STATUS]||'').toLowerCase();
   const notYetRows=rows.filter(r=>!isDon(r));
-  const tiemRows=notYetRows.filter(r=>ciOf(r).expected>0);
-  const lostRows=notYetRows.filter(r=>{const ci=ciOf(r);return ci.expected<=0&&lostRe.test(ci.result||'');});
-  const phoRows=notYetRows.filter(r=>{const ci=ciOf(r);return ci.expected<=0&&!lostRe.test(ci.result||'');});
+  const tiemRows=notYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r)));
+  const lostRows=notYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
+  const phoRows=notYetRows.filter(r=>!/tiềm năng|tiem nang|mất kết n|mat ket n/.test(stOf(r)));
   const tiemNoDon=tiemRows.length;
   // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0); tra cứu tên/SĐT từ master sỉ
   const srcByKey={},nameByKey={},phoneByKey={};
@@ -2331,7 +2331,7 @@ function renderQcDoiSoat(){
   };
 
   // ===== Check lỗi trạng thái: chưa cập nhật / bỏ trống / chọn sai =====
-  const okSi=s=>/ra đơn/i.test(s||'');                       // Tình trạng hợp tác: Đã/Chưa ra đơn
+  const okSi=s=>/ra đơn|mất kết n|mat ket n|phổ thông|pho thong/i.test(s||'');   // 4 trạng thái: Đã ra đơn / Tiềm năng chưa ra đơn / Mất kết nối / Tệp phổ thông
   const okOnl=s=>/chăm sóc|chốt|mất|dài hạn/i.test(s||'');   // Trạng thái CRM online
   const blank='<span style="color:#e11d48;font-weight:700">(trống)</span>';
   const siStatusErr=saleSiRows.filter(r=>{const s=(r[COL_SI.STATUS]||'').trim();return !okSi(s);});
