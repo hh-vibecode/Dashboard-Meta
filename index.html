@@ -1398,14 +1398,17 @@ function renderSaleSiData(){
   // Bộ lọc theo card hoạt động chăm sóc
   const F=window._siFilter||'all';
   const matchF=x=>F==='cared'?x.ci.count>0:F==='needcare'?needCare(x):F==='done'?(x.ci.status||'').toLowerCase().includes('xong'):F==='pending'?(x.ci.count>0&&!(x.ci.status||'').toLowerCase().includes('xong')):true;
-  // Bộ lọc dropdown Nguồn + Trạng thái + Chăm sóc
+  // Bộ lọc: tìm kiếm + dropdown Nguồn + Trạng thái + Chăm sóc
   const srcF=(window._siSrc||'all'), sttF=(window._siStt||'all'), careF=(window._siCare||'all');
+  const q=(window._siSearch||'').trim().toLowerCase();
   const sttOpts=[...new Set(baseEnriched.map(x=>(x.r[COL_SI.STATUS]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
   const enriched=baseEnriched.filter(matchF).filter(x=>{
-    if(srcF!=='all'&&(x.r[COL_SI.SOURCE]||'').trim().toLowerCase()!==srcF)return false;
-    if(sttF!=='all'&&(x.r[COL_SI.STATUS]||'').trim()!==sttF)return false;
+    const r=x.r;
+    if(srcF!=='all'&&(r[COL_SI.SOURCE]||'').trim().toLowerCase()!==srcF)return false;
+    if(sttF!=='all'&&(r[COL_SI.STATUS]||'').trim()!==sttF)return false;
     if(careF==='never'&&x.ci.days!==null)return false;
     if(careF==='over10'&&!(x.ci.days!==null&&x.ci.days>=10))return false;
+    if(q){const hay=(siPersonName(r[COL_SI.REP],r[COL_SI.STORE])+' '+(r[COL_SI.STORE]||'')+' '+(r[COL_SI.REP]||'')+' '+(r[COL_SI.PHONE]||'')+' '+(r[COL_SI.MA_KH]||'')).toLowerCase();if(!hay.includes(q))return false;}
     return true;
   });
   const total=enriched.length;
@@ -1459,7 +1462,8 @@ function renderSaleSiData(){
     </div>
     <div style="margin:18px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',done:' đã xong',pending:' còn tồn đọng'})[F]||''} · sắp theo giá trị KH)</span></div>
-      <div style="margin-left:auto;display:flex;gap:8px">
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <input id="siSearchBox" oninput="setSiSearch(this.value)" value="${(window._siSearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên khách / SĐT…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:200px;outline:none">
         <select onchange="setSiSrc(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
           <option value="all"${srcF==='all'?' selected':''}>🌐 Tất cả nguồn</option>
           <option value="online"${srcF==='online'?' selected':''}>Online</option>
@@ -1482,6 +1486,7 @@ function renderSaleSiData(){
         ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['GIÁ TRỊ DỰ KIẾN','right','#7c3aed'],['GIÁ TRỊ KH','right','var(--green)'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
+  if(window._siSearchFocus){window._siSearchFocus=false;const sb=document.getElementById('siSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
 
 function closeSiProfile(){const m=document.getElementById('siProfileModal');if(m)m.style.display='none';}
@@ -1811,6 +1816,7 @@ function setSiFilter(f){window._siFilter=(window._siFilter===f?'all':f);renderSa
 function setSiSrc(v){window._siSrc=v;renderSaleSiData();}
 function setSiStt(v){window._siStt=v;renderSaleSiData();}
 function setSiCare(v){window._siCare=v;renderSaleSiData();}
+function setSiSearch(v){window._siSearch=v;window._siSearchFocus=true;renderSaleSiData();}
 function toggleSiCust(i){const d=document.getElementById('si-detail-'+i),a=document.getElementById('si-arrow-'+i);if(d){const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}}
 // Lịch sử chăm sóc theo khách (tất cả lượt CS, sắp mới→cũ), keyed theo Mã KH/Lead ID
 function getSiCrmHistory(){
