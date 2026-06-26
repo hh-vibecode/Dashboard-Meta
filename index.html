@@ -1093,9 +1093,10 @@ function siContactInfo(masterRow,histMap){
   let last=null,lastStr='',status='',next='';
   recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();}});
   const count=recs.length;
+  let expected=0;for(const rec of recs){const e=vndNum(rec[COL_SICRM.EXPECTED]);if(e>0){expected=e;break;}}  // giá trị dự kiến (lượt CS gần nhất có)
   if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
-  return {days,lastStr,count,status,next};
+  return {days,lastStr,count,status,next,expected};
 }
 // Gộp lịch sử CS của 1 khách từ 3 khoá (Mã KH + Lead ID + SĐT), khử trùng theo dòng, sắp mới→cũ
 function siCareRecords(masterRow,histMap){
@@ -1397,7 +1398,14 @@ function renderSaleSiData(){
   // Bộ lọc theo card hoạt động chăm sóc
   const F=window._siFilter||'all';
   const matchF=x=>F==='cared'?x.ci.count>0:F==='needcare'?needCare(x):F==='done'?(x.ci.status||'').toLowerCase().includes('xong'):F==='pending'?(x.ci.count>0&&!(x.ci.status||'').toLowerCase().includes('xong')):true;
-  const enriched=baseEnriched.filter(matchF);
+  // Bộ lọc dropdown Nguồn + Trạng thái
+  const srcF=(window._siSrc||'all'), sttF=(window._siStt||'all');
+  const sttOpts=[...new Set(baseEnriched.map(x=>(x.r[COL_SI.STATUS]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  const enriched=baseEnriched.filter(matchF).filter(x=>{
+    if(srcF!=='all'&&(x.r[COL_SI.SOURCE]||'').trim().toLowerCase()!==srcF)return false;
+    if(sttF!=='all'&&(x.r[COL_SI.STATUS]||'').trim()!==sttF)return false;
+    return true;
+  });
   const total=enriched.length;
   const totalRev=enriched.reduce((s,x)=>s+x.rev,0);
   const hasRev=enriched.filter(x=>x.rev>0).length;
@@ -1428,6 +1436,7 @@ function renderSaleSiData(){
       <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:700;color:${ci.expected>0?'#7c3aed':'var(--muted)'};white-space:nowrap">${ci.expected>0?vnd(ci.expected):'—'}</td>
       <td style="padding:9px 12px;text-align:right;font-weight:800;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
       <td style="padding:9px 12px">${statusChip(r[COL_SI.STATUS])}</td>
       <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${fbAvatar}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
@@ -1446,13 +1455,24 @@ function renderSaleSiData(){
       ${fc('done','✔️','Đã Xong',num(csDone),pct(csTotal?csDone/csTotal*100:0)+' lượt','g-green')}
       ${fc('pending','⏳','Còn Tồn Đọng',num(csPending),'gồm cả chưa phân loại','g-yellow')}
     </div>
-    <div style="margin:18px 0 10px">
+    <div style="margin:18px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',done:' đã xong',pending:' còn tồn đọng'})[F]||''} · sắp theo giá trị KH)</span></div>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <select onchange="setSiSrc(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+          <option value="all"${srcF==='all'?' selected':''}>🌐 Tất cả nguồn</option>
+          <option value="online"${srcF==='online'?' selected':''}>Online</option>
+          <option value="offline"${srcF==='offline'?' selected':''}>Offline</option>
+        </select>
+        <select onchange="setSiStt(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;max-width:220px">
+          <option value="all"${sttF==='all'?' selected':''}>📋 Tất cả trạng thái</option>
+          ${sttOpts.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${sttF===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
     </div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:980px;table-layout:fixed">
-      <colgroup>${['9%','23%','9%','8%','10%','9%','13%','12%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1080px;table-layout:fixed">
+      <colgroup>${['8%','20%','8%','7%','9%','8%','12%','12%','9%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${['NGÀY TẠO','TÊN KHÁCH','NGUỒN','SỐ LẦN LH','CS CUỐI','CHƯA LH','GIÁ TRỊ KH','TRẠNG THÁI','HỒ SƠ'].map((c,i)=>`<th style="padding:10px 12px;text-align:${i===3||i===5||i===8?'center':i===6?'right':'left'};font-size:11px;font-weight:700;color:${i===5?'#dc2626':i===6?'var(--green)':'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['GIÁ TRỊ DỰ KIẾN','right','#7c3aed'],['GIÁ TRỊ KH','right','var(--green)'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
 }
@@ -1781,6 +1801,8 @@ function buildOnlineCampTable(){
 
 function toggleSiCities(){const e=document.getElementById('siCitiesFull');if(e)e.style.display=e.style.display==='none'?'':'none';}
 function setSiFilter(f){window._siFilter=(window._siFilter===f?'all':f);renderSaleSiData();}
+function setSiSrc(v){window._siSrc=v;renderSaleSiData();}
+function setSiStt(v){window._siStt=v;renderSaleSiData();}
 function toggleSiCust(i){const d=document.getElementById('si-detail-'+i),a=document.getElementById('si-arrow-'+i);if(d){const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}}
 // Lịch sử chăm sóc theo khách (tất cả lượt CS, sắp mới→cũ), keyed theo Mã KH/Lead ID
 function getSiCrmHistory(){
