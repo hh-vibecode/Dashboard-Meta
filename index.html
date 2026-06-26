@@ -1265,17 +1265,29 @@ function renderSaleSi(){
     <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng · 📅 ${curPeriodLabel()}</div>
 
     <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết · doanh thu tính theo ngày chốt đơn)</span></div>
-    <div class="kpi-grid">
-      ${siClk('total',mkKpi('👥','Tổng Khách Hàng',num(total),'toàn bộ tệp','g-blue'))}
-      ${siClk('new',mkKpi('✨','Tổng Khách Mới',num(newInPeriod),'tạo trong kỳ','g-teal'))}
-      ${siClk('online',mkKpi('🌐','Từ Online',num(fromOnl),pct(fromOnl/total*100)+' tổng','g-green'))}
-      ${siClk('offline',mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(selfSource/total*100)+' tổng','g-yellow'))}
-      ${siClk('closed',mkKpi('✅','Đã Ra Đơn',num(closed),pct(closed/total*100)+' tổng KH','g-green'))}
-      ${siClk('notYet',mkKpi('⏳','Chưa Ra Đơn',num(notYet),'đang theo đuổi','g-yellow'))}
-      ${siClk('tiem',mkKpi('⭐','Tiềm Năng Chưa Ra Đơn',num(tiemNoDon),'có giá trị dự kiến','g-purple'))}
-      ${siClk('closes',mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt','g-green'))}
-      ${siClk('closes',mkKpi('🌐','Doanh Thu Online',vnd(onlRev),pct(totalRev?onlRev/totalRev*100:0)+' tổng DT','g-blue'))}
-      ${siClk('closes',mkKpi('🤝','Doanh Thu Offline',vnd(selfRev),pct(totalRev?selfRev/totalRev*100:0)+' tổng DT','g-yellow'))}
+    <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+        ${siClk('new',mkKpi('✨','Tổng Khách Mới',num(newInPeriod),'tạo trong kỳ','g-teal'))}
+        ${siClk('online',mkKpi('🌐','Từ Online',num(fromOnl),pct(fromOnl/total*100)+' tổng','g-green'))}
+        ${siClk('offline',mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(selfSource/total*100)+' tổng','g-yellow'))}
+      </div>
+    </div>
+    <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái đơn</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+        ${siClk('closed',mkKpi('✅','Đã Ra Đơn',num(closed),pct(closed/total*100)+' tổng KH','g-green'))}
+        ${siClk('notYet',mkKpi('⏳','Chưa Ra Đơn',num(notYet),'đang theo đuổi','g-yellow'))}
+        ${siClk('tiem',mkKpi('⭐','Tiềm Năng Chưa Ra Đơn',num(tiemNoDon),'có giá trị dự kiến','g-purple'))}
+      </div>
+    </div>
+    <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Doanh thu (theo ngày chốt đơn)</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+        ${siClk('closes',mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt','g-green'))}
+        ${siClk('closes',mkKpi('🌐','Doanh Thu Online',vnd(onlRev),pct(totalRev?onlRev/totalRev*100:0)+' tổng DT','g-blue'))}
+        ${siClk('closes',mkKpi('🤝','Doanh Thu Offline',vnd(selfRev),pct(totalRev?selfRev/totalRev*100:0)+' tổng DT','g-yellow'))}
+      </div>
     </div>
 
     <div class="sec-label">II. Tổng Quan Khách Hàng Theo Khu Vực</div>
