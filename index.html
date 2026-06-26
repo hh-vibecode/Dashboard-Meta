@@ -1086,23 +1086,25 @@ function getSiCrmMap(){
   });
   return m;
 }
-// Số ngày chưa tương tác của 1 khách: GỘP cả 2 khoá Mã KH + Lead ID (1 khách có thể có CS dưới cả 2)
-function siContactInfo(masterRow,crmMap){
-  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
-  const k1=norm(masterRow[COL_SI.MA_KH]),k2=norm(masterRow[COL_SI.LEAD_ID]);
-  const buckets=[k1&&crmMap[k1],(k2&&k2!==k1)?crmMap[k2]:null].filter(Boolean);
+// Thông tin CS của 1 khách — tính từ lịch sử đã gộp (Mã KH + Lead ID + SĐT), khử trùng theo dòng
+function siContactInfo(masterRow,histMap){
+  const recs=siCareRecords(masterRow,histMap);
   const today=new Date();today.setHours(0,0,0,0);
-  let last=null,lastStr='',count=0,status='',next='';
-  buckets.forEach(e=>{count+=e.count;if(e.last&&(!last||e.last>last)){last=e.last;lastStr=e.lastStr;status=e.status;next=e.next;}});
+  let last=null,lastStr='',status='',next='';
+  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();}});
+  const count=recs.length;
   if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
   return {days,lastStr,count,status,next};
 }
-// Gộp lịch sử CS của 1 khách từ cả 2 khoá (Mã KH + Lead ID), sắp mới→cũ
+// Gộp lịch sử CS của 1 khách từ 3 khoá (Mã KH + Lead ID + SĐT), khử trùng theo dòng, sắp mới→cũ
 function siCareRecords(masterRow,histMap){
   const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
-  const k1=norm(masterRow[COL_SI.MA_KH]),k2=norm(masterRow[COL_SI.LEAD_ID]);
-  const merged=[...(k1&&histMap[k1]||[]),...((k2&&k2!==k1&&histMap[k2])||[])];
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const ph=last9(masterRow[COL_SI.PHONE]);
+  const keys=[norm(masterRow[COL_SI.MA_KH]),norm(masterRow[COL_SI.LEAD_ID]),ph?'PH:'+ph:''];
+  const seen=new Set(),merged=[];
+  keys.forEach(k=>{if(!k)return;(histMap[k]||[]).forEach(r=>{if(!seen.has(r)){seen.add(r);merged.push(r);}});});
   merged.sort((x,y)=>{const dx=parseDate(x[COL_SICRM.DATE]),dy=parseDate(y[COL_SICRM.DATE]);return(dy?dy:0)-(dx?dx:0);});
   return merged;
 }
@@ -1174,8 +1176,8 @@ function renderSaleSi(){
     <td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--green)">${d.closed}</td>
     <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${d.rev>0?vnd(d.rev):'—'}</td>
   </tr>`).join('');
-  // Nhắc: khách chưa chăm sóc ≥ 10 ngày (tính theo ngày CS gần nhất từ CRM, join Lead ID)
-  const crmMap=getSiCrmMap();
+  // Nhắc: khách chưa chăm sóc ≥ 10 ngày (CS gần nhất từ CRM, join Mã KH/Lead ID/SĐT)
+  const crmMap=getSiCrmHistory();
   const priority=rows.map(r=>({r,ci:siContactInfo(r,crmMap)}))
     .filter(x=>x.ci.days===null||x.ci.days>=10)
     .sort((a,b)=>(b.ci.days===null?1e9:b.ci.days)-(a.ci.days===null?1e9:a.ci.days));
@@ -1386,7 +1388,7 @@ function renderSaleSiData(){
     rows=saleSiRows.filter(r=>keys.has(nrm(r[COL_SI.MA_KH]))||keys.has(nrm(r[COL_SI.LEAD_ID])));
   }
   const toN=vndNum;
-  const crmMap=getSiCrmMap();
+  const crmMap=getSiCrmHistory();
   // Gắn thông tin CS từ CRM vào từng khách, sắp theo doanh thu tích luỹ
   const baseEnriched=rows.map(r=>({r,ci:siContactInfo(r,crmMap),rev:toN(r[COL_SI.TOTAL_REV])})).sort((a,b)=>b.rev-a.rev);
   // Khách cần chăm sóc: chưa CS lần nào hoặc ≥10 ngày chưa CS
@@ -1774,8 +1776,12 @@ function toggleSiCust(i){const d=document.getElementById('si-detail-'+i),a=docum
 // Lịch sử chăm sóc theo khách (tất cả lượt CS, sắp mới→cũ), keyed theo Mã KH/Lead ID
 function getSiCrmHistory(){
   const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   const m={};
-  saleSiCrmRows.forEach(r=>{const id=norm(r[COL_SICRM.LEAD_ID]);if(!id)return;(m[id]=m[id]||[]).push(r);});
+  saleSiCrmRows.forEach(r=>{
+    const id=norm(r[COL_SICRM.LEAD_ID]),ph=last9(r[COL_SICRM.PHONE]);
+    [id,ph?'PH:'+ph:''].forEach(k=>{if(k)(m[k]=m[k]||[]).push(r);});
+  });
   Object.values(m).forEach(a=>a.sort((x,y)=>{const dx=parseDate(x[COL_SICRM.DATE]),dy=parseDate(y[COL_SICRM.DATE]);return(dy?dy:0)-(dx?dx:0);}));
   return m;
 }
