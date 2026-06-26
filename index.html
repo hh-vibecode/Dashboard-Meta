@@ -2029,8 +2029,8 @@ function renderQcDoiSoat(){
   const el=document.getElementById('page-qc-doisoat');
   if(!onlineRows.length&&!saleOnlRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
   const _f=document.getElementById('dateFrom'), _t=document.getElementById('dateTo');
-  // Mặc định lấy từ T6/2026 (mốc data bắt đầu, khớp MKT) khi chưa chọn ngày; có chọn thì theo đúng khoảng đó
-  const fromD=_f&&_f.value?localDate(_f.value):new Date(2026,5,1), toD=_t&&_t.value?localDate(_t.value,true):null;
+  // Theo đúng bộ lọc thời gian; chưa chọn ngày = toàn bộ data (datahub all-time)
+  const fromD=_f&&_f.value?localDate(_f.value):null, toD=_t&&_t.value?localDate(_t.value,true):null;
   const inFloor=ds=>{const d=parseDate(ds);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
   const U=s=>(s||'').toString().toUpperCase();
   const tagHas=(r,kw)=>U(r[COL_ONL.TAG]).includes(kw);
@@ -2181,7 +2181,7 @@ function renderQcDoiSoat(){
           <option value="Shidai"${qb==='Shidai'?' selected':''}>Shidai</option>
           <option value="TTV"${qb==='TTV'?' selected':''}>Tự Tại Viên</option>
         </select>
-        <div class="stat-chip">📅 ${((_f&&_f.value)||(_t&&_t.value))?curPeriodLabel():'Từ 01/06/2026'}</div>
+        <div class="stat-chip">📅 ${curPeriodLabel()}</div>
       </div>
     </div>
 
