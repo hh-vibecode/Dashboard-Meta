@@ -2265,7 +2265,9 @@ function renderQcDoiSoat(){
   const onlMphones=new Set(onlMaster.map(r=>last9(r[COL_SAONL.PHONE])).filter(Boolean));
   const onlMnames=new Set(onlMaster.map(r=>normName(r[COL_SAONL.NAME])).filter(Boolean));
   const inOnlMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&onlMphones.has(p))||(n&&onlMnames.has(n));};
-  const tiemLeMissRows=tiemLe.filter(r=>!inOnlMaster(r)); const tiemLeMiss=tiemLeMissRows.length;
+  // NGUONONL có thể có dòng trùng y hệt → khử trùng theo Mã đơn / tên+SĐT+ngày
+  const dedupOnl=arr=>{const seen=new Set(),out=[];arr.forEach(r=>{const k=((r[COL_ONL.ORDER_ID]||'')+'|'+(r[COL_ONL.NAME]||'')+'|'+(r[COL_ONL.PHONE]||'')+'|'+(r[COL_ONL.DATE]||'')).trim().toUpperCase();if(!seen.has(k)){seen.add(k);out.push(r);}});return out;};
+  const tiemLeMissRows=dedupOnl(tiemLe.filter(r=>!inOnlMaster(r))); const tiemLeMiss=tiemLeMissRows.length;
   const onlMJ=saleOnlRows.filter(r=>inFloor(r[COL_SAONL.DATE])&&okB(brandSaonl,r));
   const onlClosed=onlMJ.filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||''));
   const onlClosedRev=onlClosed.reduce((s,r)=>s+vndNum(r[COL_SAONL.REVENUE]),0);
@@ -2276,7 +2278,7 @@ function renderQcDoiSoat(){
   const siMnames=new Set();
   siMaster.forEach(r=>{[r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.FANPAGE]].forEach(v=>{const n=normName(v);if(n)siMnames.add(n);});});
   const inSiMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&siMphones.has(p))||(n&&siMnames.has(n));};
-  const tiemSiMissRows=tiemSi.filter(r=>!inSiMaster(r)); const tiemSiMiss=tiemSiMissRows.length;
+  const tiemSiMissRows=dedupOnl(tiemSi.filter(r=>!inSiMaster(r))); const tiemSiMiss=tiemSiMissRows.length;
   const caredKeys=new Set(saleSiCrmRows.map(r=>normKey(r[COL_SICRM.LEAD_ID])).filter(Boolean));
   // 1 khách có thể có nhiều dòng master (vd SI0122 + ONL1201) → khớp thêm theo SĐT để không sót chăm sóc
   const caredPhones=new Set(saleSiCrmRows.map(r=>last9(r[COL_SICRM.PHONE])).filter(Boolean));
