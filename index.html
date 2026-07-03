@@ -938,12 +938,12 @@ function renderAll(rows,saleFiltered){
   const _pf=document.getElementById('prodFilter');
   const _bv=_bf?_bf.value:'all';
   const _pv=_pf?_pf.value:'all';
-  renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,ttvSpend,total,prodCount,allProds,saleFiltered||[]);
-  const bf2=document.getElementById('brandFilter');
-  const pf2=document.getElementById('prodFilter');
-  if(bf2)bf2.value=_bv;
-  if(pf2&&allProds.includes(_pv))pf2.value=_pv;
-  renderDetail(camps,period,rows,saleStats);
+  try{renderDetail(camps,period,rows,saleStats);}catch(e){console.error('renderDetail lỗi',e);}
+  try{
+    renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,ttvSpend,total,prodCount,allProds,saleFiltered||[]);
+    const pf2=document.getElementById('prodFilter');
+    if(pf2&&allProds.includes(_pv))pf2.value=_pv;
+  }catch(e){console.error('renderOverview lỗi',e);}
 }
 
 // ── TỔNG QUAN ──
