@@ -779,8 +779,7 @@ function applyFilter(){
   }
   const from=document.getElementById('dateFrom').value;
   const to=document.getElementById('dateTo').value;
-  const brandEl=document.getElementById('brandFilter');
-  const brand=brandEl?brandEl.value:'all';
+  const brSel=brandArr('_mktBrands');
   const prodEl=document.getElementById('prodFilter');
   const prod=prodEl?prodEl.value:'all';
   let rows=allRows;
@@ -794,11 +793,11 @@ function applyFilter(){
       return true;
     });
   }
-  if(brand!=='all')rows=rows.filter(r=>detectBrand(r[COL.CAMPAIGN])===brand);
+  if(brSel.length)rows=rows.filter(r=>brSel.includes(detectBrand(r[COL.CAMPAIGN])));
   if(prod!=='all')rows=rows.filter(r=>detectProduct(r[COL.CAMPAIGN])===prod);
 
   let saleFiltered=filterSaleRows(from,to);
-  if(saleFiltered.length&&(brand!=='all'||prod!=='all')){
+  if(saleFiltered.length&&(brSel.length||prod!=='all')){
     const adCampMap=buildAdCampMap();
     saleFiltered=saleFiltered.filter(r=>{
       const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
@@ -811,7 +810,7 @@ function applyFilter(){
         rb=isTTV?'TTV':/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text)?'HT':/shidai/i.test(text)?'Shidai':/chánh tâm|chanh tam|ct[\s\-–]/i.test(text)?'CT':null;
         rp=detectProduct(r[COL_SALE.PRODUCT]||'');
       }
-      if(brand!=='all'&&rb!==brand)return false;
+      if(brSel.length&&!brSel.includes(rb))return false;
       if(prod!=='all'&&rp!==prod)return false;
       return true;
     });
@@ -823,7 +822,7 @@ function clearFilter(){
   document.getElementById('dateFrom').value='';
   document.getElementById('dateTo').value='';
   document.getElementById('quickFilter').value='';
-  const bf=document.getElementById('brandFilter');if(bf)bf.value='all';
+  window._mktBrands=[];
   const pf=document.getElementById('prodFilter');if(pf)pf.value='all';
   if(allRows.length)renderAll(allRows);
   renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();
@@ -974,13 +973,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
       <div class="stat-chip" title="Số dòng ngày load được từ sheet" style="cursor:help">🗂 ${rows.length} rows</div>
-      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;font-weight:600">
-        <option value="all">Tất cả brand</option>
-        <option value="HT">Hiền Thuỷ</option>
-        <option value="Shidai">Shidai</option>
-        <option value="CT">Chánh Tâm</option>
-        <option value="TTV">Tự Tại Viên</option>
-      </select>
+      ${brandChips('_mktBrands','applyFilter')}
       <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;min-width:130px;font-weight:600">
         <option value="all">Tất cả SP</option>
       </select>
@@ -1644,10 +1637,22 @@ function openSiProfile(i){
 }
 
 function setSaonlBrand(v){window._saonlBrand=v;renderSaleOnl();}
+// ===== Bộ lọc brand CHỌN NHIỀU (chip bật/tắt) =====
+function brandArr(key){return Array.isArray(window[key])?window[key]:[];}
+function toggleBrandSel(key,b,fn){const s=brandArr(key).slice();const i=s.indexOf(b);if(i>=0)s.splice(i,1);else s.push(b);window[key]=s;fn();}
+function clearBrandSel(key,fn){window[key]=[];fn();}
+function brandChips(key,fnName){
+  const sel=brandArr(key);
+  const bs=[['CT','Chánh Tâm','#2563eb'],['HT','Hiền Thuỷ','#ca8a04'],['Shidai','Shidai','#7c3aed'],['TTV','Tự Tại Viên','#0abf7a']];
+  const btn=(on,color,label,onclick)=>`<button onclick="${onclick}" style="padding:5px 11px;border-radius:8px;border:1.5px solid ${on?color:'var(--border)'};background:${on?color+'22':'var(--surface)'};color:${on?color:'var(--text2)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">${on?'✓ ':''}${label}</button>`;
+  let h=btn(sel.length===0,'#4361ee','🏷️ Tất cả',`clearBrandSel('${key}',${fnName})`);
+  bs.forEach(([b,label,color])=>{h+=btn(sel.includes(b),color,label,`toggleBrandSel('${key}','${b}',${fnName})`);});
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${h}</div>`;
+}
 function renderSaleOnl(){
   if(!saleOnlRows.length){document.getElementById('page-sale-onl').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
   // Lọc theo brand
-  const qb=window._saonlBrand||'all';
+  const brSel=brandArr('_saonlBrands');
   const adCampMap=buildAdCampMap();
   const brandText=s=>{const n=(s||'').toString();
     if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
@@ -1656,7 +1661,7 @@ function renderSaleOnl(){
     if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';return null;};
   const brandOf=r=>{const a=(r[COL_SAONL.AD_ID]||'').trim();return brandText(r[COL_SAONL.CHANNEL])||(a&&adCampMap[a]?brandText(adCampMap[a]):null);};
   let rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
-  if(qb!=='all')rows=rows.filter(r=>brandOf(r)===qb);
+  if(brSel.length)rows=rows.filter(r=>brSel.includes(brandOf(r)));
   const toN=vndNum;
   const st=(r,kw)=>(r[COL_SAONL.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const total=rows.length;
@@ -1736,13 +1741,7 @@ function renderSaleOnl(){
     <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${vnd(d.rev)}</td>
   </tr>`).join('');
   const clk=(key,html)=>`<div onclick="saonlShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
-  const brandSel=`<select onchange="setSaonlBrand(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer">
-    <option value="all"${qb==='all'?' selected':''}>🏷️ Tất cả brand</option>
-    <option value="CT"${qb==='CT'?' selected':''}>Chánh Tâm</option>
-    <option value="HT"${qb==='HT'?' selected':''}>Hiền Thuỷ</option>
-    <option value="Shidai"${qb==='Shidai'?' selected':''}>Shidai</option>
-    <option value="TTV"${qb==='TTV'?' selected':''}>Tự Tại Viên</option>
-  </select>`;
+  const brandSel=brandChips('_saonlBrands','renderSaleOnl');
   document.getElementById('page-sale-onl').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
       <div><div class="page-title">Báo Cáo Sale Online</div>
@@ -2170,13 +2169,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
       <div class="stat-chip" style="cursor:help" title="Rows MKT">🗂 ${filteredRows.length} rows</div>
-      <select class="top-select" id="brandFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;font-weight:600">
-        <option value="all">Tất cả brand</option>
-        <option value="HT">Hiền Thuỷ</option>
-        <option value="Shidai">Shidai</option>
-        <option value="CT">Chánh Tâm</option>
-        <option value="TTV">Tự Tại Viên</option>
-      </select>
+      ${brandChips('_mktBrands','applyFilter')}
       <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;min-width:130px;font-weight:600">
         <option value="all">Tất cả SP</option>
       </select>
@@ -2221,8 +2214,8 @@ function renderQcDoiSoat(){
   const normKey=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const P=(a,b)=>b>0?pct(a/b*100):'—';
 
-  // ===== Bộ lọc brand =====
-  const qbEl=document.getElementById('qcBrand'); const qb=qbEl?qbEl.value:'all';
+  // ===== Bộ lọc brand (chọn nhiều) =====
+  const brSel=brandArr('_qcBrands'); const brOk=b=>brSel.length===0||brSel.includes(b);
   const adCampMap=buildAdCampMap();
   const brandText=s=>{const n=(s||'').toString();
     if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
@@ -2234,10 +2227,10 @@ function renderQcDoiSoat(){
   const brandOnl=r=>adBrand(r[COL_ONL.AD_ID])||brandText(r[COL_ONL.SOURCE]);
   const brandSaonl=r=>brandText(r[COL_SAONL.CHANNEL])||adBrand(r[COL_SAONL.AD_ID]);
   const brandSi=r=>brandText(r[COL_SI.CHANNEL])||adBrand(r[COL_SI.AD_ID]);
-  const okB=(fn,r)=>qb==='all'||fn(r)===qb;
+  const okB=(fn,r)=>brOk(fn(r));
 
   // ===== MKT — chi phí & mess =====
-  const mktJ=allRows.filter(r=>inFloor(r[COL.DATE])&&(qb==='all'||brandText(r[COL.CAMPAIGN])===qb));
+  const mktJ=allRows.filter(r=>inFloor(r[COL.DATE])&&brOk(brandText(r[COL.CAMPAIGN])));
   const mkpi=calcKPI(mktJ);
   const totalSpend=mkpi.totalSpend, totalMess=mkpi.totalMess;
 
@@ -2261,7 +2254,7 @@ function renderQcDoiSoat(){
   const costPerTiem=nTiem>0?totalSpend/nTiem:0;            // CP / mess tiềm năng
 
   // ===== MASTER SALE ONLINE (saleOnlRows) =====
-  const onlMaster=qb==='all'?saleOnlRows:saleOnlRows.filter(r=>brandSaonl(r)===qb);
+  const onlMaster=saleOnlRows.filter(r=>brOk(brandSaonl(r)));
   const onlMphones=new Set(onlMaster.map(r=>last9(r[COL_SAONL.PHONE])).filter(Boolean));
   const onlMnames=new Set(onlMaster.map(r=>normName(r[COL_SAONL.NAME])).filter(Boolean));
   const inOnlMaster=r=>{const p=last9(r[COL_ONL.PHONE]),n=normName(r[COL_ONL.NAME]);return (p&&onlMphones.has(p))||(n&&onlMnames.has(n));};
@@ -2273,7 +2266,7 @@ function renderQcDoiSoat(){
   const onlClosedRev=onlClosed.reduce((s,r)=>s+vndNum(r[COL_SAONL.REVENUE]),0);
 
   // ===== MASTER SỈ (saleSiRows) + CRM Sỉ =====
-  const siMaster=qb==='all'?saleSiRows:saleSiRows.filter(r=>brandSi(r)===qb);
+  const siMaster=saleSiRows.filter(r=>brOk(brandSi(r)));
   const siMphones=new Set(siMaster.map(r=>last9(r[COL_SI.PHONE])).filter(Boolean));
   const siMnames=new Set();
   siMaster.forEach(r=>{[r[COL_SI.REP],r[COL_SI.STORE],r[COL_SI.FANPAGE]].forEach(v=>{const n=normName(v);if(n)siMnames.add(n);});});
@@ -2307,7 +2300,7 @@ function renderQcDoiSoat(){
     const ph=last9(r[COL_SICRM.PHONE]);
     const info=siCreateByKey[normKey(r[COL_SICRM.LEAD_ID])]||(ph?siCreateByKey['PH:'+ph]:null);
     if(!info||!info.d||!info.onl)return;
-    if(qb!=='all'&&info.b!==qb)return;
+    if(brSel.length&&!brSel.includes(info.b))return;
     const diff=Math.round((close-info.d)/864e5);if(diff>=0)siDiffs.push(diff);});
   const siAvgDays=siDiffs.length?siDiffs.reduce((a,b)=>a+b,0)/siDiffs.length:null;
   const fmtDays=d=>d==null?'—':((Math.round(d*10)/10)+'').replace(/\.0$/,'')+' ngày';
@@ -2481,13 +2474,7 @@ function renderQcDoiSoat(){
       <div><div class="page-title">QC — Báo Cáo Chung</div>
       <div class="page-sub">Theo dõi chất lượng data & hiệu quả xử lý · Mess → Lead đạt → Tiềm năng → Lẻ/Sỉ</div></div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <select id="qcBrand" onchange="renderQcDoiSoat()" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12.5px;font-weight:700;font-family:var(--font);cursor:pointer">
-          <option value="all"${qb==='all'?' selected':''}>🏷️ Tất cả brand</option>
-          <option value="CT"${qb==='CT'?' selected':''}>Chánh Tâm</option>
-          <option value="HT"${qb==='HT'?' selected':''}>Hiền Thuỷ</option>
-          <option value="Shidai"${qb==='Shidai'?' selected':''}>Shidai</option>
-          <option value="TTV"${qb==='TTV'?' selected':''}>Tự Tại Viên</option>
-        </select>
+        ${brandChips('_qcBrands','renderQcDoiSoat')}
         <div class="stat-chip">📅 ${curPeriodLabel()}</div>
       </div>
     </div>
