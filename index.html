@@ -1525,7 +1525,7 @@ function renderSaleSiData(){
       <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
-      <td style="padding:9px 12px;font-size:12px;color:var(--text2)"><div style="max-width:340px;white-space:normal;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="${(ci.reason||'').replace(/"/g,'&quot;')}">${ci.reason||'<span style=\"color:var(--muted)\">—</span>'}</div></td>
+      <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${ci.expected>0?'#7c3aed':'var(--muted)'};white-space:nowrap">${ci.expected>0?vnd(ci.expected):'—'}</td>
       <td style="padding:9px 12px">${statusChip(r[COL_SI.STATUS])}</td>
       <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${(()=>{const dl=parseDriveLink(r[COL_SI.LINK]);let u=dl?(dl.type==='file'?'https://drive.google.com/thumbnail?id='+dl.id+'&sz=w80':dl.type==='img'?dl.url:''):'';if(!u){const aR=(r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID]||r[COL_SI.PHONE]||'').toString().trim();u=aR?localStorage.getItem('siAva:'+aR.replace(/[^A-Za-z0-9._-]/g,'')):'';}return u?`<img src="${u}" referrerpolicy="no-referrer" style="width:30px;height:30px;border-radius:50%;object-fit:cover">`:fbAvatar;})()}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
     </tr>`).join('');
@@ -1566,7 +1566,7 @@ function renderSaleSiData(){
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1080px;table-layout:fixed">
       <colgroup>${['8%','18%','7%','6%','8%','7%','24%','13%','9%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['LÝ DO TỒN ĐỌNG','left','#ca8a04'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['DOANH THU TIỀM NĂNG','right','#7c3aed'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
   if(window._siSearchFocus){window._siSearchFocus=false;const sb=document.getElementById('siSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
