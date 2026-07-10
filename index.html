@@ -1157,10 +1157,20 @@ function renderSaleSi(){
   const siCols=['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Trạng thái','DT cộng dồn'];
   const siMap=list=>list.map(r=>[r[COL_SI.DATE],r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.STATUS],toN(r[COL_SI.TOTAL_REV])>0?vnd(toN(r[COL_SI.TOTAL_REV])):'']);
   const closeCols=['Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Nguồn','Giá trị chốt'];
+  // Chất lượng data khách Online: theo cột "Phân loại khách hàng" (Khách tiềm năng / Khách không tiềm năng - Tệp phổ thông)
+  const onlNewRows=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online');
+  const custTypeOf=r=>(r[COL_SI.CUST_TYPE]||'').trim();
+  const onlTiemRows=onlNewRows.filter(r=>/tiềm năng|tiem nang/i.test(custTypeOf(r))&&!/không|khong/i.test(custTypeOf(r)));
+  const onlKtnRows=onlNewRows.filter(r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/i.test(custTypeOf(r)));
+  const onlChuaPlRows=onlNewRows.filter(r=>!onlTiemRows.includes(r)&&!onlKtnRows.includes(r));
+
   window._siLists={
     total:{title:'Toàn bộ khách sỉ',cols:siCols,rows:siMap(rows)},
     new:{title:'Khách mới trong kỳ',cols:siCols,rows:siMap(newRows)},
     online:{title:'Khách mới nguồn Online',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online'))},
+    onlTiem:{title:'Online — Khách tiềm năng',cols:siCols,rows:siMap(onlTiemRows)},
+    onlKtn:{title:'Online — Khách không tiềm năng (Tệp phổ thông)',cols:siCols,rows:siMap(onlKtnRows)},
+    onlChuaPl:{title:'Online — Chưa phân loại',cols:siCols,rows:siMap(onlChuaPlRows)},
     offline:{title:'Khách mới nguồn Offline (tự khai thác)',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline'))},
     srcother:{title:'Khách mới chưa rõ nguồn',cols:siCols,rows:siMap(newRows.filter(r=>{const s=(r[COL_SI.SOURCE]||'').toLowerCase();return s!=='online'&&s!=='offline';}))},
     closed:{title:'Khách đã ra đơn',cols:siCols,rows:siMap(rows.filter(isDon))},
@@ -1172,6 +1182,7 @@ function renderSaleSi(){
     closes:{title:'Đơn chốt theo ngày (CRM)',cols:closeCols,rows:closeList},
   };
   window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length};
+  window._siOnlineQ={total:onlNewRows.length,tiem:onlTiemRows.length,ktn:onlKtnRows.length,chuaPl:onlChuaPlRows.length};
   // ── Doanh thu: top khách / theo miền / theo thành phố ──
   const custRev=rows.map(r=>({name:siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),store:(r[COL_SI.STORE]||'').trim(),city:(r[COL_SI.CITY]||'Chưa rõ').trim(),region:siRegion(r[COL_SI.CITY]),rev:toN(r[COL_SI.TOTAL_REV])})).filter(x=>x.rev>0).sort((a,b)=>b.rev-a.rev);
   const topCust=custRev.slice(0,12);
@@ -1281,7 +1292,7 @@ function renderSaleSi(){
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách <span style="font-weight:400;text-transform:none">(Online + Offline + Khác = Tổng khách mới)</span></div>
       <div class="kpi-grid" style="grid-template-columns:repeat(${srcOther>0?4:3},1fr);margin-bottom:0">
         ${siClk('new',mkKpi('✨','Tổng Khách Mới',num(newInPeriod),'tạo trong kỳ','g-teal'))}
-        ${siClk('online',mkKpi('🌐','Từ Online',num(fromOnl),pct(newInPeriod?fromOnl/newInPeriod*100:0)+' khách mới','g-green'))}
+        <div onclick="siShowOnlineQuality()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('🌐','Từ Online',num(fromOnl),pct(newInPeriod?fromOnl/newInPeriod*100:0)+' khách mới','g-green')}</div>
         ${siClk('offline',mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(newInPeriod?selfSource/newInPeriod*100:0)+' khách mới','g-yellow'))}
         ${srcOther>0?siClk('srcother',mkKpi('❔','Khác / Chưa Rõ',num(srcOther),'thiếu nguồn','g-red')):''}
       </div>
@@ -1419,6 +1430,29 @@ function siShowNotYet(){
         ${card('tiem','Tiềm năng chưa ra đơn',d.tiem,'#7c3aed','có giá trị dự kiến (đang đàm phán)')}
         ${card('pho','Tệp phổ thông',d.pho,'#0891b2','chưa có dự kiến · vẫn theo dõi')}
         ${card('lost','Mất kết nối',d.lost,'#e11d48','không nghe máy / chưa phản hồi')}
+      </div>
+    </div></div>`;
+}
+// Khách mới nguồn Online → phân loại theo cột "Phân loại khách hàng" (Master Sỉ)
+function siShowOnlineQuality(){
+  const d=window._siOnlineQ||{total:0,tiem:0,ktn:0,chuaPl:0};
+  const card=(key,label,val,color,desc)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 180px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
+    <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${desc}</div>
+    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:760px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">🌐 Khách Mới Online — phân loại <span style="color:var(--muted);font-weight:600;font-size:13px">· ${num(d.total)} khách</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('onlTiem','Khách tiềm năng',d.tiem,'#7c3aed','theo cột Phân loại khách hàng')}
+        ${card('onlKtn','Khách không tiềm năng',d.ktn,'#0891b2','Tệp phổ thông')}
+        ${card('onlChuaPl',d.chuaPl>0?'Chưa phân loại':'Chưa phân loại',d.chuaPl,'#e11d48',d.chuaPl>0?'chưa gắn cột Phân loại khách hàng':'đã phân loại hết')}
       </div>
     </div></div>`;
 }
