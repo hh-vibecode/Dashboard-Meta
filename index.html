@@ -372,7 +372,7 @@ function doLogin(){
   else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
 }
 // Phân quyền: role => danh sách trang được xem (null = xem hết)
-const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data']};
+const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data','qc-doisoat'],'sale-onl':['sale-onl','qc-doisoat']};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
@@ -1597,7 +1597,7 @@ function openSiProfile(i){
         <div style="flex:1">
           <div style="font-size:20px;font-weight:800">${name}</div>
           <div style="font-size:13px;opacity:.9">${r[COL_SI.STORE]||''} ${r[COL_SI.MA_KH]?'· '+r[COL_SI.MA_KH]:''}</div>
-          ${avaKey?`<button onclick="siPickAvatar('${avaKey}')" style="margin-top:6px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:7px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">📷 ${avaUrl?'Đổi ảnh':'Thêm ảnh đại diện'}</button>`:''}
+          ${avaKey?`<button onclick="siPickAvatar('${avaKey}')" style="margin-top:6px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:7px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">📷 ${avaSrc?'Đổi ảnh':'Thêm ảnh đại diện'}</button>`:''}
         </div>
         ${sttChip}
         <span onclick="closeSiProfile()" style="cursor:pointer;font-size:22px;line-height:1;padding:4px 8px;opacity:.85">✕</span>
