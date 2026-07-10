@@ -1157,6 +1157,13 @@ function renderSaleSi(){
   const siCols=['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Trạng thái','DT cộng dồn'];
   const siMap=list=>list.map(r=>[r[COL_SI.DATE],r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.STATUS],toN(r[COL_SI.TOTAL_REV])>0?vnd(toN(r[COL_SI.TOTAL_REV])):'']);
   const closeCols=['Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Nguồn','Giá trị chốt'];
+  // Doanh thu tiềm năng (dự kiến): giá trị dự kiến CRM của khách chưa ra đơn
+  let expTotalRev=0,expOnlRev=0,expSelfRev=0;const expList=[];
+  notYetRows.forEach(r=>{const ci=ciOf(r);if(ci.expected<=0)return;
+    const src=(r[COL_SI.SOURCE]||'').toLowerCase();
+    expTotalRev+=ci.expected;if(src==='online')expOnlRev+=ci.expected;else if(src==='offline')expSelfRev+=ci.expected;
+    expList.push([r[COL_SI.DATE],r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],r[COL_SI.CITY],r[COL_SI.SALES],vnd(ci.expected)]);});
+
   // Chất lượng data khách Online: theo cột "Phân loại khách hàng" (Khách tiềm năng / Khách không tiềm năng - Tệp phổ thông)
   const onlNewRows=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online');
   const custTypeOf=r=>(r[COL_SI.CUST_TYPE]||'').trim();
@@ -1180,6 +1187,9 @@ function renderSaleSi(){
     pho:{title:'Tệp phổ thông (chưa ra đơn)',cols:siCols,rows:siMap(phoRows)},
     lost:{title:'Mất kết nối (chưa ra đơn)',cols:siCols,rows:siMap(lostRows)},
     closes:{title:'Đơn chốt theo ngày (CRM)',cols:closeCols,rows:closeList},
+    expAll:{title:'Doanh thu tiềm năng (dự kiến) — tất cả',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList},
+    expOnl:{title:'Doanh thu tiềm năng — nguồn Online',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='online')},
+    expOff:{title:'Doanh thu tiềm năng — nguồn Offline',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='offline')},
   };
   window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length};
   window._siOnlineQ={total:onlNewRows.length,tiem:onlTiemRows.length,ktn:onlKtnRows.length,chuaPl:onlChuaPlRows.length};
@@ -1310,6 +1320,14 @@ function renderSaleSi(){
         ${siClk('closes',mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt','g-green'))}
         ${siClk('closes',mkKpi('🌐','Doanh Thu Online',vnd(onlRev),pct(totalRev?onlRev/totalRev*100:0)+' tổng DT','g-blue'))}
         ${siClk('closes',mkKpi('🤝','Doanh Thu Offline',vnd(selfRev),pct(totalRev?selfRev/totalRev*100:0)+' tổng DT','g-yellow'))}
+      </div>
+    </div>
+    <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Doanh thu tiềm năng (dự kiến · khách chưa ra đơn)</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+        ${siClk('expAll',mkKpi('💎','Giá Trị Tiềm Năng',vnd(expTotalRev),expList.length+' khách có dự kiến','g-purple'))}
+        ${siClk('expOnl',mkKpi('🌐','Giá Trị Tiềm Năng Online',vnd(expOnlRev),pct(expTotalRev?expOnlRev/expTotalRev*100:0)+' tổng GT','g-blue'))}
+        ${siClk('expOff',mkKpi('🤝','Giá Trị Tiềm Năng Offline',vnd(expSelfRev),pct(expTotalRev?expSelfRev/expTotalRev*100:0)+' tổng GT','g-yellow'))}
       </div>
     </div>
 
