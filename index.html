@@ -282,6 +282,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
     <nav id="sec-qc">
       <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Chung</span></div>
+      <div class="nav-item" onclick="switchPage('qc-invoice')" id="nav-qc-invoice"><span class="nav-icon">⚖️</span><span class="nav-label">Báo Cáo Đối Soát</span></div>
     </nav>
   </div>
 
@@ -313,6 +314,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
         <div style="font-size:13px;margin-top:6px">Khu vực này sẽ được dựng sau.</div>
       </div>
     </div>
+    <div class="tab-page" id="page-qc-invoice">
+      <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
+    </div>
   </div>
 </div>
 
@@ -329,8 +333,9 @@ const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DE
 const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
 const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,ADDRESS:12,LICENSE:13,FANPAGE:14,MODEL:15,SHOWROOM:16,FINANCE:17,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:23,TOTAL_REV:24,MA_KH:25,LINK:26,NOTE:27};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
-const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15};
-let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
+const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,MA_KH:16};
+const COL_KIOT={BRANCH:0,INVOICE:1,DATE:2,MA_KH:3,NAME:4,PHONE:5,CHANNEL:6,AMOUNT:7,DISCOUNT:8};
+let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],kiotRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -401,7 +406,7 @@ function initAuth(){
 }
 
 function switchPage(p){
-  ['overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat'].forEach(x=>{
+  ['overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
@@ -421,6 +426,7 @@ async function loadData(){
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
   const sicrmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=138010004&single=true&output=csv';
   const saonlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=2107421092&single=true&output=csv';
+  const kiotRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vRC3Ic0IhtnvXZpPicFH3cdtiINe_BjBmkNcTYl0-cNI3-ckmHsgaQISTTHZg-y6A/pub?gid=1828009566&single=true&output=csv';
   if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
@@ -434,6 +440,7 @@ async function loadData(){
     taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
     taskIdx.saonl=tasks.length;tasks.push(fetchCsvWithProxy(saonlRaw,5));
     taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
+    taskIdx.kiot=tasks.length;tasks.push(fetchCsvWithProxy(kiotRaw,7));
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
     if(mktRaw){
@@ -472,6 +479,11 @@ async function loadData(){
       if(r.status==='fulfilled'){setStatus('Đang parse CRM Sỉ...');parseSaleSiCrmCsv(r.value);setStatus(`Parse xong CRM Sỉ: ${saleSiCrmRows.length} lượt`);}
       else setStatus('⚠️ CRM Sỉ không tải được');
     }
+    {
+      const r=results[taskIdx.kiot];
+      if(r.status==='fulfilled'){setStatus('Đang parse Hoá đơn Kiot...');parseKiotCsv(r.value);setStatus(`Parse xong Hoá đơn Kiot: ${kiotRows.length} dòng`);}
+      else setStatus('⚠️ Hoá đơn Kiot không tải được');
+    }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
     if(mktRaw)applyFilter();
@@ -480,11 +492,12 @@ async function loadData(){
     renderSaleSiData();
     renderSaleOnl();
     renderQcDoiSoat();
+    renderQcInvoice();
   }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
 
 async function fetchCsvWithProxy(rawUrl,idx=0){
-  const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM'];
+  const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM','KIOT'];
   const lbl=labels[idx]||'';
   const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now();
   // Google Sheets published CSV hỗ trợ CORS trực tiếp → thử trực tiếp trước (nhanh + ổn định)
@@ -657,6 +670,13 @@ function parseSaleOnlCsv(text){
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
   saleOnlRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
   console.log('[SAONL] Rows:',saleOnlRows.length);
+}
+
+function parseKiotCsv(text){
+  let parsed;
+  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  kiotRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
+  console.log('[KIOT] Rows:',kiotRows.length);
 }
 
 function parseSaleSiCrmCsv(text){
@@ -861,7 +881,7 @@ function clearFilter(){
   window._mktBrands=[];
   const pf=document.getElementById('prodFilter');if(pf)pf.value='all';
   if(allRows.length)renderAll(allRows);
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();
 }
 function localDate(str,end=false){
   const p=str.split('-');
@@ -884,7 +904,7 @@ function curPeriodLabel(){
 // Đổi ngày → re-render cả MKT lẫn các báo cáo Sale
 function onDateChange(){
   if(allRows.length)applyFilter();
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();
 }
 function applyQuickFilter(){
   const v=document.getElementById('quickFilter').value;
@@ -2654,6 +2674,155 @@ function renderQcDoiSoat(){
       "Chưa phân về master" đối chiếu theo SĐT (9 số cuối) hoặc tên khách. "Đã chăm sóc" khớp Mã KH/Lead ID với CRM Sỉ.
       Số 5 bỏ trống theo cấu trúc gốc. Chỉ số theo khoảng thời gian đang chọn (MKT chỉ có data từ T6/2026).
     </div>`;
+}
+// Nhận diện brand từ Chi nhánh / Kênh bán của hoá đơn Kiot
+function kiotBrand(r){
+  const t=((r[COL_KIOT.BRANCH]||'')+' '+(r[COL_KIOT.CHANNEL]||'')).toString();
+  if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(t))return'TTV';
+  if(/hiền th|hien th/i.test(t))return'HT';
+  if(/shidai|thời đại|thoi dai/i.test(t))return'Shidai';
+  if(/chánh tâm|chanh tam/i.test(t))return'CT';
+  return null;
+}
+
+// ── Báo Cáo Đối Soát: doanh số ghi nhận (Online + Sỉ đã chốt) vs doanh thu thực nhận (hoá đơn Kiot), nối qua Mã KH ──
+function renderQcInvoice(){
+  const el=document.getElementById('page-qc-invoice');
+  if(!kiotRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu hoá đơn Kiot...</div>';return;}
+  const _f=document.getElementById('dateFrom'),_t=document.getElementById('dateTo');
+  const fromD=_f&&_f.value?localDate(_f.value):null,toD=_t&&_t.value?localDate(_t.value,true):null;
+  const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
+  const nrmMa=v=>(v||'').toString().trim().toUpperCase();
+  const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const brSel=brandArr('_kiotBrands');
+
+  // 1) Hoá đơn Kiot: dedupe theo Mã hoá đơn (mỗi dòng export là 1 sản phẩm trong hoá đơn, tổng tiền lặp lại)
+  const invMap={};
+  kiotRows.forEach(r=>{const code=(r[COL_KIOT.INVOICE]||'').trim();if(!code||invMap[code])return;invMap[code]=r;});
+  let invoices=Object.values(invMap).filter(r=>inR(parseDate(r[COL_KIOT.DATE])));
+  if(brSel.length)invoices=invoices.filter(r=>brSel.includes(kiotBrand(r)));
+  const invRevenue=r=>Math.max(0,vndNum(r[COL_KIOT.AMOUNT])-vndNum(r[COL_KIOT.DISCOUNT]));
+  const totalInvoiced=invoices.reduce((s,r)=>s+invRevenue(r),0);
+  const invoicedMaKhSet=new Set(invoices.map(r=>nrmMa(r[COL_KIOT.MA_KH])).filter(Boolean));
+
+  // 2) Doanh số ghi nhận — Online (Báo Cáo Online, đã chốt)
+  const adCampMap=buildAdCampMap();
+  const brandTextSa=s=>{const n=(s||'').toString();
+    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
+    if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
+    if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
+    if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';return null;};
+  const brandOnl=r=>{const a=(r[COL_SAONL.AD_ID]||'').trim();return brandTextSa(r[COL_SAONL.CHANNEL])||(a&&adCampMap[a]?brandTextSa(adCampMap[a]):null);};
+  let onlClosed=(saleOnlRows||[]).filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||'')&&inR(parseDate(r[COL_SAONL.DATE_CLOSE])));
+  if(brSel.length)onlClosed=onlClosed.filter(r=>brSel.includes(brandOnl(r)));
+  const onlRecList=onlClosed.map(r=>({src:'Online',maKh:nrmMa(r[COL_SAONL.MA_KH]),name:r[COL_SAONL.NAME],phone:r[COL_SAONL.PHONE],date:r[COL_SAONL.DATE_CLOSE],rev:vndNum(r[COL_SAONL.REVENUE])})).filter(x=>x.rev>0);
+
+  // 3) Doanh số ghi nhận — Sỉ (CRM Sỉ đã chốt, nối Mã KH qua Master Sỉ bằng Lead ID/SĐT)
+  const makhByKey={},nameByKeySi={},phoneByKeySi={};
+  saleSiRows.forEach(r=>{const mk=nrmMa(r[COL_SI.MA_KH]),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),ph9=last9(r[COL_SI.PHONE]);
+    [nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph9?'PH:'+ph9:''].forEach(k=>{if(!k)return;if(!makhByKey[k]&&mk)makhByKey[k]=mk;if(!nameByKeySi[k]&&nm&&nm!=='—')nameByKeySi[k]=nm;if(!phoneByKeySi[k]&&r[COL_SI.PHONE])phoneByKeySi[k]=r[COL_SI.PHONE];});});
+  const brandSiRow=r=>{const a=(r[COL_SICRM.AD_ID]||'').trim();return brandTextSa(r[COL_SICRM.CHANNEL])||(a&&adCampMap[a]?brandTextSa(adCampMap[a]):null);};
+  let siClosed=(saleSiCrmRows||[]).filter(r=>vndNum(r[COL_SICRM.CLOSE_VALUE])>0&&inR(parseDate(r[COL_SICRM.CLOSE_DATE])));
+  if(brSel.length)siClosed=siClosed.filter(r=>brSel.includes(brandSiRow(r)));
+  const siRecList=siClosed.map(r=>{
+    const ph9=last9(r[COL_SICRM.PHONE]),key=nrmK(r[COL_SICRM.LEAD_ID]),phKey=ph9?'PH:'+ph9:'';
+    const maKh=makhByKey[key]||makhByKey[phKey]||'';
+    const nm=(r[COL_SICRM.NAME]||'').trim()||nameByKeySi[key]||nameByKeySi[phKey]||'';
+    const pho=(r[COL_SICRM.PHONE]||'').trim()||phoneByKeySi[key]||phoneByKeySi[phKey]||'';
+    return{src:'Sỉ',maKh,name:nm,phone:pho,date:r[COL_SICRM.CLOSE_DATE],rev:vndNum(r[COL_SICRM.CLOSE_VALUE])};
+  });
+
+  // 4) Đối soát: khách chưa có Mã KH hoặc Mã KH chưa thấy trên hoá đơn Kiot → coi như chưa ra hoá đơn
+  const allRec=[...onlRecList,...siRecList];
+  allRec.forEach(x=>{x.invoiced=!!x.maKh&&invoicedMaKhSet.has(x.maKh);});
+  const recognizedTotal=allRec.reduce((s,x)=>s+x.rev,0);
+  const onlRecTotal=onlRecList.reduce((s,x)=>s+x.rev,0);
+  const siRecTotal=siRecList.reduce((s,x)=>s+x.rev,0);
+  const invoicedRec=allRec.filter(x=>x.invoiced);
+  const notInvoicedRec=allRec.filter(x=>!x.invoiced);
+  const notInvoicedTotal=notInvoicedRec.reduce((s,x)=>s+x.rev,0);
+  const notInvoicedOnl=notInvoicedRec.filter(x=>x.src==='Online');
+  const notInvoicedSi=notInvoicedRec.filter(x=>x.src==='Sỉ');
+  const diff=recognizedTotal-totalInvoiced;
+
+  // Hoá đơn Kiot không khớp bất kỳ đơn ghi nhận nào trong kỳ (data-quality: bán trực tiếp k qua CRM, hoặc CRM thiếu Mã KH)
+  const recognizedMaKhSet=new Set(allRec.map(x=>x.maKh).filter(Boolean));
+  const unmatchedInvoices=invoices.filter(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);return !k||!recognizedMaKhSet.has(k);});
+  const unmatchedInvoicesTotal=unmatchedInvoices.reduce((s,r)=>s+invRevenue(r),0);
+
+  const recCols=['Nguồn','Mã KH','Tên KH','SĐT','Ngày chốt','Doanh số ghi nhận','Lý do'];
+  const recMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',x.name||'—',x.phone||'—',x.date||'—',vnd(x.rev),x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH']);
+  const invCols=['Chi nhánh','Mã hoá đơn','Thời gian','Mã KH','Tên KH','SĐT','Doanh thu hoá đơn'];
+  const invMapRows=list=>list.slice().sort((a,b)=>invRevenue(b)-invRevenue(a)).map(r=>[r[COL_KIOT.BRANCH],r[COL_KIOT.INVOICE],r[COL_KIOT.DATE],r[COL_KIOT.MA_KH]||'—',r[COL_KIOT.NAME],r[COL_KIOT.PHONE],vnd(invRevenue(r))]);
+  window._qcInvLists={
+    notInvoiced:{title:'Đơn ghi nhận — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedRec)},
+    notInvoicedOnl:{title:'Đơn Online — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedOnl)},
+    notInvoicedSi:{title:'Đơn Sỉ — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedSi)},
+    invoiced:{title:'Đơn ghi nhận — đã khớp hoá đơn',cols:recCols.slice(0,6),rows:recMap(invoicedRec).map(x=>x.slice(0,6))},
+    unmatchedInv:{title:'Hoá đơn Kiot — không khớp đơn ghi nhận nào',cols:invCols,rows:invMapRows(unmatchedInvoices)},
+    allInvoices:{title:'Toàn bộ hoá đơn Kiot trong kỳ',cols:invCols,rows:invMapRows(invoices)},
+  };
+
+  const GRN='#0abf7a';
+  el.innerHTML=`
+    <div class="page-title">QC — Báo Cáo Đối Soát</div>
+    <div class="page-sub">Đối chiếu doanh số ghi nhận (Báo Cáo Online + Báo Cáo Sỉ) với doanh thu thực nhận từ hoá đơn Kiot · nối qua Mã KH</div>
+    <div class="period-bar">
+      <div class="period-chip">📅 ${curPeriodLabel()}</div>
+      <div class="stat-chip">🧾 ${num(invoices.length)} hoá đơn</div>
+      ${brandChips('_kiotBrands','renderQcInvoice')}
+      <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
+    </div>
+
+    <div class="sec-label">I. Tổng Quan Đối Soát</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+      ${mkKpi('💰','Doanh Số Ghi Nhận',vnd(recognizedTotal),'Online '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal),'g-blue')}
+      ${mkKpi('🧾','Doanh Thu Thực Nhận (Hoá Đơn)',vnd(totalInvoiced),num(invoices.length)+' hoá đơn Kiot','g-teal')}
+      ${mkKpi(diff>0?'⚠️':'✅','Chênh Lệch',(diff>0?'+':'')+vnd(diff),recognizedTotal?pct(Math.abs(diff)/recognizedTotal*100)+' so với ghi nhận':'—',diff>0?'g-red':'g-green')}
+    </div>
+
+    <div class="sec-label">II. Trạng Thái Ra Hoá Đơn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div onclick="qcInvShow('invoiced')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('✅','Đã Ra Hoá Đơn',num(invoicedRec.length)+' đơn',vnd(invoicedRec.reduce((s,x)=>s+x.rev,0))+' · 👆 xem chi tiết','g-green')}</div>
+      <div onclick="qcInvShowNotInvoiced()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Hoá Đơn',num(notInvoicedRec.length)+' đơn',vnd(notInvoicedTotal)+' · 👆 xem phân loại','g-yellow')}</div>
+    </div>
+
+    <div class="sec-label">III. Data Kiot Không Khớp Ghi Nhận</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div onclick="qcInvShow('unmatchedInv')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('❔','Hoá Đơn Không Khớp Mã KH',num(unmatchedInvoices.length)+' hoá đơn',vnd(unmatchedInvoicesTotal)+' · bán trực tiếp / thiếu Mã KH ở CRM · 👆 xem chi tiết','g-purple')}</div>
+      <div onclick="qcInvShow('allInvoices')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('🗂️','Toàn Bộ Hoá Đơn Trong Kỳ',num(invoices.length)+' hoá đơn',vnd(totalInvoiced)+' · 👆 xem chi tiết','g-orange')}</div>
+    </div>
+
+    <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
+      <b>Ghi chú:</b> Doanh số ghi nhận = đơn "Chốt đơn" ở Báo Cáo Online + đơn có Giá trị chốt ở CRM Sỉ, trong khoảng ngày đang chọn.
+      Doanh thu hoá đơn = Tổng tiền hàng − Giảm giá hoá đơn, mỗi Mã hoá đơn chỉ tính 1 lần (bỏ dòng lặp theo sản phẩm).
+      Data hoá đơn Kiot hiện có tới hết T6/2026.
+    </div>`;
+}
+function qcInvShow(key){const d=(window._qcInvLists||{})[key];if(d)dataModal(d);}
+function qcInvShowNotInvoiced(){
+  const onl=(window._qcInvLists&&window._qcInvLists.notInvoicedOnl)||{rows:[]};
+  const si=(window._qcInvLists&&window._qcInvLists.notInvoicedSi)||{rows:[]};
+  const sumRev=rows=>rows.reduce((s,r)=>s+vndNum(r[5]),0);
+  const card=(key,label,rows,color,desc)=>`<div onclick="qcInvShow('${key}')" style="cursor:pointer;flex:1 1 220px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
+    <div style="font-size:24px;font-weight:900;margin-top:6px;color:var(--text)">${vnd(sumRev(rows))}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${rows.length} đơn · ${desc}</div>
+    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:760px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">⏳ Chưa Ra Hoá Đơn — theo nguồn <span style="color:var(--muted);font-weight:600;font-size:13px">· ${onl.rows.length+si.rows.length} đơn</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('notInvoicedOnl','Online',onl.rows,'#2563eb','chưa thấy hoá đơn Kiot')}
+        ${card('notInvoicedSi','Sỉ',si.rows,'#7c3aed','chưa thấy hoá đơn Kiot')}
+      </div>
+    </div></div>`;
 }
 // Modal danh sách data (bấm vào dash 6/10/12)
 function qcShowList(key){
