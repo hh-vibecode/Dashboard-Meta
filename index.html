@@ -2803,14 +2803,9 @@ function renderQcInvoice(){
         <div onclick="qcInvShow('${invListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🧾','Doanh Thu Thực Nhận',vnd(invTotal),(recTotal?pct(invTotal/recTotal*100):'—')+' so với ghi nhận · 👆 xem chi tiết',color)}</div>
         ${flatKpi(dff<0?'⚠️':'✅','Chênh Lệch',(dff>0?'+':'')+vnd(dff),dff<0?'chưa thu đủ so với ghi nhận':dff>0?'vượt doanh số ghi nhận':'khớp hoàn toàn',dff<0?C.red:C.green)}
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:8px">
-        <div onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('✅','Đã Ra Hoá Đơn',num(invCount)+' đơn',vnd(invRevSum)+' · 👆 xem chi tiết',C.green)}</div>
-        <div onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('⏳','Chưa Ra Hoá Đơn',num(notCount)+' đơn',vnd(notRev)+' · 👆 xem chi tiết',C.amber)}</div>
-      </div>
-      <div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:2px 2px 6px">↳ Soát Mã KH của phần "Chưa Ra Hoá Đơn"</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
-        <div onclick="qcInvShow('${mmKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🚫','Mã KH Không Khớp Hoá Đơn',num(mmList.length)+' đơn',vnd(mmList.reduce((s,x)=>s+x.rev,0))+' · có Mã KH nhưng không thấy trên Kiot · 👆 xem chi tiết',C.red)}</div>
-        <div onclick="qcInvShow('${ncKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('❓','Chưa Có Mã KH',num(ncList.length)+' đơn',vnd(ncList.reduce((s,x)=>s+x.rev,0))+' · chưa nhập Mã KH · 👆 xem chi tiết',C.orange)}</div>
+        <div onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('✅','Đã Ra Hoá Đơn',num(invCount)+' đơn',vnd(invRevSum)+' · 👆 xem chi tiết',C.green)}</div>
+        <div onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('⏳','Chưa Ra Hoá Đơn',num(notCount)+' đơn',vnd(notRev)+' · '+mmList.length+' Mã KH không khớp · '+ncList.length+' chưa có Mã KH · 👆 xem chi tiết',C.amber)}</div>
       </div>
     </div>`;
   el.innerHTML=`
