@@ -758,6 +758,42 @@ function calcSaleStats(saleFiltered){
     byCamp,byBrand,byProd,byDirectProd};
 }
 
+// Doanh thu Sỉ nguồn Online (đơn chốt CRM Sỉ, khách có Nguồn=Online ở Master Sỉ) — để cộng vào Doanh Số MKT
+function calcSiOnlineStats(from,to,brSel){
+  if(!saleSiRows||!saleSiRows.length||!saleSiCrmRows||!saleSiCrmRows.length)return{revenue:0,orders:0,list:[]};
+  const fromD=from?localDate(from):null,toD=to?localDate(to,true):null;
+  const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
+  const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const srcByKey={},nameByKey={},phoneByKey={};
+  saleSiRows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;});});
+  const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
+  const adCampMap=buildAdCampMap();
+  const brandText=s=>{const n=(s||'').toString();
+    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
+    if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
+    if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
+    if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';
+    return null;};
+  const adBrand=a=>{a=(a||'').toString().trim();return a&&adCampMap[a]?brandText(adCampMap[a]):null;};
+  const brandSi=r=>brandText(r[COL_SICRM.CHANNEL])||adBrand(r[COL_SICRM.AD_ID]);
+  let revenue=0;const list=[];
+  saleSiCrmRows.forEach(r=>{
+    const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);
+    if(cv<=0||!inR(cd))return;
+    const ph=last9(r[COL_SICRM.PHONE]);
+    const src=srcByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||(r[COL_SICRM.SOURCE]||'').toLowerCase();
+    if(!src.includes('online'))return;
+    if(brSel&&brSel.length){const b=brandSi(r);if(!b||!brSel.includes(b))return;}
+    revenue+=cv;
+    const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    list.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],nm,pho,'Sỉ · Online',vnd(cv)]);
+  });
+  list.sort((a,b)=>{const da=parseDate(a[0]),db=parseDate(b[0]);return(db?db:0)-(da?da:0);});
+  return{revenue,orders:list.length,list};
+}
+
 function toCsv(u){
   u=u.replace('/pubhtml','/pub').replace('output=html','output=csv');
   if(!u.includes('output=csv'))u+=(u.includes('?')?'&':'?')+'output=csv';
@@ -959,6 +995,19 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     });
     return p;
   })();
+  // Doanh Số MKT = Lẻ (Sale Online đã chốt) + Sỉ nguồn Online đã chốt (cả 2 đều từ lead MKT tạo ra)
+  const _f0=document.getElementById('dateFrom'),_t0=document.getElementById('dateTo');
+  const siOn=calcSiOnlineStats(_f0?_f0.value:'',_t0?_t0.value:'',brandArr('_mktBrands'));
+  const isChotLe=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+  const leClosed=(saleFiltered||[]).filter(isChotLe);
+  const leList=leClosed.map(r=>[r[COL_SALE.DATE_CLOSE],r[COL_SALE.LEAD_ID],r[COL_SALE.NAME],r[COL_SALE.PHONE],r[COL_SALE.CHANNEL]||r[COL_SALE.SOURCE],vnd(vndNum(r[COL_SALE.REVENUE]))]);
+  const leRevenue=saleStats?saleStats.totalRevenue:0,leOrders=saleStats?saleStats.totalOrders:0;
+  const combRevenue=leRevenue+siOn.revenue,combOrders=leOrders+siOn.orders;
+  window._mktSaleBreak={leRevenue,leOrders,siRevenue:siOn.revenue,siOrders:siOn.orders};
+  window._mktSaleLists={
+    le:{title:'Doanh số Lẻ (Sale Online) — đã chốt',cols:['Ngày chốt','Lead ID','Tên','SĐT','Kênh','Giá trị'],rows:leList},
+    si:{title:'Doanh số Sỉ — nguồn Online, đã chốt',cols:['Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Nguồn','Giá trị'],rows:siOn.list},
+  };
   // ADS/DS theo brand: chi phí ads / doanh số
   const adsDsBrand=[
     {key:'HT',label:'Hiền Thuỷ',color:'#f59e0b',spend:htSpend,rev:saleStats?saleStats.byBrand.HT.revenue:0},
@@ -985,14 +1034,14 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       ${mkKpi('💰','Tổng Chi Phí',vnd(kpi.totalSpend),'ngân sách đã tiêu','g-blue')}
       ${mkKpi('💬','Tổng Mess',num(kpi.totalMess),'lượt trò chuyện','g-green')}
       ${mkKpi('📌','CP / Mess',vnd(kpi.costPerMess),'trung bình / mess','g-yellow')}
-      ${mkKpi('📊','ADS/DS',saleStats&&saleStats.totalRevenue>0?pct(kpi.totalSpend/saleStats.totalRevenue*100):'—','chi phí / doanh số','g-purple')}
+      ${mkKpi('📊','ADS/DS',combRevenue>0?pct(kpi.totalSpend/combRevenue*100):'—','chi phí / doanh số (Sỉ+Lẻ)','g-purple')}
     </div>
     <div class="sec-label">Sale Performance</div>
     <div class="kpi-grid">
-      ${mkKpi('💵','Doanh Số',saleStats?vnd(saleStats.totalRevenue):'—',saleStats?saleStats.totalOrders+' đơn đã chốt':'chưa có dữ liệu','g-teal')}
-      ${mkKpi('🛍️','Số Đơn Chốt',saleStats?num(saleStats.totalOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' lead tiềm năng':'chưa có dữ liệu','g-orange')}
-      ${mkKpi('📦','DS TB / Đơn',saleStats&&saleStats.totalOrders>0?vnd(saleStats.avgOrderValue):'—','trung bình / đơn chốt','g-pink')}
-      ${mkKpi('🎯','Tỷ Lệ Chốt',saleStats&&kpi.totalMess>0?pct(saleStats.totalOrders/kpi.totalMess*100):'—',saleStats?'đơn chốt / tổng mess':'chưa có dữ liệu','g-red')}
+      <div onclick="mktShowDoanhSo()" title="Bấm để xem chi tiết Sỉ / Lẻ" style="cursor:pointer">${mkKpi('💵','Doanh Số',combRevenue>0?vnd(combRevenue):'—',combOrders+' đơn đã chốt (Sỉ+Lẻ) · 👆 xem chi tiết','g-teal')}</div>
+      ${mkKpi('🛍️','Số Đơn Chốt',combOrders>0?num(combOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' lead tiềm năng':'chưa có dữ liệu','g-orange')}
+      ${mkKpi('📦','DS TB / Đơn',combOrders>0?vnd(combRevenue/combOrders):'—','trung bình / đơn chốt','g-pink')}
+      ${mkKpi('🎯','Tỷ Lệ Chốt',combOrders>0&&kpi.totalMess>0?pct(combOrders/kpi.totalMess*100):'—',combOrders>0?'đơn chốt / tổng mess':'chưa có dữ liệu','g-red')}
     </div>
     <div class="sec-label">Phân Tích</div>
     <div class="charts-2col-grid">
@@ -1187,6 +1236,8 @@ function renderSaleSi(){
     pho:{title:'Tệp phổ thông (chưa ra đơn)',cols:siCols,rows:siMap(phoRows)},
     lost:{title:'Mất kết nối (chưa ra đơn)',cols:siCols,rows:siMap(lostRows)},
     closes:{title:'Đơn chốt theo ngày (CRM)',cols:closeCols,rows:closeList},
+    closesOnl:{title:'Đơn chốt theo ngày — nguồn Online',cols:closeCols,rows:closeList.filter(x=>x[4]==='Online')},
+    closesOff:{title:'Đơn chốt theo ngày — nguồn Offline',cols:closeCols,rows:closeList.filter(x=>x[4]==='Offline')},
     expAll:{title:'Doanh thu tiềm năng (dự kiến) — tất cả',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList},
     expOnl:{title:'Doanh thu tiềm năng — nguồn Online',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='online')},
     expOff:{title:'Doanh thu tiềm năng — nguồn Offline',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='offline')},
@@ -1318,8 +1369,8 @@ function renderSaleSi(){
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Doanh thu (theo ngày chốt đơn)</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
         ${siClk('closes',mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt','g-green'))}
-        ${siClk('closes',mkKpi('🌐','Doanh Thu Online',vnd(onlRev),pct(totalRev?onlRev/totalRev*100:0)+' tổng DT','g-blue'))}
-        ${siClk('closes',mkKpi('🤝','Doanh Thu Offline',vnd(selfRev),pct(totalRev?selfRev/totalRev*100:0)+' tổng DT','g-yellow'))}
+        ${siClk('closesOnl',mkKpi('🌐','Doanh Thu Online',vnd(onlRev),pct(totalRev?onlRev/totalRev*100:0)+' tổng DT','g-blue'))}
+        ${siClk('closesOff',mkKpi('🤝','Doanh Thu Offline',vnd(selfRev),pct(totalRev?selfRev/totalRev*100:0)+' tổng DT','g-yellow'))}
       </div>
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
@@ -2625,6 +2676,30 @@ function dataModal(d){
     </div></div>`;
 }
 function saonlShow(key){const d=(window._saonlLists||{})[key];if(d)dataModal(d);}
+// MKT Tổng Quan — Doanh Số: bấm mở breakdown Sỉ / Lẻ, bấm tiếp từng bên ra chi tiết
+function mktShowDetail(key){const d=(window._mktSaleLists||{})[key];if(d)dataModal(d);}
+function mktShowDoanhSo(){
+  const d=window._mktSaleBreak||{leRevenue:0,leOrders:0,siRevenue:0,siOrders:0};
+  const total=d.leRevenue+d.siRevenue;
+  const card=(key,label,val,cnt,color,desc)=>`<div onclick="mktShowDetail('${key}')" style="cursor:pointer;flex:1 1 220px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
+    <div style="font-size:24px;font-weight:900;margin-top:6px;color:var(--text)">${vnd(val)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${cnt} đơn · ${total?pct(val/total*100):'0%'} tổng DS · ${desc}</div>
+    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:760px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">💵 Doanh Số — Sỉ / Lẻ <span style="color:var(--muted);font-weight:600;font-size:13px">· ${vnd(total)}</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('le','Lẻ (Sale Online)',d.leRevenue,d.leOrders,'#0891b2','đơn lẻ đã chốt')}
+        ${card('si','Sỉ (nguồn Online)',d.siRevenue,d.siOrders,'#7c3aed','đơn sỉ nguồn Online đã chốt')}
+      </div>
+    </div></div>`;
+}
 // Modal lỗi trạng thái (Sỉ + Online)
 function qcShowStatusErr(){
   const d=window._qcStatusErr||{si:[],onl:[]};
