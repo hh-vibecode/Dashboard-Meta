@@ -2767,6 +2767,8 @@ function renderQcInvoice(){
 
   const recCols=['Nguồn','Mã KH','Tên KH','SĐT','Ngày chốt','Doanh số ghi nhận','Lý do'];
   const recMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',x.name||'—',x.phone||'—',x.date||'—',vnd(x.rev),x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH']);
+  const recAllCols=['Nguồn','Mã KH','Tên KH','SĐT','Ngày chốt','Doanh số ghi nhận','Trạng thái hoá đơn'];
+  const recAllMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',x.name||'—',x.phone||'—',x.date||'—',vnd(x.rev),x.invoiced?'Đã ra hoá đơn':(x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH')]);
   const invCols=['Chi nhánh','Mã hoá đơn','Thời gian','Mã KH','Tên KH','SĐT','Doanh thu hoá đơn'];
   const invMapRows=list=>list.slice().sort((a,b)=>invRevenue(b)-invRevenue(a)).map(r=>[r[COL_KIOT.BRANCH],r[COL_KIOT.INVOICE],r[COL_KIOT.DATE],r[COL_KIOT.MA_KH]||'—',r[COL_KIOT.NAME],r[COL_KIOT.PHONE],vnd(invRevenue(r))]);
   window._qcInvLists={
@@ -2784,6 +2786,9 @@ function renderQcInvoice(){
     allInvoices:{title:'Toàn bộ hoá đơn Kiot trong kỳ',cols:invCols,rows:invMapRows(invoices)},
     invOnl:{title:'Hoá đơn Kiot — khớp khách Online',cols:invCols,rows:invMapRows(onlInvoices)},
     invSi:{title:'Hoá đơn Kiot — khớp khách Sỉ',cols:invCols,rows:invMapRows(siInvoices)},
+    recOnl:{title:'Đơn Online — doanh số ghi nhận',cols:recAllCols,rows:recAllMap(onlRecList)},
+    recSi:{title:'Đơn Sỉ — doanh số ghi nhận',cols:recAllCols,rows:recAllMap(siRecList)},
+    recAll:{title:'Toàn bộ đơn — doanh số ghi nhận',cols:recAllCols,rows:recAllMap(allRec)},
   };
 
   const flatKpi=(icon,label,val,sub,color)=>`<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid ${color};border-radius:12px;padding:14px 16px;height:100%">
@@ -2795,11 +2800,11 @@ function renderQcInvoice(){
     <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4">${sub}</div>
   </div>`;
   const C={blue:'#2563eb',purple:'#7c3aed',teal:'#0891b2',green:'#0abf7a',red:'#e11d48',amber:'#ca8a04',orange:'#ea580c'};
-  const srcBox=(label,icon,color,recTotal,invTotal,dff,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey,mmList,mmKey,ncList,ncKey)=>`
+  const srcBox=(label,icon,color,recTotal,invTotal,dff,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey,mmList,mmKey,ncList,ncKey,recListKey)=>`
     <div style="border:1px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px;background:var(--bg2)">
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">${icon} ${label}</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
-        ${flatKpi('💰','Doanh Số Ghi Nhận',vnd(recTotal),'theo Chốt đơn/Giá trị chốt',color)}
+        <div onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('💰','Doanh Số Ghi Nhận',vnd(recTotal),'theo Chốt đơn/Giá trị chốt · 👆 xem chi tiết',color)}</div>
         <div onclick="qcInvShow('${invListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🧾','Doanh Thu Thực Nhận',vnd(invTotal),(recTotal?pct(invTotal/recTotal*100):'—')+' so với ghi nhận · 👆 xem chi tiết',color)}</div>
         ${flatKpi(dff<0?'⚠️':'✅','Chênh Lệch',(dff>0?'+':'')+vnd(dff),dff<0?'chưa thu đủ so với ghi nhận':dff>0?'vượt doanh số ghi nhận':'khớp hoàn toàn',dff<0?C.red:C.green)}
       </div>
@@ -2819,12 +2824,12 @@ function renderQcInvoice(){
     </div>
 
     <div class="sec-label">I. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
-    ${srcBox('Online','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl')}
-    ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi')}
+    ${srcBox('Online','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl')}
+    ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi')}
 
     <div class="sec-label">II. Tổng Hợp Toàn Công Ty</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-      ${flatKpi('💰','Doanh Số Ghi Nhận',vnd(recognizedTotal),'Online '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal),C.teal)}
+      <div onclick="qcInvShow('recAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('💰','Doanh Số Ghi Nhận',vnd(recognizedTotal),'Online '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal)+' · 👆 xem chi tiết',C.teal)}</div>
       ${flatKpi('🧾','Doanh Thu Thực Nhận (Hoá Đơn)',vnd(totalInvoiced),(recognizedTotal?pct(totalInvoiced/recognizedTotal*100):'—')+' so với ghi nhận · '+num(invoices.length)+' hoá đơn',C.teal)}
       ${flatKpi(diff<0?'⚠️':'✅','Chênh Lệch',(diff>0?'+':'')+vnd(diff),diff<0?'chưa thu đủ so với ghi nhận':diff>0?'vượt doanh số ghi nhận':'khớp hoàn toàn',diff<0?C.red:C.green)}
     </div>
