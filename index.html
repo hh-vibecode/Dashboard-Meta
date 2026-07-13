@@ -1160,6 +1160,12 @@ function siPersonName(rep,store){
   if(m)s=m[1].trim();
   return s.trim()||(rep||store||'—').toString().trim();
 }
+// Data hợp lệ để hiển thị ở các dashboard Sỉ: phải có Nguồn (Online/Offline) + Tên KH — loại data thô chưa ai đụng vào
+function siHasValidSrcName(r){
+  const s=(r[COL_SI.SOURCE]||'').toLowerCase().trim();
+  if(s!=='online'&&s!=='offline')return false;
+  return siPersonName(r[COL_SI.REP],r[COL_SI.STORE])!=='—';
+}
 
 function renderSaleSi(){
   if(!saleSiRows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
@@ -1168,7 +1174,7 @@ function renderSaleSi(){
   const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
-  const rows=saleSiRows;  // toàn bộ tệp khách; lọc ngày áp cho "khách mới" + doanh thu (theo ngày chốt)
+  const rows=saleSiRows.filter(siHasValidSrcName);  // chỉ tính khách có đủ Nguồn + Tên KH; lọc ngày áp cho "khách mới" + doanh thu (theo ngày chốt)
   const toN=vndNum;
   const hasStatus=(r,kw)=>(r[COL_SI.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const isDon=r=>hasStatus(r,'đã ra đơn')||toN(r[COL_SI.TOTAL_REV])>0;
@@ -1192,7 +1198,9 @@ function renderSaleSi(){
   const notYetRows=rows.filter(r=>!isDon(r));
   const tiemRows=notYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r)));
   const lostRows=notYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
-  const phoRows=notYetRows.filter(r=>!/tiềm năng|tiem nang|mất kết n|mat ket n/.test(stOf(r)));
+  // "Không tiềm năng" chỉ tính khách ĐÃ được gắn trạng thái đó; khách chưa có trạng thái gì (bỏ trống/khác) tách riêng, không gộp vào Không tiềm năng
+  const phoRows=notYetRows.filter(r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(stOf(r)));
+  const noStatusRows=notYetRows.filter(r=>!tiemRows.includes(r)&&!lostRows.includes(r)&&!phoRows.includes(r));
   const tiemNoDon=tiemRows.length;
   // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0); tra cứu tên/SĐT từ master sỉ
   const srcByKey={},nameByKey={},phoneByKey={};
@@ -1236,6 +1244,7 @@ function renderSaleSi(){
     tiem:{title:'Tiềm năng nhưng chưa ra đơn',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Trạng thái','Giá trị tiềm năng'],
       rows:tiemRows.map(r=>[r[COL_SI.DATE],r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.STATUS],ciOf(r).expected>0?vnd(ciOf(r).expected):''])},
     pho:{title:'Không tiềm năng (chưa ra đơn)',cols:siCols,rows:siMap(phoRows)},
+    nost:{title:'Chưa cập nhật trạng thái (chưa ra đơn)',cols:siCols,rows:siMap(noStatusRows)},
     lost:{title:'Mất kết nối (chưa ra đơn)',cols:siCols,rows:siMap(lostRows)},
     closes:{title:'Đơn chốt theo ngày (CRM)',cols:closeCols,rows:closeList},
     closesOnl:{title:'Đơn chốt theo ngày — nguồn Online',cols:closeCols,rows:closeList.filter(x=>x[4]==='Online')},
@@ -1244,7 +1253,7 @@ function renderSaleSi(){
     expOnl:{title:'Doanh thu tiềm năng — nguồn Online',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='online')},
     expOff:{title:'Doanh thu tiềm năng — nguồn Offline',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='offline')},
   };
-  window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length};
+  window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length,nost:noStatusRows.length};
   window._siOnlineQ={total:onlNewRows.length,tiem:onlTiemRows.length,ktn:onlKtnRows.length,chuaPl:onlChuaPlRows.length};
   // ── Doanh thu: top khách / theo miền / theo thành phố ──
   const custRev=rows.map(r=>({name:siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),store:(r[COL_SI.STORE]||'').trim(),city:(r[COL_SI.CITY]||'Chưa rõ').trim(),region:siRegion(r[COL_SI.CITY]),rev:toN(r[COL_SI.TOTAL_REV])})).filter(x=>x.rev>0).sort((a,b)=>b.rev-a.rev);
@@ -1254,9 +1263,10 @@ function renderSaleSi(){
   const revByCityObj={};rows.forEach(r=>{const c=(r[COL_SI.CITY]||'Chưa rõ').trim();revByCityObj[c]=(revByCityObj[c]||0)+toN(r[COL_SI.TOTAL_REV]);});
   const revCity=Object.entries(revByCityObj).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const revRegionMax=Math.max(...revRegion.map(x=>x.rev),1),revCityMax=Math.max(...revCity.map(e=>e[1]),1);
-  // By city
+  // By city — chỉ tính khách đã có Tỉnh/TP, bỏ qua khách chưa rõ thành phố
   const byCity={};
-  rows.forEach(r=>{const c=(r[COL_SI.CITY]||'Chưa rõ').trim();byCity[c]=(byCity[c]||0)+1;});
+  rows.forEach(r=>{const c=(r[COL_SI.CITY]||'').trim();if(c)byCity[c]=(byCity[c]||0)+1;});
+  const cityKnownTotal=Object.values(byCity).reduce((s,n)=>s+n,0)||1;
   // By vùng miền (chữ S)
   const byRegion={};
   rows.forEach(r=>{const m=siRegion(r[COL_SI.CITY]);byRegion[m]=(byRegion[m]||0)+1;});
@@ -1268,7 +1278,7 @@ function renderSaleSi(){
   const donutSegs=[...regionData.map(d=>({pct:d.pct,color:d.color}))];
   if(regionOther>0)donutSegs.push({pct:regionOther/regionTot*100,color:'#cbd5e1'});
   let _acc=0;const donutConic=donutSegs.filter(s=>s.pct>0).map(s=>{const a=_acc;_acc+=s.pct;return `${s.color} ${a.toFixed(2)}% ${_acc.toFixed(2)}%`;}).join(',')||'var(--bg2) 0% 100%';
-  const allCitiesData=Object.entries(byCity).sort((a,b)=>b[1]-a[1]).map(([city,cnt])=>({city,cnt,pct:cnt/total*100}));
+  const allCitiesData=Object.entries(byCity).sort((a,b)=>b[1]-a[1]).map(([city,cnt])=>({city,cnt,pct:cnt/cityKnownTotal*100}));
   const topCities=allCitiesData.slice(0,10);
   const siCitiesFullRows=allCitiesData.map((c,i)=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:8px 14px;font-size:12px;color:var(--muted);text-align:center">${i+1}</td>
@@ -1348,7 +1358,7 @@ function renderSaleSi(){
   const siClk=(key,html)=>`<div onclick="siShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
   document.getElementById('page-sale-si').innerHTML=`
     <div class="page-title">Báo Cáo Sale Sỉ</div>
-    <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng (đã đủ Nguồn + Tên KH) · 📅 ${curPeriodLabel()}</div>
 
     <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết · doanh thu tính theo ngày chốt đơn)</span></div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
@@ -1363,7 +1373,7 @@ function renderSaleSi(){
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái đơn</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
         ${siClk('closed',mkKpi('✅','Đã Ra Đơn',num(closed),pct(closed/total*100)+' tổng KH','g-green'))}
-        <div onclick="siShowNotYet()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Đơn',num(notYet),'tiềm năng + phổ thông + mất kết nối','g-yellow')}</div>
+        <div onclick="siShowNotYet()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Đơn',num(notYet),'tiềm năng + không tiềm năng + mất kết nối + chưa cập nhật','g-yellow')}</div>
       </div>
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
@@ -1414,7 +1424,7 @@ function renderSaleSi(){
       <!-- PHẢI: top thành phố -->
       <div class="tov-card" style="padding:18px;display:flex;flex-direction:column">
         <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Top 10 Thành Phố</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Theo tỷ lệ khách hàng</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Theo tỷ lệ khách hàng · trong ${num(cityKnownTotal)} khách đã rõ Tỉnh/TP</div>
         ${topCities.length?topCities.map((c,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:8px 0">
           <span style="font-size:12px;color:var(--muted);font-weight:700;width:16px;text-align:center">${i+1}</span>
           <div style="flex:1;min-width:0">
@@ -1482,7 +1492,7 @@ function renderSaleSi(){
 function siShow(key){const d=(window._siLists||{})[key];if(d)dataModal(d);}
 // "Chưa ra đơn" → mở phân loại 3 nhóm; bấm tiếp từng nhóm để xem data
 function siShowNotYet(){
-  const d=window._siNotYet||{total:0,tiem:0,pho:0,lost:0};
+  const d=window._siNotYet||{total:0,tiem:0,pho:0,lost:0,nost:0};
   const card=(key,label,val,color,desc)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 180px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
     <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
     <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
@@ -1498,8 +1508,9 @@ function siShowNotYet(){
       </div>
       <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
         ${card('tiem','Tiềm năng, chưa ra đơn',d.tiem,'#7c3aed','có giá trị dự kiến (đang đàm phán)')}
-        ${card('pho','Không tiềm năng',d.pho,'#0891b2','chưa có dự kiến · vẫn theo dõi')}
+        ${card('pho','Không tiềm năng',d.pho,'#0891b2','đã gắn trạng thái Không tiềm năng')}
         ${card('lost','Mất kết nối',d.lost,'#e11d48','không nghe máy / chưa phản hồi')}
+        ${card('nost','Chưa cập nhật',d.nost,'#64748b','chưa gắn trạng thái ở cột Phân loại KH')}
       </div>
     </div></div>`;
 }
@@ -1534,13 +1545,14 @@ function renderSaleSiData(){
   // Lọc theo NGÀY CHĂM SÓC: hiện khách có lượt CS trong kỳ; toàn bộ ngày → tất cả khách
   const fv=document.getElementById('dateFrom'),tv=document.getElementById('dateTo');
   const hasRange=(fv&&fv.value)||(tv&&tv.value);
+  const validSiRows=saleSiRows.filter(siHasValidSrcName);
   let rows;
-  if(!hasRange){rows=saleSiRows;}
+  if(!hasRange){rows=validSiRows;}
   else{
     const cp=saleRangePred(r=>parseDate(r[COL_SICRM.DATE]));
     const keys=new Set();
     saleSiCrmRows.filter(cp).forEach(r=>{const id=nrm(r[COL_SICRM.LEAD_ID]);if(id)keys.add(id);});
-    rows=saleSiRows.filter(r=>keys.has(nrm(r[COL_SI.MA_KH]))||keys.has(nrm(r[COL_SI.LEAD_ID])));
+    rows=validSiRows.filter(r=>keys.has(nrm(r[COL_SI.MA_KH]))||keys.has(nrm(r[COL_SI.LEAD_ID])));
   }
   const toN=vndNum;
   const crmMap=getSiCrmHistory();
