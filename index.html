@@ -1391,9 +1391,10 @@ function renderSaleSi(){
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái đơn</div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
         ${siClk('closed',mkKpi('✅','Đã Ra Đơn',num(closed),pct(closed/total*100)+' tổng KH','g-green'))}
         <div onclick="siShowNotYet()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Đơn',num(notYet),'tiềm năng + không tiềm năng + mất kết nối + chưa cập nhật','g-yellow')}</div>
+        ${siClk('closes',mkKpi('📦','Số Đơn Chốt',num(closeList.length),'lượt chốt trong CRM'+(closed>0?' · '+(closeList.length/closed).toFixed(1)+' đơn/khách':''),'g-blue'))}
       </div>
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
