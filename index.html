@@ -282,7 +282,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
     <nav id="sec-qc">
       <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Chung</span></div>
-      <div class="nav-item" onclick="switchPage('qc-invoice')" id="nav-qc-invoice"><span class="nav-icon">⚖️</span><span class="nav-label">Báo Cáo Đối Soát</span></div>
+      <div class="nav-item" onclick="switchPage('qc-invoice')" id="nav-qc-invoice"><span class="nav-icon">⚖️</span><span class="nav-label">Đối Soát PnL</span></div>
     </nav>
   </div>
 
@@ -2751,6 +2751,17 @@ function renderQcInvoice(){
   const unmatchedInvoices=invoices.filter(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);return !k||!recognizedMaKhSet.has(k);});
   const unmatchedInvoicesTotal=unmatchedInvoices.reduce((s,r)=>s+invRevenue(r),0);
 
+  // 5) Chia hoá đơn Kiot theo Online / Sỉ — dựa trên Mã KH của bên nào đang ghi nhận nó
+  const onlMaKhSet=new Set(onlRecList.map(x=>x.maKh).filter(Boolean));
+  const siMaKhSet=new Set(siRecList.map(x=>x.maKh).filter(Boolean));
+  const onlInvoices=invoices.filter(r=>onlMaKhSet.has(nrmMa(r[COL_KIOT.MA_KH])));
+  const siInvoices=invoices.filter(r=>siMaKhSet.has(nrmMa(r[COL_KIOT.MA_KH])));
+  const onlInvoicedTotal=onlInvoices.reduce((s,r)=>s+invRevenue(r),0);
+  const siInvoicedTotal=siInvoices.reduce((s,r)=>s+invRevenue(r),0);
+  const onlDiff=onlRecTotal-onlInvoicedTotal, siDiff=siRecTotal-siInvoicedTotal;
+  const invoicedOnl=invoicedRec.filter(x=>x.src==='Online'), invoicedSi=invoicedRec.filter(x=>x.src==='Sỉ');
+  const notInvoicedOnlTotal=notInvoicedOnl.reduce((s,x)=>s+x.rev,0), notInvoicedSiTotal=notInvoicedSi.reduce((s,x)=>s+x.rev,0);
+
   const recCols=['Nguồn','Mã KH','Tên KH','SĐT','Ngày chốt','Doanh số ghi nhận','Lý do'];
   const recMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',x.name||'—',x.phone||'—',x.date||'—',vnd(x.rev),x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH']);
   const invCols=['Chi nhánh','Mã hoá đơn','Thời gian','Mã KH','Tên KH','SĐT','Doanh thu hoá đơn'];
@@ -2760,13 +2771,29 @@ function renderQcInvoice(){
     notInvoicedOnl:{title:'Đơn Online — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedOnl)},
     notInvoicedSi:{title:'Đơn Sỉ — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedSi)},
     invoiced:{title:'Đơn ghi nhận — đã khớp hoá đơn',cols:recCols.slice(0,6),rows:recMap(invoicedRec).map(x=>x.slice(0,6))},
+    invoicedOnl:{title:'Đơn Online — đã khớp hoá đơn',cols:recCols.slice(0,6),rows:recMap(invoicedOnl).map(x=>x.slice(0,6))},
+    invoicedSi:{title:'Đơn Sỉ — đã khớp hoá đơn',cols:recCols.slice(0,6),rows:recMap(invoicedSi).map(x=>x.slice(0,6))},
     unmatchedInv:{title:'Hoá đơn Kiot — không khớp đơn ghi nhận nào',cols:invCols,rows:invMapRows(unmatchedInvoices)},
     allInvoices:{title:'Toàn bộ hoá đơn Kiot trong kỳ',cols:invCols,rows:invMapRows(invoices)},
+    invOnl:{title:'Hoá đơn Kiot — khớp khách Online',cols:invCols,rows:invMapRows(onlInvoices)},
+    invSi:{title:'Hoá đơn Kiot — khớp khách Sỉ',cols:invCols,rows:invMapRows(siInvoices)},
   };
 
-  const GRN='#0abf7a';
+  const srcBox=(label,icon,color,recTotal,invTotal,dff,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey)=>`
+    <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">${icon} ${label}</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
+        ${mkKpi('💰','Doanh Số Ghi Nhận',vnd(recTotal),'theo Chốt đơn/Giá trị chốt',color)}
+        <div onclick="qcInvShow('${invListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('🧾','Doanh Thu Thực Nhận',vnd(invTotal),invCount+' hoá đơn khớp Mã KH · 👆 xem chi tiết',color)}</div>
+        ${mkKpi(dff>0?'⚠️':'✅','Chênh Lệch',(dff>0?'+':'')+vnd(dff),recTotal?pct(Math.abs(dff)/recTotal*100)+' so với ghi nhận':'—',dff>0?'g-red':'g-green')}
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
+        <div onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('✅','Đã Ra Hoá Đơn',num(invCount)+' đơn',vnd(invRevSum)+' · 👆 xem chi tiết','g-green')}</div>
+        <div onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Hoá Đơn',num(notCount)+' đơn',vnd(notRev)+' · 👆 xem chi tiết','g-yellow')}</div>
+      </div>
+    </div>`;
   el.innerHTML=`
-    <div class="page-title">QC — Báo Cáo Đối Soát</div>
+    <div class="page-title">QC — Đối Soát PnL</div>
     <div class="page-sub">Đối chiếu doanh số ghi nhận (Báo Cáo Online + Báo Cáo Sỉ) với doanh thu thực nhận từ hoá đơn Kiot · nối qua Mã KH</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${curPeriodLabel()}</div>
@@ -2775,17 +2802,15 @@ function renderQcInvoice(){
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
 
-    <div class="sec-label">I. Tổng Quan Đối Soát</div>
+    <div class="sec-label">I. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
+    ${srcBox('Online','🌐','g-blue',onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl')}
+    ${srcBox('Sỉ','🏪','g-purple',siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi')}
+
+    <div class="sec-label">II. Tổng Hợp Toàn Công Ty</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-      ${mkKpi('💰','Doanh Số Ghi Nhận',vnd(recognizedTotal),'Online '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal),'g-blue')}
+      ${mkKpi('💰','Doanh Số Ghi Nhận',vnd(recognizedTotal),'Online '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal),'g-teal')}
       ${mkKpi('🧾','Doanh Thu Thực Nhận (Hoá Đơn)',vnd(totalInvoiced),num(invoices.length)+' hoá đơn Kiot','g-teal')}
       ${mkKpi(diff>0?'⚠️':'✅','Chênh Lệch',(diff>0?'+':'')+vnd(diff),recognizedTotal?pct(Math.abs(diff)/recognizedTotal*100)+' so với ghi nhận':'—',diff>0?'g-red':'g-green')}
-    </div>
-
-    <div class="sec-label">II. Trạng Thái Ra Hoá Đơn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
-      <div onclick="qcInvShow('invoiced')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('✅','Đã Ra Hoá Đơn',num(invoicedRec.length)+' đơn',vnd(invoicedRec.reduce((s,x)=>s+x.rev,0))+' · 👆 xem chi tiết','g-green')}</div>
-      <div onclick="qcInvShowNotInvoiced()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Hoá Đơn',num(notInvoicedRec.length)+' đơn',vnd(notInvoicedTotal)+' · 👆 xem phân loại','g-yellow')}</div>
     </div>
 
     <div class="sec-label">III. Data Kiot Không Khớp Ghi Nhận</div>
@@ -2797,6 +2822,7 @@ function renderQcInvoice(){
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
       <b>Ghi chú:</b> Doanh số ghi nhận = đơn "Chốt đơn" ở Báo Cáo Online + đơn có Giá trị chốt ở CRM Sỉ, trong khoảng ngày đang chọn.
       Doanh thu hoá đơn = Tổng tiền hàng − Giảm giá hoá đơn, mỗi Mã hoá đơn chỉ tính 1 lần (bỏ dòng lặp theo sản phẩm).
+      Hoá đơn được gắn Online/Sỉ theo Mã KH đang ghi nhận nó bên nào; hoá đơn chưa xác định được xem ở mục III.
       Data hoá đơn Kiot hiện có tới hết T6/2026.
     </div>`;
 }
