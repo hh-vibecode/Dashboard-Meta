@@ -2537,21 +2537,25 @@ function renderQcDoiSoat(){
   siTagRaw.forEach(r=>{const p=last9(r[COL_ONL.PHONE]);if(p){if(seenSiPh.has(p))return;seenSiPh.add(p);}siTagUniq.push(r);});
   // 2) Trong đó, khách đã cho SĐT
   const siTagPhoneRows=siTagUniq.filter(r=>(r[COL_ONL.PHONE]||'').trim());
-  // 3) Có SĐT nhưng chưa update trong Master Sỉ = (a) đã có KH trong Master nhưng SĐT chưa khớp/chưa update + (b) chưa có data KH trong Master
+  // 3) Có SĐT nhưng chưa update trong Master Sỉ = (a) đã có KH trong Master nhưng SĐT chưa khớp/chưa update + (b) chưa có data KH trong Master / bàn giao TTMN
   //    (dùng chung siMphones/siMnames đã build ở check "Lead Tiềm Năng Chưa Phân Về Sale Sỉ" phía trên)
+  const siTagUpdatedRows=siTagPhoneRows.filter(r=>siMphones.has(last9(r[COL_ONL.PHONE])));   // 4) Có SĐT — đã update Master
   const siTagNoMasterRows=siTagPhoneRows.filter(r=>!siMphones.has(last9(r[COL_ONL.PHONE])));
-  const siTagCaseA=siTagNoMasterRows.filter(r=>siMnames.has(normName(r[COL_ONL.NAME])));   // đã có KH trong Master, chưa update đúng SĐT
-  const siTagCaseB=siTagNoMasterRows.filter(r=>!siMnames.has(normName(r[COL_ONL.NAME])));  // chưa có data KH trong Master
+  const isTtmnTag=r=>/BÀN GIAO TTMN|BAN GIAO TTMN/.test(U(r[COL_ONL.TAG]));
+  const siTagCaseA=siTagNoMasterRows.filter(r=>siMnames.has(normName(r[COL_ONL.NAME])));                    // đã có KH trong Master, chưa update đúng SĐT
+  const siTagCaseTtmn=siTagNoMasterRows.filter(r=>!siMnames.has(normName(r[COL_ONL.NAME]))&&isTtmnTag(r));  // bàn giao TTMN
+  const siTagCaseB=siTagNoMasterRows.filter(r=>!siMnames.has(normName(r[COL_ONL.NAME]))&&!isTtmnTag(r));    // chưa có data KH trong Master
   const qcSiTagCols=['Ngày tạo','Tên khách','SĐT','Thẻ hiện tại','Nguồn','NV cập nhật'];
   const qcSiTagRow=r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE]||blank,(r[COL_ONL.TAG]||'').trim()||blank,(r[COL_ONL.SOURCE]||'').replace(/\s*\(\d+\)\s*$/,''),r[COL_ONL.STAFF]];
   const qcSiTagRowWhy=why=>r=>[...qcSiTagRow(r),why];
   window._qcSiTag={
     tagged:{title:'Data gắn tag KH Sỉ (data hub, từ T6/2026)',cols:qcSiTagCols,rows:siTagUniq.map(qcSiTagRow)},
     phone:{title:'Data KH Sỉ có SĐT (data hub, từ T6/2026)',cols:qcSiTagCols,rows:siTagPhoneRows.map(qcSiTagRow)},
-    noMaster:{title:'Có SĐT nhưng chưa update Master Sỉ (từ T6/2026)',cols:[...qcSiTagCols,'Tình trạng'],
-      rows:[...siTagCaseA.map(qcSiTagRowWhy('Đã có KH trong Master — chưa update đúng SĐT')),...siTagCaseB.map(qcSiTagRowWhy('Chưa có data KH trong Master'))]},
+    updated:{title:'Có SĐT — đã update Master Sỉ (từ T6/2026)',cols:qcSiTagCols,rows:siTagUpdatedRows.map(qcSiTagRow)},
+    noMaster:{title:'Chưa Update Trong Master / Bàn Giao Cho TTMN (từ T6/2026)',cols:[...qcSiTagCols,'Tình trạng'],
+      rows:[...siTagCaseA.map(qcSiTagRowWhy('Đã có KH trong Master — chưa update đúng SĐT')),...siTagCaseTtmn.map(qcSiTagRowWhy('Bàn giao TTMN')),...siTagCaseB.map(qcSiTagRowWhy('Chưa có data KH trong Master'))]},
   };
-  const siTagN=siTagUniq.length, siTagPhoneN=siTagPhoneRows.length, siTagNoMasterN=siTagNoMasterRows.length;
+  const siTagN=siTagUniq.length, siTagPhoneN=siTagPhoneRows.length, siTagUpdatedN=siTagUpdatedRows.length, siTagNoMasterN=siTagNoMasterRows.length;
 
   // ===== Data Hub: có SĐT nhưng thiếu thẻ phân loại KH (Lẻ/Sỉ) hoặc thẻ chất lượng (Lead đạt/tiềm năng) =====
   //   (toàn bộ data hub, không riêng Sỉ; cố định từ T6/2026, bỏ qua data không có ngày tạo)
@@ -2721,7 +2725,7 @@ function renderQcDoiSoat(){
         ${(siErrN+onlErrN+dhTagErrN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện lỗi nhập liệu</div>'}
       </div>
       <div class="qc-group-h" style="margin-top:14px">📇 Kiểm Soát Tag & SĐT Khách Sỉ <span style="font-weight:600;color:var(--muted);text-transform:none;font-size:11px">(data hub, nguồn tag "KH Sỉ" · cố định từ T6/2026 đến nay · bỏ qua data không có ngày tạo)</span></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
         <div class="qc-card" style="--qa:#7c3aed;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).tagged)">
           <div class="qc-h" style="color:var(--text)">🏷️ Gắn Tag "KH Sỉ"</div>
           ${single('🏷️',num(siTagN),'khách trong data hub từ T6/2026','#7c3aed')}
@@ -2732,8 +2736,13 @@ function renderQcDoiSoat(){
           ${single('📞',num(siTagPhoneN),pct(siTagN?siTagPhoneN/siTagN*100:0)+' / '+num(siTagN)+' KH Sỉ','#0891b2')}
           <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#0891b2">👆 bấm xem data</div>
         </div>
+        <div class="qc-card" style="--qa:#0abf7a;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).updated)">
+          <div class="qc-h" style="color:var(--text)">✅ Có SĐT — Đã Update Master</div>
+          ${single('✅',num(siTagUpdatedN),pct(siTagPhoneN?siTagUpdatedN/siTagPhoneN*100:0)+' / '+num(siTagPhoneN)+' có SĐT','#0abf7a')}
+          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#0abf7a">👆 bấm xem data</div>
+        </div>
         <div class="qc-card" style="--qa:#e11d48;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).noMaster)">
-          <div class="qc-h" style="color:var(--text)">🗂️ Có SĐT — Chưa Update Master</div>
+          <div class="qc-h" style="color:var(--text)">🗂️ Chưa Update Trong Master / Bàn Giao TTMN</div>
           ${single('🗂️',num(siTagNoMasterN),pct(siTagPhoneN?siTagNoMasterN/siTagPhoneN*100:0)+' / '+num(siTagPhoneN)+' có SĐT','#e11d48')}
           <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm xem data</div>
         </div>
