@@ -2508,15 +2508,17 @@ function renderQcDoiSoat(){
   const onlDupSet=new Set();onlDup.forEach(g=>g.forEach(r=>onlDupSet.add(r)));
   const dupWhy=(r,phoneCol,storeCol,nameCol)=>{const w=[];if(phoneCol!=null&&(r[phoneCol]||'').trim())w.push('SĐT '+(r[phoneCol]||'').trim());if(storeCol!=null&&(r[storeCol]||'').trim())w.push('“'+(r[storeCol]||'').trim()+'”');else if(nameCol!=null&&(r[nameCol]||'').trim())w.push('“'+(r[nameCol]||'').trim()+'”');return w.length?'Trùng lặp ('+w.join(' / ')+')':'Trùng lặp';};
   const siErrRows=[];
-  saleSiRows.forEach(r=>{const errs=[];
-    const mf=[];if(bl(r[COL_SI.DATE]))mf.push('Ngày tạo');if(bl(r[COL_SI.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SI.REP])&&bl(r[COL_SI.STORE]))mf.push('Tên');if(bl(r[COL_SI.PHONE]))mf.push('SĐT');
+  saleSiRows.forEach(r=>{if(bl(r[COL_SI.DATE]))return;   // không có ngày tạo = data trống chưa ai đụng vào, bỏ qua không tính lỗi
+    const errs=[];
+    const mf=[];if(bl(r[COL_SI.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SI.REP])&&bl(r[COL_SI.STORE]))mf.push('Tên');if(bl(r[COL_SI.PHONE]))mf.push('SĐT');
     if(mf.length)errs.push('Thiếu trường: '+mf.join(', '));
     const st=(r[COL_SI.STATUS]||'').trim();if(!okSi(st))errs.push(st?'Trạng thái sai: “'+st+'” (ngoài 4 trạng thái)':'Trạng thái: bỏ trống');
     if(siDupSet.has(r))errs.push(dupWhy(r,COL_SI.PHONE,COL_SI.STORE,COL_SI.REP));
     if(errs.length)siErrRows.push([r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],'<b style="color:#e11d48">'+errs.join(' · ')+'</b>']);});
   const onlErrRows=[];
-  saleOnlRows.forEach(r=>{const errs=[];
-    const mf=[];if(bl(r[COL_SAONL.DATE]))mf.push('Ngày tạo');if(bl(r[COL_SAONL.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SAONL.NAME])&&bl(r[COL_SAONL.PHONE]))mf.push('Tên & SĐT');
+  saleOnlRows.forEach(r=>{if(bl(r[COL_SAONL.DATE]))return;   // không có ngày tạo = data trống, bỏ qua
+    const errs=[];
+    const mf=[];if(bl(r[COL_SAONL.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SAONL.NAME])&&bl(r[COL_SAONL.PHONE]))mf.push('Tên & SĐT');
     if(/^chốt/i.test(r[COL_SAONL.STATUS]||'')){if(vndNum(r[COL_SAONL.REVENUE])<=0)mf.push('Doanh thu chốt');if(bl(r[COL_SAONL.DATE_CLOSE]))mf.push('Ngày chốt');}
     if(mf.length)errs.push('Thiếu trường: '+mf.join(', '));
     const st=(r[COL_SAONL.STATUS]||'').trim();if(!okOnl(st))errs.push(st?'Trạng thái sai: “'+st+'”':'Trạng thái: bỏ trống');
@@ -2525,30 +2527,45 @@ function renderQcDoiSoat(){
   const siErrN=siErrRows.length, onlErrN=onlErrRows.length;
   window._qcErrors={si:siErrRows,onl:onlErrRows};
 
-  // ===== Kiểm soát Tag & SĐT khách Sỉ: khách nguồn Sỉ (fanpage Tổng Kho Sỉ) đã cho SĐT nhưng =====
-  //   (1) chưa được đưa vào Master Sỉ  hoặc  (2) chưa gắn tag lead (Lead đạt / Lead tiềm năng)
-  //   Chỉ lấy data từ T6/2026 trở đi; bỏ data gắn tag KH Lẻ; chỉ lấy data chưa gắn tag (có SĐT) HOẶC gắn tag KH Sỉ
+  // ===== Kiểm soát Tag & SĐT khách Sỉ (data hub), cố định từ T6/2026 tới hiện tại — không phụ thuộc bộ lọc ngày trên topbar =====
   const SI_TAG_FLOOR=new Date(2026,5,1);
-  const isSiSrc=r=>{const s=U(r[COL_ONL.SOURCE]);return s.includes('SỈ')||s.includes('THỜI ĐẠI')||s.includes('THOI DAI')||s.includes('TỔNG KHO')||s.includes('TONG KHO');};
-  const isLeTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('KH LẺ')||t.includes('KH LE');};
+  const today0=new Date();today0.setHours(23,59,59,999);
   const isSiTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('KH SỈ')||t.includes('KH SI');};
-  const noTagAtAll=r=>!(r[COL_ONL.TAG]||'').trim();
-  const hasLeadTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('LEAD ĐẠT')||t.includes('LEAD DAT')||t.includes('TIỀM NĂNG')||t.includes('TIEM NANG');};
-  const siMasterPhones=new Set(saleSiRows.map(r=>last9(r[COL_SI.PHONE])).filter(Boolean));
-  const siLeadRaw=dedupOnl(onlineRows.filter(r=>{
-    if(!isSiSrc(r)||!(r[COL_ONL.PHONE]||'').trim())return false;
-    const d=parseDate(r[COL_ONL.DATE]);if(!d||d<SI_TAG_FLOOR)return false;   // chỉ từ T6/2026
-    if(!inFloor(r[COL_ONL.DATE]))return false;                              // + tôn trọng bộ lọc ngày đang chọn
-    if(isLeTag(r))return false;                                             // bỏ tag KH Lẻ
-    return noTagAtAll(r)||isSiTag(r);                                       // chỉ lấy: chưa gắn tag (có SĐT) hoặc tag KH Sỉ
+  // 1) Data gắn tag "KH Sỉ" trong data hub, từ T6/2026 tới nay (khử trùng theo SĐT — 1 khách nhiều đơn chỉ tính 1)
+  const siTagRaw=dedupOnl(onlineRows.filter(r=>{if(!isSiTag(r))return false;const d=parseDate(r[COL_ONL.DATE]);return d&&d>=SI_TAG_FLOOR&&d<=today0;}));
+  const seenSiPh=new Set();const siTagUniq=[];
+  siTagRaw.forEach(r=>{const p=last9(r[COL_ONL.PHONE]);if(p){if(seenSiPh.has(p))return;seenSiPh.add(p);}siTagUniq.push(r);});
+  // 2) Trong đó, khách đã cho SĐT
+  const siTagPhoneRows=siTagUniq.filter(r=>(r[COL_ONL.PHONE]||'').trim());
+  // 3) Có SĐT nhưng chưa update trong Master Sỉ = (a) đã có KH trong Master nhưng SĐT chưa khớp/chưa update + (b) chưa có data KH trong Master
+  //    (dùng chung siMphones/siMnames đã build ở check "Lead Tiềm Năng Chưa Phân Về Sale Sỉ" phía trên)
+  const siTagNoMasterRows=siTagPhoneRows.filter(r=>!siMphones.has(last9(r[COL_ONL.PHONE])));
+  const siTagCaseA=siTagNoMasterRows.filter(r=>siMnames.has(normName(r[COL_ONL.NAME])));   // đã có KH trong Master, chưa update đúng SĐT
+  const siTagCaseB=siTagNoMasterRows.filter(r=>!siMnames.has(normName(r[COL_ONL.NAME])));  // chưa có data KH trong Master
+  const qcSiTagCols=['Ngày tạo','Tên khách','SĐT','Thẻ hiện tại','Nguồn','NV cập nhật'];
+  const qcSiTagRow=r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE]||blank,(r[COL_ONL.TAG]||'').trim()||blank,(r[COL_ONL.SOURCE]||'').replace(/\s*\(\d+\)\s*$/,''),r[COL_ONL.STAFF]];
+  const qcSiTagRowWhy=why=>r=>[...qcSiTagRow(r),why];
+  window._qcSiTag={
+    tagged:{title:'Data gắn tag KH Sỉ (data hub, từ T6/2026)',cols:qcSiTagCols,rows:siTagUniq.map(qcSiTagRow)},
+    phone:{title:'Data KH Sỉ có SĐT (data hub, từ T6/2026)',cols:qcSiTagCols,rows:siTagPhoneRows.map(qcSiTagRow)},
+    noMaster:{title:'Có SĐT nhưng chưa update Master Sỉ (từ T6/2026)',cols:[...qcSiTagCols,'Tình trạng'],
+      rows:[...siTagCaseA.map(qcSiTagRowWhy('Đã có KH trong Master — chưa update đúng SĐT')),...siTagCaseB.map(qcSiTagRowWhy('Chưa có data KH trong Master'))]},
+  };
+  const siTagN=siTagUniq.length, siTagPhoneN=siTagPhoneRows.length, siTagNoMasterN=siTagNoMasterRows.length;
+
+  // ===== Data Hub: có SĐT nhưng thiếu thẻ phân loại KH (Lẻ/Sỉ) hoặc thẻ chất lượng (Lead đạt/tiềm năng) =====
+  //   (toàn bộ data hub, không riêng Sỉ; cố định từ T6/2026, bỏ qua data không có ngày tạo)
+  const hasKhTypeTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('KH LẺ')||t.includes('KH LE')||t.includes('KH SỈ')||t.includes('KH SI');};
+  const hasQualityTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('LEAD ĐẠT')||t.includes('LEAD DAT')||t.includes('TIỀM NĂNG')||t.includes('TIEM NANG')||t.includes('CHỐT')||t.includes('CHOT');};
+  const dhTagErrRaw=dedupOnl(onlineRows.filter(r=>{
+    if(!(r[COL_ONL.PHONE]||'').trim())return false;
+    const d=parseDate(r[COL_ONL.DATE]);if(!d||d<SI_TAG_FLOOR||d>today0)return false;
+    return !hasKhTypeTag(r)||!hasQualityTag(r);
   }));
-  const uniqSiLead={};siLeadRaw.forEach(r=>{const p=last9(r[COL_ONL.PHONE]);if(p&&!uniqSiLead[p])uniqSiLead[p]=r;});
-  const siLeadUniq=Object.values(uniqSiLead);
-  const siNoMaster=siLeadUniq.filter(r=>!siMasterPhones.has(last9(r[COL_ONL.PHONE])));
-  const siNoTag=siLeadUniq.filter(r=>!hasLeadTag(r));
-  const siTagNoMasterN=siNoMaster.length, siTagNoTagN=siNoTag.length;
-  const qcSiTagRow=r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE],(r[COL_ONL.TAG]||'').trim()||blank,(r[COL_ONL.SOURCE]||'').replace(/\s*\(\d+\)\s*$/,''),r[COL_ONL.STAFF]];
-  window._qcSiTag={noMaster:siNoMaster.map(qcSiTagRow),noTag:siNoTag.map(qcSiTagRow),total:siLeadUniq.length};
+  const dhTagErrN=dhTagErrRaw.length;
+  window._qcDhTag={title:'Data Hub — Có SĐT nhưng thiếu thẻ phân loại (từ T6/2026)',cols:[...['Ngày tạo','Tên khách','SĐT','Thẻ hiện tại','Nguồn','NV cập nhật'],'Thiếu'],
+    rows:dhTagErrRaw.map(r=>{const w=[];if(!hasKhTypeTag(r))w.push('Thẻ phân loại KH (Lẻ/Sỉ)');if(!hasQualityTag(r))w.push('Thẻ Lead đạt/tiềm năng');
+      return[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE]||blank,(r[COL_ONL.TAG]||'').trim()||blank,(r[COL_ONL.SOURCE]||'').replace(/\s*\(\d+\)\s*$/,''),r[COL_ONL.STAFF],w.join(' + ')];})};
 
   // ===== Helpers card =====
   const RED='#ef4444', GRN='var(--green)';
@@ -2694,21 +2711,32 @@ function renderQcDoiSoat(){
           </div>
         </div>
       </div>
-      <div class="qc-card" style="--qa:#e11d48;margin-top:14px${(siErrN+onlErrN)>0?';cursor:pointer':''}"${(siErrN+onlErrN)>0?' onclick="qcShowErrors()"':''}>
+      <div class="qc-card" style="--qa:#e11d48;margin-top:14px${(siErrN+onlErrN+dhTagErrN)>0?';cursor:pointer':''}"${(siErrN+onlErrN+dhTagErrN)>0?' onclick="qcShowErrors()"':''}>
         <div class="qc-h" style="color:var(--text)">🛠️ Kiểm Soát Lỗi Nhập Liệu <span style="font-weight:600;color:var(--muted);text-transform:none">(trùng lặp · sai/trống trạng thái · thiếu trường ảnh hưởng số liệu)</span></div>
         <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
           <div style="display:flex;align-items:center;gap:11px">${ic('🏪')}<div><div style="font-size:24px;font-weight:900;color:${siErrN>0?'#e11d48':GRN}">${num(siErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Master Sỉ</div></div></div>
           <div style="display:flex;align-items:center;gap:11px">${ic('🌐')}<div><div style="font-size:24px;font-weight:900;color:${onlErrN>0?'#e11d48':GRN}">${num(onlErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Sale Online</div></div></div>
+          <div style="display:flex;align-items:center;gap:11px">${ic('🏷️')}<div><div style="font-size:24px;font-weight:900;color:${dhTagErrN>0?'#e11d48':GRN}">${num(dhTagErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Data Hub — có SĐT thiếu tag phân loại</div></div></div>
         </div>
-        ${(siErrN+onlErrN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện lỗi nhập liệu</div>'}
+        ${(siErrN+onlErrN+dhTagErrN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện lỗi nhập liệu</div>'}
       </div>
-      <div class="qc-card" style="--qa:#7c3aed;margin-top:14px${(siTagNoMasterN+siTagNoTagN)>0?';cursor:pointer':''}"${(siTagNoMasterN+siTagNoTagN)>0?' onclick="qcShowSiTag()"':''}>
-        <div class="qc-h" style="color:var(--text)">📇 Kiểm Soát Tag & SĐT Khách Sỉ <span style="font-weight:600;color:var(--muted);text-transform:none">(khách nguồn Sỉ đã cho SĐT — đối chiếu Master ⨝ data hub · ${num((window._qcSiTag||{}).total||0)} khách trong kỳ)</span></div>
-        <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
-          <div style="display:flex;align-items:center;gap:11px">${ic('🗂️')}<div><div style="font-size:24px;font-weight:900;color:${siTagNoMasterN>0?'#e11d48':GRN}">${num(siTagNoMasterN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> khách</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Có SĐT · chưa update Master Sỉ</div></div></div>
-          <div style="display:flex;align-items:center;gap:11px">${ic('🏷️')}<div><div style="font-size:24px;font-weight:900;color:${siTagNoTagN>0?'#f59e0b':GRN}">${num(siTagNoTagN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> khách</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Có SĐT · chưa gắn tag lead đạt/tiềm năng</div></div></div>
+      <div class="qc-group-h" style="margin-top:14px">📇 Kiểm Soát Tag & SĐT Khách Sỉ <span style="font-weight:600;color:var(--muted);text-transform:none;font-size:11px">(data hub, nguồn tag "KH Sỉ" · cố định từ T6/2026 đến nay · bỏ qua data không có ngày tạo)</span></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+        <div class="qc-card" style="--qa:#7c3aed;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).tagged)">
+          <div class="qc-h" style="color:var(--text)">🏷️ Gắn Tag "KH Sỉ"</div>
+          ${single('🏷️',num(siTagN),'khách trong data hub từ T6/2026','#7c3aed')}
+          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#7c3aed">👆 bấm xem data</div>
         </div>
-        ${(siTagNoMasterN+siTagNoTagN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#7c3aed">👆 bấm để xem danh sách khách</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Khách sỉ đã được update + gắn tag đầy đủ</div>'}
+        <div class="qc-card" style="--qa:#0891b2;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).phone)">
+          <div class="qc-h" style="color:var(--text)">📞 KH Sỉ Có SĐT</div>
+          ${single('📞',num(siTagPhoneN),pct(siTagN?siTagPhoneN/siTagN*100:0)+' / '+num(siTagN)+' KH Sỉ','#0891b2')}
+          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#0891b2">👆 bấm xem data</div>
+        </div>
+        <div class="qc-card" style="--qa:#e11d48;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).noMaster)">
+          <div class="qc-h" style="color:var(--text)">🗂️ Có SĐT — Chưa Update Master</div>
+          ${single('🗂️',num(siTagNoMasterN),pct(siTagPhoneN?siTagNoMasterN/siTagPhoneN*100:0)+' / '+num(siTagPhoneN)+' có SĐT','#e11d48')}
+          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm xem data</div>
+        </div>
       </div>
     </div>
 
@@ -3068,6 +3096,7 @@ function qcShowMissing(){
 // Modal GỘP: kiểm soát lỗi nhập liệu (trùng + trạng thái + thiếu trường)
 function qcShowErrors(){
   const d=window._qcErrors||{si:[],onl:[]};
+  const dh=window._qcDhTag||{cols:[],rows:[]};
   const sect=(title,cols,rows)=>`<div style="margin:6px 0 14px">
     <div style="font-size:13px;font-weight:800;color:var(--text);margin:8px 4px">${title} <span style="color:var(--muted);font-weight:600;font-size:12px">· ${rows.length} data lỗi</span></div>
     ${rows.length?`<table style="width:100%;border-collapse:collapse"><thead><tr>${cols.map(c=>`<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);position:sticky;top:0;background:var(--bg2);white-space:nowrap">${c}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr style="border-bottom:1px solid var(--border)">${row.map((v,j)=>`<td style="padding:7px 12px;font-size:12px;${j===1?'font-weight:700;color:var(--text)':'color:var(--text2)'}">${(v==null||v==='')?'—':v}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<div style="padding:8px 12px;color:var(--green);font-size:12px;font-weight:700">✓ Không phát hiện lỗi</div>'}
@@ -3082,28 +3111,7 @@ function qcShowErrors(){
       <div style="overflow:auto;padding:0 8px 8px">
         ${sect('🏪 Master Sỉ',['Mã KH/Lead ID','Tên','SĐT','Nguồn','Lỗi'],d.si)}
         ${sect('🌐 Sale Online',['Lead ID','Tên','SĐT','Nguồn','Lỗi'],d.onl)}
-      </div>
-    </div></div>`;
-}
-// Modal kiểm soát tag & SĐT khách sỉ (data hub nguồn Sỉ ⨝ Master Sỉ)
-function qcShowSiTag(){
-  const d=window._qcSiTag||{noMaster:[],noTag:[]};
-  const cols=['Ngày tạo','Tên khách','SĐT','Thẻ hiện tại','Nguồn','NV cập nhật'];
-  const sect=(title,desc,rows,color)=>`<div style="margin:6px 0 14px">
-    <div style="font-size:13px;font-weight:800;color:var(--text);margin:8px 4px">${title} <span style="color:var(--muted);font-weight:600;font-size:12px">· ${rows.length} khách</span></div>
-    <div style="font-size:11px;color:var(--muted);margin:0 4px 8px">${desc}</div>
-    ${rows.length?`<table style="width:100%;border-collapse:collapse"><thead><tr>${cols.map(c=>`<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);position:sticky;top:0;background:var(--bg2);white-space:nowrap">${c}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr style="border-bottom:1px solid var(--border)">${row.map((v,j)=>`<td style="padding:7px 12px;font-size:12px;${j===1?'font-weight:700;color:var(--text)':'color:var(--text2)'};white-space:nowrap">${(v==null||v==='')?'—':v}</td>`).join('')}</tr>`).join('')}</tbody></table>`:'<div style="padding:8px 12px;color:var(--green);font-size:12px;font-weight:700">✓ Không có khách nào</div>'}
-  </div>`;
-  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
-  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
-    <div style="background:var(--surface);border-radius:16px;max-width:1000px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
-        <div style="font-size:15px;font-weight:800;color:var(--text)">📇 Kiểm Soát Tag & SĐT Khách Sỉ</div>
-        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
-      </div>
-      <div style="overflow:auto;padding:0 8px 8px">
-        ${sect('🗂️ Có SĐT nhưng chưa update vào Master Sỉ','Khách nguồn Sỉ đã để lại SĐT ở data hub nhưng SĐT chưa xuất hiện trong tab Master Sỉ — sales cần tạo/cập nhật khách.',d.noMaster,'#e11d48')}
-        ${sect('🏷️ Có SĐT nhưng chưa gắn tag lead','Khách nguồn Sỉ đã để lại SĐT nhưng thẻ khách hàng chưa gắn Lead đạt / Lead tiềm năng.',d.noTag,'#f59e0b')}
+        ${sect('🏷️ Data Hub — có SĐT thiếu tag phân loại',dh.cols||[],dh.rows||[])}
       </div>
     </div></div>`;
 }
