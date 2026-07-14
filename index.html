@@ -2399,8 +2399,8 @@ function renderQcDoiSoat(){
   // NGUONONL có thể có dòng trùng y hệt → khử trùng theo Mã đơn / tên+SĐT+ngày
   const dedupOnl=arr=>{const seen=new Set(),out=[];arr.forEach(r=>{const k=((r[COL_ONL.ORDER_ID]||'')+'|'+(r[COL_ONL.NAME]||'')+'|'+(r[COL_ONL.PHONE]||'')+'|'+(r[COL_ONL.DATE]||'')).trim().toUpperCase();if(!seen.has(k)){seen.add(k);out.push(r);}});return out;};
   const tiemLeMissRows=dedupOnl(tiemLe.filter(r=>!inOnlMaster(r))); const tiemLeMiss=tiemLeMissRows.length;
-  const onlMJ=saleOnlRows.filter(r=>inFloor(r[COL_SAONL.DATE])&&okB(brandSaonl,r));
-  const onlClosed=onlMJ.filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||''));
+  // Đơn chốt online lọc theo NGÀY CHỐT (đồng bộ với Báo Cáo Online / MKT / Đối Soát — doanh số ghi nhận theo ngày chốt)
+  const onlClosed=saleOnlRows.filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||'')&&okB(brandSaonl,r)&&inFloor(r[COL_SAONL.DATE_CLOSE]));
   const onlClosedRev=onlClosed.reduce((s,r)=>s+vndNum(r[COL_SAONL.REVENUE]),0);
 
   // ===== MASTER SỈ (saleSiRows) + CRM Sỉ =====
