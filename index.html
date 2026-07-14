@@ -282,7 +282,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
     <nav id="sec-qc">
       <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Chung</span></div>
-      <div class="nav-item" onclick="switchPage('qc-invoice')" id="nav-qc-invoice"><span class="nav-icon">⚖️</span><span class="nav-label">Đối Soát PnL</span></div>
+      <div class="nav-item" onclick="switchPage('qc-invoice')" id="nav-qc-invoice"><span class="nav-icon">⚖️</span><span class="nav-label">Đối Soát Đơn Hàng</span></div>
     </nav>
   </div>
 
@@ -2842,7 +2842,7 @@ function renderQcInvoice(){
       </div>
     </div>`;
   el.innerHTML=`
-    <div class="page-title">QC — Đối Soát PnL</div>
+    <div class="page-title">QC — Đối Soát Đơn Hàng</div>
     <div class="page-sub">Đối chiếu doanh số ghi nhận (Báo Cáo Online + Báo Cáo Sỉ) với doanh thu thực nhận từ hoá đơn Kiot · nối qua Mã KH</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${curPeriodLabel()}</div>
