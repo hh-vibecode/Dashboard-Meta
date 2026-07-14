@@ -1198,24 +1198,25 @@ function renderSaleSi(){
   const toN=vndNum;
   const hasStatus=(r,kw)=>(r[COL_SI.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const isDon=r=>hasStatus(r,'đã ra đơn')||toN(r[COL_SI.TOTAL_REV])>0;
-  const total=rows.length;
-  // Nguồn khách: tách theo tệp KHÁCH MỚI trong kỳ → Online + Offline + Khác = Tổng khách mới
-  // Không chọn ngày = toàn bộ tệp (kể cả khách thiếu ngày tạo); có chọn ngày mới lọc theo ngày
+  // Data khách tính theo NGÀY TẠO (COL_SI.DATE): có lọc ngày → chỉ khách tạo trong kỳ; không lọc → toàn bộ.
+  // (nguồn onl/off, ngày tạo tháng nào thì ghi nhận tháng đó — mọi chỉ số KH bên dưới đều theo baseRows này)
   const hasDF=!!(fromD||toD);
-  const newRowsAll=hasDF?rows.filter(r=>inR(parseDate(r[COL_SI.DATE]))):rows.slice();
-  // Tổng Khách Mới chỉ tính khách đã phân loại nguồn (Online/Offline); bỏ qua khách thiếu Nguồn
+  const baseRows=hasDF?rows.filter(r=>inR(parseDate(r[COL_SI.DATE]))):rows.slice();
+  const total=baseRows.length;
+  // Nguồn khách: Tổng Khách Mới chỉ tính khách đã phân loại nguồn (Online/Offline); bỏ qua khách thiếu Nguồn
+  const newRowsAll=baseRows;
   const newRows=newRowsAll.filter(r=>{const s=(r[COL_SI.SOURCE]||'').toLowerCase().trim();return s==='online'||s==='offline';});
   const newInPeriod=newRows.length;
   const fromOnl=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online').length;
   const selfSource=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline').length;
   const noSrcCount=newRowsAll.length-newInPeriod;
-  const closed=rows.filter(isDon).length;
-  const notYet=rows.filter(r=>!isDon(r)).length;
+  const closed=baseRows.filter(isDon).length;
+  const notYet=baseRows.filter(r=>!isDon(r)).length;
   const crmMap=getSiCrmHistory();
   const ciOf=r=>siContactInfo(r,crmMap);
   // "Chưa ra đơn" lấy trực tiếp theo cột Phân loại KH: Tiềm năng, chưa ra đơn / Không tiềm năng / Mất kết nối
   const stOf=r=>(r[COL_SI.STATUS]||'').toLowerCase();
-  const notYetRows=rows.filter(r=>!isDon(r));
+  const notYetRows=baseRows.filter(r=>!isDon(r));
   const tiemRows=notYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r)));
   const lostRows=notYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
   // "Không tiềm năng" chỉ tính khách ĐÃ được gắn trạng thái đó; khách chưa có trạng thái gì (bỏ trống/khác) tách riêng, không gộp vào Không tiềm năng
@@ -1251,7 +1252,7 @@ function renderSaleSi(){
   const onlChuaPlRows=onlNewRows.filter(r=>!onlTiemRows.includes(r)&&!onlKtnRows.includes(r));
 
   window._siLists={
-    total:{title:'Toàn bộ khách sỉ',cols:siCols,rows:siMap(rows)},
+    total:{title:'Toàn bộ khách sỉ (theo ngày tạo trong kỳ)',cols:siCols,rows:siMap(baseRows)},
     new:{title:'Khách mới trong kỳ',cols:siCols,rows:siMap(newRows)},
     online:{title:'Khách mới nguồn Online',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online'))},
     onlTiem:{title:'Online — Khách tiềm năng',cols:siCols,rows:siMap(onlTiemRows)},
@@ -1259,7 +1260,7 @@ function renderSaleSi(){
     onlChuaPl:{title:'Online — Chưa phân loại',cols:siCols,rows:siMap(onlChuaPlRows)},
     offline:{title:'Khách mới nguồn Offline (tự khai thác)',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline'))},
     srcother:{title:'Khách mới chưa rõ nguồn (không tính vào Tổng Khách Mới)',cols:siCols,rows:siMap(newRowsAll.filter(r=>{const s=(r[COL_SI.SOURCE]||'').toLowerCase().trim();return s!=='online'&&s!=='offline';}))},
-    closed:{title:'Khách đã ra đơn',cols:siCols,rows:siMap(rows.filter(isDon))},
+    closed:{title:'Khách đã ra đơn',cols:siCols,rows:siMap(baseRows.filter(isDon))},
     notYet:{title:'Khách chưa ra đơn',cols:siCols,rows:siMap(notYetRows)},
     tiem:{title:'Tiềm năng nhưng chưa ra đơn',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Trạng thái','Giá trị tiềm năng'],
       rows:tiemRows.map(r=>[r[COL_SI.DATE],r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.STATUS],ciOf(r).expected>0?vnd(ciOf(r).expected):''])},
@@ -1390,11 +1391,11 @@ function renderSaleSi(){
       </div>
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái đơn</div>
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái KH</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
-        ${siClk('closed',mkKpi('✅','Đã Ra Đơn',num(closed),pct(closed/total*100)+' tổng KH','g-green'))}
+        ${siClk('closed',mkKpi('✅','Đã Ra Đơn',num(closed),pct(total?closed/total*100:0)+' tổng KH','g-green'))}
         <div onclick="siShowNotYet()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('⏳','Chưa Ra Đơn',num(notYet),'tiềm năng + không tiềm năng + mất kết nối + chưa cập nhật','g-yellow')}</div>
-        ${siClk('closes',mkKpi('📦','Số Đơn Chốt',num(closeList.length),'lượt chốt trong CRM'+(closed>0?' · '+(closeList.length/closed).toFixed(1)+' đơn/khách':''),'g-blue'))}
+        ${siClk('nost',mkKpi('🏷️','Chưa Phân Loại Data',num(noStatusRows.length),'chưa gắn trạng thái ở cột Phân loại KH','g-blue'))}
       </div>
     </div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
