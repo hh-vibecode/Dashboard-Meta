@@ -2417,6 +2417,14 @@ function renderQcDoiSoat(){
   const siMJ=saleSiRows.filter(r=>inFloor(r[COL_SI.DATE])&&okB(brandSi,r));
   const siOnline=siMJ.filter(r=>U(r[COL_SI.SOURCE]).includes('ONLINE'));
   const siCaredN=siMJ.filter(siCared).length;
+  // ===== Chất lượng data Sỉ tính theo MASTER SỈ (nguồn online, lọc theo ngày tạo) =====
+  //   Sales gắn tiềm năng/chốt ở cột "Phân loại KH" của Master, KHÔNG gắn tag ở data hub → phải lấy từ Master
+  const isDonSiM=r=>/đã ra đơn|da ra don/i.test(r[COL_SI.STATUS]||'')||vndNum(r[COL_SI.TOTAL_REV])>0;
+  const isTiemSiM=r=>/tiềm năng|tiem nang/i.test(r[COL_SI.STATUS]||'');
+  const datSiM=siOnline.length;                                             // Lead Đạt Sỉ = khách sỉ online đã ghi nhận vào Master trong kỳ
+  const datPhoneSiM=siOnline.filter(r=>(r[COL_SI.PHONE]||'').trim()).length; // SĐT thu về
+  const chotSiM=siOnline.filter(isDonSiM).length;                            // Lead Chốt = đã ra đơn / có doanh thu
+  const tiemSiM=siOnline.filter(r=>isTiemSiM(r)||isDonSiM(r)).length;        // Lead Tiềm Năng (cộng dồn: chốt vốn là tiềm năng)
   const siOnlNotCaredRows=siOnline.filter(r=>!siCared(r)); const siOnlNotCared=siOnlNotCaredRows.length;
   // Card 13: chỉ tính data nguồn ONLINE (offline không đưa vào)
   const siChot=siOnline.filter(r=>vndNum(r[COL_SI.TOTAL_REV])>0).length;
@@ -2575,12 +2583,12 @@ function renderQcDoiSoat(){
     +subRow(subc(P(chotLe,tiemLe.length),'% Chốt/tiềm năng',CCHOT)+subc(P(chotLe,datLe),'% Chốt/đạt',CCHOT)));
   // Sỉ
   const cSi1=C('',T([['Tổng Mess',NEU],['Lead Đạt Sỉ',CDAT],['Lead Tiềm Năng Sỉ',CTIEM]]),CDAT,
-    seq('🏪',[[num(totalMess),NEU],[num(datSi),CDAT],[num(tiemSi.length),CTIEM]])
-    +subRow(subc(P(datSi,totalMess),'% Lead đạt/mess',CDAT)+subc(P(tiemSi.length,datSi),'% Tiềm năng/đạt',CTIEM)));
-  const cSi2=C('',T([['Lead Đạt Sỉ',CDAT],['SĐT Thu Về',NEU]]),CDAT,seq('📞',[[num(datSi),CDAT],[num(datPhoneSi),NEU]])+footPct('% SĐT thu về',P(datPhoneSi,datSi),CDAT));
+    seq('🏪',[[num(totalMess),NEU],[num(datSiM),CDAT],[num(tiemSiM),CTIEM]])
+    +subRow(subc(P(datSiM,totalMess),'% Lead đạt/mess',CDAT)+subc(P(tiemSiM,datSiM),'% Tiềm năng/đạt',CTIEM)));
+  const cSi2=C('',T([['Lead Đạt Sỉ',CDAT],['SĐT Thu Về',NEU]]),CDAT,seq('📞',[[num(datSiM),CDAT],[num(datPhoneSiM),NEU]])+footPct('% SĐT thu về',P(datPhoneSiM,datSiM),CDAT));
   const cSi3=C('',T([['Lead Đạt Sỉ',CDAT],['Lead Tiềm Năng',CTIEM],['Lead Chốt',CCHOT]]),CCHOT,
-    seq('✅',[[num(datSi),CDAT],[num(tiemSi.length),CTIEM],[num(chotSi),CCHOT]])
-    +subRow(subc(P(chotSi,tiemSi.length),'% Chốt/tiềm năng',CCHOT)+subc(P(chotSi,datSi),'% Chốt/đạt',CCHOT)));
+    seq('✅',[[num(datSiM),CDAT],[num(tiemSiM),CTIEM],[num(chotSiM),CCHOT]])
+    +subRow(subc(P(chotSiM,tiemSiM),'% Chốt/tiềm năng',CCHOT)+subc(P(chotSiM,datSiM),'% Chốt/đạt',CCHOT)));
 
   const c6=C('6',T([['Lead Tiềm Năng Chưa Phân Về Sale Onl',CTIEM]]),CTIEM,
     single('🗄️',num(tiemLeMiss),'/ '+tiemLe.length+' tiềm năng lẻ',CTIEM),tiemLeMiss>0?'m6':null);
@@ -2694,9 +2702,9 @@ function renderQcDoiSoat(){
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
-      <b>Ghi chú:</b> "Lead đạt"/"Tiềm năng"/"KH lẻ"/"KH sỉ" theo thẻ gắn ở tab nguồn online (datahub).
-      "Chưa phân về master" đối chiếu theo SĐT (9 số cuối) hoặc tên khách. "Đã chăm sóc" khớp Mã KH/Lead ID với CRM Sỉ.
-      Số 5 bỏ trống theo cấu trúc gốc. Chỉ số theo khoảng thời gian đang chọn (MKT chỉ có data từ T6/2026).
+      <b>Ghi chú:</b> Phần <b>Lẻ</b> lấy theo thẻ gắn ở tab nguồn online (datahub): Lead đạt / Tiềm năng / KH lẻ.
+      Phần <b>Sỉ</b> lấy theo tab <b>Master Sỉ</b> (nguồn Online, lọc theo ngày tạo): Lead đạt = khách sỉ online đã ghi nhận vào Master; Tiềm năng/Chốt theo cột "Phân loại KH" (chốt tính cộng dồn vào tiềm năng).
+      "Đã chăm sóc" khớp Mã KH/Lead ID với CRM Sỉ. Chỉ số theo khoảng thời gian đang chọn (MKT chỉ có data từ T6/2026).
     </div>`;
 }
 // Nhận diện brand từ Chi nhánh / Kênh bán của hoá đơn Kiot
