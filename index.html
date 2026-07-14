@@ -2527,10 +2527,21 @@ function renderQcDoiSoat(){
 
   // ===== Kiểm soát Tag & SĐT khách Sỉ: khách nguồn Sỉ (fanpage Tổng Kho Sỉ) đã cho SĐT nhưng =====
   //   (1) chưa được đưa vào Master Sỉ  hoặc  (2) chưa gắn tag lead (Lead đạt / Lead tiềm năng)
+  //   Chỉ lấy data từ T6/2026 trở đi; bỏ data gắn tag KH Lẻ; chỉ lấy data chưa gắn tag (có SĐT) HOẶC gắn tag KH Sỉ
+  const SI_TAG_FLOOR=new Date(2026,5,1);
   const isSiSrc=r=>{const s=U(r[COL_ONL.SOURCE]);return s.includes('SỈ')||s.includes('THỜI ĐẠI')||s.includes('THOI DAI')||s.includes('TỔNG KHO')||s.includes('TONG KHO');};
+  const isLeTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('KH LẺ')||t.includes('KH LE');};
+  const isSiTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('KH SỈ')||t.includes('KH SI');};
+  const noTagAtAll=r=>!(r[COL_ONL.TAG]||'').trim();
   const hasLeadTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('LEAD ĐẠT')||t.includes('LEAD DAT')||t.includes('TIỀM NĂNG')||t.includes('TIEM NANG');};
   const siMasterPhones=new Set(saleSiRows.map(r=>last9(r[COL_SI.PHONE])).filter(Boolean));
-  const siLeadRaw=dedupOnl(onlineRows.filter(r=>isSiSrc(r)&&(r[COL_ONL.PHONE]||'').trim()&&inFloor(r[COL_ONL.DATE])));
+  const siLeadRaw=dedupOnl(onlineRows.filter(r=>{
+    if(!isSiSrc(r)||!(r[COL_ONL.PHONE]||'').trim())return false;
+    const d=parseDate(r[COL_ONL.DATE]);if(!d||d<SI_TAG_FLOOR)return false;   // chỉ từ T6/2026
+    if(!inFloor(r[COL_ONL.DATE]))return false;                              // + tôn trọng bộ lọc ngày đang chọn
+    if(isLeTag(r))return false;                                             // bỏ tag KH Lẻ
+    return noTagAtAll(r)||isSiTag(r);                                       // chỉ lấy: chưa gắn tag (có SĐT) hoặc tag KH Sỉ
+  }));
   const uniqSiLead={};siLeadRaw.forEach(r=>{const p=last9(r[COL_ONL.PHONE]);if(p&&!uniqSiLead[p])uniqSiLead[p]=r;});
   const siLeadUniq=Object.values(uniqSiLead);
   const siNoMaster=siLeadUniq.filter(r=>!siMasterPhones.has(last9(r[COL_ONL.PHONE])));
