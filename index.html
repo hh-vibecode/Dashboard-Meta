@@ -377,7 +377,7 @@ function doLogin(){
   else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
 }
 // Phân quyền: role => danh sách trang được xem (null = xem hết)
-const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data','qc-doisoat'],'sale-onl':['sale-onl','qc-doisoat']};
+const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice'],'sale-onl':['sale-onl','qc-doisoat','qc-invoice']};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
