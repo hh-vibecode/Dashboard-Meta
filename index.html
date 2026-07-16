@@ -566,6 +566,30 @@ function parseMktCsv(text){
       else if(!as)row[COL.ADSET_NAME]=lastAdSet;
     }
   });
+  // Ổn định chiến dịch theo Ad ID: thỉnh thoảng Meta để trống ô "Tên chiến dịch" ở đúng 1 vài dòng lẻ
+  // của 1 Ad ID (không phải do đổi chiến dịch thật), khiến fill-down ở trên mượn nhầm tên chiến dịch
+  // của dòng trước đó → cùng 1 Ad ID/Nhóm QC bị "lẫn" vào 2 chiến dịch khác nhau. Sửa lại theo đa số:
+  // chiến dịch xuất hiện nhiều nhất với Ad ID đó mới là chiến dịch thật.
+  const adCampCount={};
+  allData.forEach(row=>{
+    const adId=String(row[COL.AD_ID]||'').trim();
+    if(!/^\d{8,}$/.test(adId))return;
+    const camp=(row[COL.CAMPAIGN]||'').trim();
+    if(!camp)return;
+    (adCampCount[adId]=adCampCount[adId]||{})[camp]=(adCampCount[adId][camp]||0)+1;
+  });
+  const adDominantCamp={};
+  Object.entries(adCampCount).forEach(([adId,counts])=>{
+    let best='',bestN=0;
+    Object.entries(counts).forEach(([camp,n])=>{if(n>bestN){best=camp;bestN=n;}});
+    if(best)adDominantCamp[adId]=best;
+  });
+  allData.forEach(row=>{
+    const adId=String(row[COL.AD_ID]||'').trim();
+    if(!/^\d{8,}$/.test(adId))return;
+    const dom=adDominantCamp[adId];
+    if(dom&&(row[COL.CAMPAIGN]||'').trim()!==dom)row[COL.CAMPAIGN]=dom;
+  });
   window.allRowsRaw=allData;
   allRows=allData.filter(row=>{
     const campName=(row[COL.CAMPAIGN]||'').trim();
