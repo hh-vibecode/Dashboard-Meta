@@ -2004,12 +2004,19 @@ function buildOnlineCampTable(){
   if(!onlineRows.length)return'';
   const adCampMap=buildAdCampMap();
   const hasTag=(tag,val)=>tag.toUpperCase().includes(val);
+  // Tôn trọng bộ lọc ngày + brand đang chọn trên topbar (trước đây bảng này luôn hiện toàn bộ lịch sử, gây lẫn data ngoài kỳ đang xem)
+  const _f=document.getElementById('dateFrom'),_t=document.getElementById('dateTo');
+  const fromD=_f&&_f.value?localDate(_f.value):null,toD=_t&&_t.value?localDate(_t.value,true):null;
+  const inR=d=>!fromD&&!toD?true:(!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD));
+  const brSel=brandArr('_mktBrands');
+  const onlineRowsF=onlineRows.filter(r=>inR(parseDate(r[COL_ONL.DATE])));
   // Group by campaign
   const byCamp={};
-  onlineRows.forEach(r=>{
+  onlineRowsF.forEach(r=>{
     const adId=(r[COL_ONL.AD_ID]||'').trim();
     const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Data chưa phân loại');
-    if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0};
+    if(brSel.length&&!brSel.includes(onlineBrand(camp)))return;
+    if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0,rev:0};
     const tag=(r[COL_ONL.TAG]||'');
     const isChot=hasTag(tag,'CHỐT'),isTiem=hasTag(tag,'TIỀM NĂNG');
     // phễu cộng dồn: chốt ⊂ tiềm năng ⊂ đạt
@@ -2023,10 +2030,16 @@ function buildOnlineCampTable(){
     else if(nw==='cũ'||nw==='cu')byCamp[camp].cu++;
     byCamp[camp].total++;
   });
+  // Doanh số đã chốt theo chiến dịch: đơn Sale Online đã chốt + đơn CRM Sỉ đã chốt, nối qua chính Ad ID của đơn đó (không qua data hub)
+  const addRev=(camp,v)=>{if(byCamp[camp])byCamp[camp].rev+=v;};
+  (saleOnlRows||[]).filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||'')&&inR(parseDate(r[COL_SAONL.DATE_CLOSE]))).forEach(r=>{
+    const adId=(r[COL_SAONL.AD_ID]||'').trim();const camp=adId&&adCampMap[adId]?adCampMap[adId]:null;if(camp)addRev(camp,vndNum(r[COL_SAONL.REVENUE]));});
+  (saleSiCrmRows||[]).filter(r=>vndNum(r[COL_SICRM.CLOSE_VALUE])>0&&inR(parseDate(r[COL_SICRM.CLOSE_DATE]))).forEach(r=>{
+    const adId=(r[COL_SICRM.AD_ID]||'').trim();const camp=adId&&adCampMap[adId]?adCampMap[adId]:null;if(camp)addRev(camp,vndNum(r[COL_SICRM.CLOSE_VALUE]));});
   // Phân nhóm chiến dịch theo thương hiệu
   const BRANDS=[['CT','Chánh Tâm','#2563eb'],['HT','Hiền Thuỷ','#ca8a04'],['Shidai','Shidai','#7c3aed'],['TTV','Tự Tại Viên','#0abf7a'],['Other','Chưa phân loại / chưa khớp','#64748b']];
   const grpRank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
-  const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,chot:a.chot+s.chot,moi:a.moi+s.moi,cu:a.cu+s.cu,total:a.total+s.total}),{tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0});
+  const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,chot:a.chot+s.chot,moi:a.moi+s.moi,cu:a.cu+s.cu,total:a.total+s.total,rev:a.rev+s.rev}),{tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0,rev:0});
   const cell=(v,color)=>`<td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?color:'var(--muted)'}">${v||'—'}</td>`;
 
   // Gom theo brand
@@ -2043,16 +2056,18 @@ function buildOnlineCampTable(){
       ${cell(s.dat,'var(--green)')}${cell(s.tiem,'#ca8a04')}${cell(s.chot,'#e11d48')}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
       <td style="padding:8px 14px;text-align:center;font-size:13px;font-weight:800">${s.total}</td>
       ${cell(s.moi,'#0abf7a')}${cell(s.cu,'#f97316')}
+      <td style="padding:8px 14px;text-align:right;font-size:12px;font-weight:800;color:${s.rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${s.rev>0?vnd(s.rev):'—'}</td>
     </tr>`).join('');
     const brandRow=`<tr onclick="toggleOnlBrand('${k}')" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 14px;font-size:13px;font-weight:800;color:${color}"><span id="onl-arrow-${k}" style="display:inline-block;width:14px;color:var(--muted);font-size:10px">▶</span> ${label} <span style="font-weight:400;color:var(--muted);font-size:11px">(${sorted.length} chiến dịch)</span></td>
       ${cell(t.dat,'var(--green)')}${cell(t.tiem,'#ca8a04')}${cell(t.chot,'#e11d48')}${cell(t.le,'#2563eb')}${cell(t.si,'#7c3aed')}
       <td style="padding:10px 14px;text-align:center;font-size:14px;font-weight:800">${t.total}</td>
       ${cell(t.moi,'#0abf7a')}${cell(t.cu,'#f97316')}
+      <td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:800;color:${t.rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${t.rev>0?vnd(t.rev):'—'}</td>
     </tr>`;
     return brandRow+subRows;
   }).join('');
-  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} data · theo Ad ID · click thương hiệu để xem chiến dịch)</span></div>
+  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} data · theo Ad ID · click thương hiệu để xem chiến dịch · 📅 ${curPeriodLabel()})</span></div>
   <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
     <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
       <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THƯƠNG HIỆU</th>
@@ -2064,6 +2079,7 @@ function buildOnlineCampTable(){
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">TỔNG</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#0abf7a">KH MỚI</th>
       <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#f97316">KH CŨ</th>
+      <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH SỐ ĐÃ CHỐT</th>
     </tr></thead>
     <tbody>${bodyRows}</tbody>
     <tfoot><tr style="background:var(--bg2);border-top:2px solid var(--border)">
@@ -2076,6 +2092,7 @@ function buildOnlineCampTable(){
       <td style="padding:10px 14px;text-align:center;font-weight:800">${grand.total}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:#0abf7a">${grand.moi}</td>
       <td style="padding:10px 14px;text-align:center;font-weight:800;color:#f97316">${grand.cu}</td>
+      <td style="padding:10px 14px;text-align:right;font-weight:800;color:var(--green);white-space:nowrap">${vnd(grand.rev)}</td>
     </tr></tfoot>
   </table></div></div>`;
 }
