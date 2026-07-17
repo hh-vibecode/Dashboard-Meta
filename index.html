@@ -2923,26 +2923,6 @@ function renderQcInvoice(){
   const siInvoicedTotal=siInvoices.reduce((s,r)=>s+invRevenue(r),0);
   const onlDiff=onlInvoicedTotal-onlRecTotal, siDiff=siInvoicedTotal-siRecTotal;
 
-  // 6) Top khách hàng: gộp mọi đơn ghi nhận (Online+Sỉ) theo khách (Mã KH, hoặc SĐT/tên nếu thiếu Mã KH)
-  const invByMaKh={};
-  invoices.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);if(!k)return;invByMaKh[k]=(invByMaKh[k]||0)+invRevenue(r);});
-  const custMap={};
-  allRec.forEach(x=>{
-    const key=x.maKh||(x.phone?'PH:'+last9(x.phone):'')||(x.name?'NM:'+x.name.trim().toUpperCase():'')||null;
-    if(!key)return;
-    if(!custMap[key])custMap[key]={maKh:x.maKh,name:x.name,phone:x.phone,srcSet:new Set(),orders:0,recTotal:0,lastDateD:null,lastDate:'',lastInvoiced:false};
-    const c=custMap[key];
-    c.orders++;c.recTotal+=x.rev;c.srcSet.add(x.src);
-    if(!c.name&&x.name)c.name=x.name;
-    if(!c.phone&&x.phone)c.phone=x.phone;
-    if(!c.maKh&&x.maKh)c.maKh=x.maKh;
-    const d=parseDate(x.date);
-    if(d&&(!c.lastDateD||d>c.lastDateD)){c.lastDateD=d;c.lastDate=x.date;c.lastInvoiced=x.invoiced;}
-  });
-  const topCust=Object.values(custMap).map(c=>{
-    const invTotal=c.maKh?(invByMaKh[c.maKh]||0):0;
-    return{...c,invTotal,cdiff:invTotal-c.recTotal,srcLabel:c.srcSet.has('Online')&&c.srcSet.has('Sỉ')?'Lẻ + Sỉ':c.srcSet.has('Sỉ')?'Sỉ':'Lẻ'};
-  }).sort((a,b)=>b.recTotal-a.recTotal).slice(0,100);
   const invoicedOnl=invoicedRec.filter(x=>x.src==='Online'), invoicedSi=invoicedRec.filter(x=>x.src==='Sỉ');
   const notInvoicedOnlTotal=notInvoicedOnl.reduce((s,x)=>s+x.rev,0), notInvoicedSiTotal=notInvoicedSi.reduce((s,x)=>s+x.rev,0);
 
@@ -3028,33 +3008,6 @@ function renderQcInvoice(){
     <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
       <div onclick="qcInvShow('unmatchedInv')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('❔','Hoá Đơn Không Khớp Mã KH',num(unmatchedInvoices.length)+' hoá đơn',vnd(unmatchedInvoicesTotal)+' · bán trực tiếp / thiếu Mã KH ở CRM · 👆 xem chi tiết',C.purple)}</div>
       <div onclick="qcInvShow('allInvoices')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🗂️','Toàn Bộ Hoá Đơn Trong Kỳ',num(invoices.length)+' hoá đơn',vnd(totalInvoiced)+' · 👆 xem chi tiết',C.orange)}</div>
-    </div>
-
-    <div class="sec-label">IV. Top ${num(topCust.length)} Khách Hàng Mua Nhiều Nhất <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(theo doanh số báo cáo, trong khoảng ngày đang chọn)</span></div>
-    <div style="overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:var(--surface);margin-bottom:14px">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="border-bottom:1.5px solid var(--border)">
-          ${['#','Mã KH','Tên KH','SĐT','Nguồn','Chốt gần nhất','Giá trị báo cáo','Giá trị trên KiotViet','Chưa đi đơn','Trạng thái gần nhất'].map((h,i)=>`<th style="padding:9px 12px;text-align:${i>=6&&i<=8?'right':'left'};font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;position:sticky;top:0;background:var(--surface)">${h}</th>`).join('')}
-        </tr></thead>
-        <tbody>${topCust.length?`<tr style="border-bottom:1.5px solid var(--border);background:var(--bg2)">
-          <td colspan="6" style="padding:9px 12px;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">Tổng ${num(topCust.length)} khách</td>
-          <td style="padding:9px 12px;font-size:12.5px;font-weight:900;text-align:right;white-space:nowrap">${vnd(topCust.reduce((s,c)=>s+c.recTotal,0))}</td>
-          <td style="padding:9px 12px;font-size:12.5px;font-weight:900;text-align:right;white-space:nowrap">${vnd(topCust.reduce((s,c)=>s+c.invTotal,0))}</td>
-          <td style="padding:9px 12px;font-size:12.5px;font-weight:900;text-align:right;white-space:nowrap;color:${(()=>{const t=topCust.reduce((s,c)=>s+c.cdiff,0);return t<0?C.red:t>0?C.green:'var(--muted)';})()}">${(()=>{const t=topCust.reduce((s,c)=>s+c.cdiff,0);return (t>0?'+':'')+vnd(t);})()}</td>
-          <td style="padding:9px 12px"></td>
-        </tr>`+topCust.map((c,i)=>`<tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:8px 12px;font-size:11px;color:var(--muted)">${i+1}</td>
-          <td style="padding:8px 12px;font-size:12px;font-weight:700">${c.maKh||'—'}</td>
-          <td style="padding:8px 12px;font-size:12px">${c.name||'—'}</td>
-          <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${c.phone||'—'}</td>
-          <td style="padding:8px 12px;font-size:11px"><span style="padding:2px 8px;border-radius:20px;background:var(--bg2);font-weight:700">${c.srcLabel}</span></td>
-          <td style="padding:8px 12px;font-size:12px;white-space:nowrap">${c.lastDate||'—'}</td>
-          <td style="padding:8px 12px;font-size:12px;font-weight:700;text-align:right;white-space:nowrap">${vnd(c.recTotal)}</td>
-          <td style="padding:8px 12px;font-size:12px;font-weight:700;text-align:right;white-space:nowrap;color:${c.invTotal>0?'var(--text)':'var(--muted)'}">${c.invTotal>0?vnd(c.invTotal):'—'}</td>
-          <td style="padding:8px 12px;font-size:12px;font-weight:800;text-align:right;white-space:nowrap;color:${c.cdiff<0?C.red:c.cdiff>0?C.green:'var(--muted)'}">${c.cdiff!==0?(c.cdiff>0?'+':'')+vnd(c.cdiff):'—'}</td>
-          <td style="padding:8px 12px;font-size:11px;white-space:nowrap">${c.lastInvoiced?`<span style="color:${C.green};font-weight:700">✅ Đã ra HĐ</span>`:`<span style="color:${C.amber};font-weight:700">⏳ Chưa ra HĐ</span>`}</td>
-        </tr>`).join(''):`<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--muted)">Không có dữ liệu</td></tr>`}</tbody>
-      </table>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
