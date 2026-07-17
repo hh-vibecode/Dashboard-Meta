@@ -2833,8 +2833,13 @@ function renderQcInvoice(){
   const el=document.getElementById('page-qc-invoice');
   if(!kiotRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu hoá đơn Kiot...</div>';return;}
   const _f=document.getElementById('dateFrom'),_t=document.getElementById('dateTo');
-  const fromD=_f&&_f.value?localDate(_f.value):null,toD=_t&&_t.value?localDate(_t.value,true):null;
-  const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
+  // Data ghi nhận (Sale Online/CRM Sỉ) chỉ đáng tin từ T6/2026 trở đi — luôn sàn tại đó dù không chọn ngày lọc
+  const DS_FLOOR=new Date(2026,5,1);
+  const fromDSel=_f&&_f.value?localDate(_f.value):null,toDSel=_t&&_t.value?localDate(_t.value,true):null;
+  const fromD=fromDSel&&fromDSel>DS_FLOOR?fromDSel:DS_FLOOR,toD=toDSel;
+  const inR=d=>!!d&&d>=fromD&&(!toD||d<=toD);
+  const dsToday=new Date();dsToday.setHours(23,59,59,999);
+  const dsPeriodLabel=fmtDate(fromD)+' → '+(toD?fmtDate(toD):fmtDate(dsToday));
   const nrmMa=v=>(v||'').toString().trim().toUpperCase();
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
@@ -2994,11 +2999,12 @@ function renderQcInvoice(){
     <div class="page-title">QC — Đối Soát Đơn Hàng</div>
     <div class="page-sub">Đối chiếu doanh số ghi nhận (Báo Cáo Online + Báo Cáo Sỉ) với doanh thu thực nhận từ hoá đơn Kiot · nối qua Mã KH</div>
     <div class="period-bar">
-      <div class="period-chip">📅 ${curPeriodLabel()}</div>
+      <div class="period-chip">📅 ${dsPeriodLabel}</div>
       <div class="stat-chip">🧾 ${num(invoices.length)} hoá đơn</div>
       ${brandChips('_kiotBrands','renderQcInvoice')}
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
+    <div style="margin:-6px 0 10px;font-size:11px;color:var(--muted)">Doanh số ghi nhận (Online + Sỉ) chỉ tính từ T6/2026 trở đi</div>
 
     <div class="sec-label">I. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
     ${srcBox('Online','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl')}
