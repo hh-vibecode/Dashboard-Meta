@@ -809,8 +809,8 @@ function calcSiOnlineStats(from,to,brSel){
   const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
-  const srcByKey={},nameByKey={},phoneByKey={};
-  saleSiRows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;});});
+  const srcByKey={},nameByKey={},phoneByKey={},storeByKey={};
+  saleSiRows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim(),st=(r[COL_SI.STORE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;if(!storeByKey[k]&&st)storeByKey[k]=st;});});
   const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
   const adCampMap=buildAdCampMap();
   const brandText=s=>{const n=(s||'').toString();
@@ -832,7 +832,8 @@ function calcSiOnlineStats(from,to,brSel){
     revenue+=cv;
     const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
     const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
-    list.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],nm,pho,'Sỉ · Online',vnd(cv)]);
+    const st=lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    list.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],siNameCell(nm,st),pho,'Sỉ · Online',vnd(cv)]);
   });
   list.sort((a,b)=>{const da=parseDate(a[0]),db=parseDate(b[0]);return(db?db:0)-(da?da:0);});
   return{revenue,orders:list.length,list};
@@ -1255,14 +1256,15 @@ function renderSaleSi(){
   const noStatusRows=notYetRows.filter(r=>!tiemRows.includes(r)&&!lostRows.includes(r)&&!phoRows.includes(r));
   const tiemNoDon=tiemRows.length;
   // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0); tra cứu tên/SĐT từ master sỉ
-  const srcByKey={},nameByKey={},phoneByKey={};
-  rows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;});});
+  const srcByKey={},nameByKey={},phoneByKey={},storeByKey={};
+  rows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim(),st=(r[COL_SI.STORE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;if(!storeByKey[k]&&st)storeByKey[k]=st;});});
   const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
   let onlRev=0,selfRev=0;const closeList=[];
   saleSiCrmRows.forEach(r=>{const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);if(cv<=0||!inR(cd))return;const ph=last9(r[COL_SICRM.PHONE]);const src=srcByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||'';const on=src.includes('online');if(on)onlRev+=cv;else selfRev+=cv;
     const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
     const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
-    closeList.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],nm,pho,on?'Online':'Offline',vnd(cv)]);});
+    const st=lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    closeList.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],siNameCell(nm,st),pho,on?'Online':'Offline',vnd(cv)]);});
   const totalRev=onlRev+selfRev;
   // Danh sách chi tiết cho card (bấm để xem)
   const siCols=['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Trạng thái','DT cộng dồn'];
@@ -1358,7 +1360,7 @@ function renderSaleSi(){
     .sort((a,b)=>(b.ci.days===null?1e9:b.ci.days)-(a.ci.days===null?1e9:a.ci.days));
   const priRows=priority.map(({r,ci})=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted)">${r[COL_SI.LEAD_ID]||'—'}</td>
-    <td style="padding:8px 12px;font-size:13px;font-weight:700">${r[COL_SI.STORE]||r[COL_SI.REP]||'—'}</td>
+    <td style="padding:8px 12px">${siNameCell(siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE])}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SI.CITY]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SI.SALES]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'<span style="color:#dc2626">Chưa CS lần nào</span>'}</td>
@@ -1380,7 +1382,7 @@ function renderSaleSi(){
     const supRows=pendSorted.map(r=>`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SICRM.DATE]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted)">${r[COL_SICRM.LEAD_ID]||'—'}</td>
-      <td style="padding:8px 12px;font-size:13px;font-weight:700">${r[COL_SICRM.NAME]||'—'}</td>
+      <td style="padding:8px 12px">${siNameCell((r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]),lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]))}</td>
       <td style="padding:8px 12px;font-size:12px;white-space:nowrap">${r[COL_SICRM.SALES]||'—'}</td>
       <td style="padding:8px 12px;font-size:12px;color:#ca8a04;font-weight:600;white-space:nowrap;text-align:right;width:96px">${r[COL_SICRM.NEXT_DATE]||'—'}</td>
     </tr>`).join('');
@@ -2878,9 +2880,9 @@ function renderQcInvoice(){
   const onlRecList=onlClosed.map(r=>({src:'Online',maKh:nrmMa(r[COL_SAONL.MA_KH]),name:r[COL_SAONL.NAME],phone:r[COL_SAONL.PHONE],date:r[COL_SAONL.DATE_CLOSE],rev:vndNum(r[COL_SAONL.REVENUE])})).filter(x=>x.rev>0);
 
   // 3) Doanh số ghi nhận — Sỉ (CRM Sỉ đã chốt, nối Mã KH qua Master Sỉ bằng Lead ID/SĐT)
-  const makhByKey={},nameByKeySi={},phoneByKeySi={};
-  saleSiRows.forEach(r=>{const mk=nrmMa(r[COL_SI.MA_KH]),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),ph9=last9(r[COL_SI.PHONE]);
-    [nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph9?'PH:'+ph9:''].forEach(k=>{if(!k)return;if(!makhByKey[k]&&mk)makhByKey[k]=mk;if(!nameByKeySi[k]&&nm&&nm!=='—')nameByKeySi[k]=nm;if(!phoneByKeySi[k]&&r[COL_SI.PHONE])phoneByKeySi[k]=r[COL_SI.PHONE];});});
+  const makhByKey={},nameByKeySi={},phoneByKeySi={},storeByKeySi={};
+  saleSiRows.forEach(r=>{const mk=nrmMa(r[COL_SI.MA_KH]),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),ph9=last9(r[COL_SI.PHONE]),st=(r[COL_SI.STORE]||'').trim();
+    [nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph9?'PH:'+ph9:''].forEach(k=>{if(!k)return;if(!makhByKey[k]&&mk)makhByKey[k]=mk;if(!nameByKeySi[k]&&nm&&nm!=='—')nameByKeySi[k]=nm;if(!phoneByKeySi[k]&&r[COL_SI.PHONE])phoneByKeySi[k]=r[COL_SI.PHONE];if(!storeByKeySi[k]&&st)storeByKeySi[k]=st;});});
   const brandSiRow=r=>{const a=(r[COL_SICRM.AD_ID]||'').trim();return brandTextSa(r[COL_SICRM.CHANNEL])||(a&&adCampMap[a]?brandTextSa(adCampMap[a]):null);};
   let siClosed=(saleSiCrmRows||[]).filter(r=>vndNum(r[COL_SICRM.CLOSE_VALUE])>0&&inR(parseDate(r[COL_SICRM.CLOSE_DATE])));
   if(brSel.length)siClosed=siClosed.filter(r=>brSel.includes(brandSiRow(r)));
@@ -2889,7 +2891,8 @@ function renderQcInvoice(){
     const maKh=makhByKey[key]||makhByKey[phKey]||'';
     const nm=(r[COL_SICRM.NAME]||'').trim()||nameByKeySi[key]||nameByKeySi[phKey]||'';
     const pho=(r[COL_SICRM.PHONE]||'').trim()||phoneByKeySi[key]||phoneByKeySi[phKey]||'';
-    return{src:'Sỉ',maKh,name:nm,phone:pho,date:r[COL_SICRM.CLOSE_DATE],rev:vndNum(r[COL_SICRM.CLOSE_VALUE])};
+    const store=storeByKeySi[key]||storeByKeySi[phKey]||'';
+    return{src:'Sỉ',maKh,name:nm,phone:pho,store,date:r[COL_SICRM.CLOSE_DATE],rev:vndNum(r[COL_SICRM.CLOSE_VALUE])};
   });
 
   // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn ĐÚNG THÁNG chốt đơn đó → coi như chưa ra hoá đơn
@@ -2927,9 +2930,10 @@ function renderQcInvoice(){
   const notInvoicedOnlTotal=notInvoicedOnl.reduce((s,x)=>s+x.rev,0), notInvoicedSiTotal=notInvoicedSi.reduce((s,x)=>s+x.rev,0);
 
   const recCols=['Nguồn','Mã KH','Tên KH','SĐT','Ngày chốt','Doanh số báo cáo','Lý do'];
-  const recMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',x.name||'—',x.phone||'—',x.date||'—',vnd(x.rev),x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH']);
+  const recNameCell=x=>x.src==='Sỉ'?siNameCell(x.name||'—',x.store):(x.name||'—');
+  const recMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',recNameCell(x),x.phone||'—',x.date||'—',vnd(x.rev),x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH']);
   const recAllCols=['Nguồn','Mã KH','Tên KH','SĐT','Ngày chốt','Doanh số báo cáo','Trạng thái hoá đơn'];
-  const recAllMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',x.name||'—',x.phone||'—',x.date||'—',vnd(x.rev),x.invoiced?'Đã ra hoá đơn':(x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH')]);
+  const recAllMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',recNameCell(x),x.phone||'—',x.date||'—',vnd(x.rev),x.invoiced?'Đã ra hoá đơn':(x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH')]);
   const invCols=['Chi nhánh','Mã hoá đơn','Thời gian','Mã KH','Tên KH','SĐT','Doanh thu hoá đơn'];
   const invMapRows=list=>list.slice().sort((a,b)=>invRevenue(b)-invRevenue(a)).map(r=>[r[COL_KIOT.BRANCH],r[COL_KIOT.INVOICE],r[COL_KIOT.DATE],r[COL_KIOT.MA_KH]||'—',r[COL_KIOT.NAME],r[COL_KIOT.PHONE],vnd(invRevenue(r))]);
   window._qcInvLists={
