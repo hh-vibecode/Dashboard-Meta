@@ -2969,20 +2969,27 @@ function renderQcInvoice(){
     <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4">${sub}</div>
   </div>`;
   const C={blue:'#2563eb',purple:'#7c3aed',teal:'#0891b2',green:'#0abf7a',red:'#e11d48',amber:'#ca8a04',orange:'#ea580c'};
-  const srcBox=(label,icon,color,recTotal,invTotal,dff,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey,mmList,mmKey,ncList,ncKey,recListKey)=>`
-    <div style="border:1px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px;background:var(--bg2)">
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">${icon} ${label}</div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
-        <div onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('💰','Doanh Số Ghi Nhận',vnd(recTotal),'theo Chốt đơn/Giá trị chốt · 👆 xem chi tiết',color)}</div>
-        <div onclick="qcInvShow('${invListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🧾','Doanh Thu Thực Nhận',vnd(invTotal),(recTotal?pct(invTotal/recTotal*100):'—')+' so với ghi nhận · 👆 xem chi tiết',color)}</div>
-        ${flatKpi(dff<0?'⚠️':'✅','Chênh Lệch',(dff>0?'+':'')+vnd(dff),dff<0?'chưa thu đủ so với ghi nhận':dff>0?'vượt doanh số ghi nhận':'khớp hoàn toàn',dff<0?C.red:C.green)}
+  const srcBox=(label,icon,color,recTotal,invTotal,dff,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey,mmList,mmKey,ncList,ncKey,recListKey)=>{
+    const barPct=recTotal>0?Math.min(100,invTotal/recTotal*100):0;
+    return `
+    <div style="border:1px solid var(--border);border-radius:14px;padding:13px 16px;margin-bottom:10px;background:var(--bg2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px;flex-wrap:wrap">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${icon} ${label}</div>
+        <div style="font-size:11.5px;font-weight:800;color:${dff<0?C.red:C.green}">${dff<0?'⚠️':'✅'} Chênh lệch ${(dff>0?'+':'')+vnd(dff)}</div>
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
-        <div onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('📦','Tổng Số Đơn',num(invCount+notCount)+' đơn',vnd(recTotal)+' · 👆 xem chi tiết',color)}</div>
-        <div onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('✅','Đã Ra Hoá Đơn',num(invCount)+' đơn',vnd(invRevSum)+' · 👆 xem chi tiết',C.green)}</div>
-        <div onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('⏳','Chưa Ra Hoá Đơn',num(notCount)+' đơn',vnd(notRev)+' · '+mmList.length+' Mã KH không khớp · '+ncList.length+' chưa có Mã KH · 👆 xem chi tiết',C.amber)}</div>
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;margin-bottom:5px">
+        <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">💰 Ghi nhận <b style="color:var(--text)">${vnd(recTotal)}</b></span>
+        <span onclick="qcInvShow('${invListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">🧾 Thực nhận <b style="color:var(--text)">${vnd(invTotal)}</b> <span style="color:${color};font-weight:800">${pct(recTotal?invTotal/recTotal*100:0)}</span></span>
       </div>
-    </div>`;
+      <div style="position:relative;height:9px;background:var(--border);border-radius:5px;overflow:hidden">
+        <div style="position:absolute;inset:0;width:${barPct}%;background:${color};border-radius:5px"></div>
+      </div>
+      <div style="display:flex;gap:20px;margin-top:11px;flex-wrap:wrap;font-size:11.5px">
+        <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">📦 Tổng <b style="color:var(--text)">${num(invCount+notCount)} đơn</b></span>
+        <span onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">✅ Đã ra HĐ <b style="color:${C.green}">${num(invCount)} đơn</b> <span style="color:var(--muted)">(${vnd(invRevSum)})</span></span>
+        <span onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">⏳ Chưa ra HĐ <b style="color:${C.amber}">${num(notCount)} đơn</b> <span style="color:var(--muted)">(${vnd(notRev)} · ${mmList.length} Mã KH lệch · ${ncList.length} chưa có Mã KH)</span></span>
+      </div>
+    </div>`;};
   el.innerHTML=`
     <div class="page-title">QC — Đối Soát Đơn Hàng</div>
     <div class="page-sub">Đối chiếu doanh số ghi nhận (Báo Cáo Online + Báo Cáo Sỉ) với doanh thu thực nhận từ hoá đơn Kiot · nối qua Mã KH</div>
