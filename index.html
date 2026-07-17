@@ -2980,7 +2980,7 @@ function renderQcInvoice(){
     <div style="border:1px solid var(--border);border-radius:14px;padding:13px 16px;margin-bottom:10px;background:var(--bg2)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px;flex-wrap:wrap">
         <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${icon} ${label}</div>
-        <div style="font-size:11.5px;font-weight:800;color:${dff<0?C.red:C.green}">${dff<0?'⚠️ Chưa đi hàng '+vnd(-dff):'✅ Chênh lệch '+(dff>0?'+':'')+vnd(dff)}</div>
+        <div style="font-size:11.5px;font-weight:800;color:${dff<0?C.red:C.green}">${dff<0?'⚠️':'✅'} Chưa Đi Đơn ${dff<0?vnd(-dff):(dff>0?'+':'')+vnd(dff)}</div>
       </div>
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;margin-bottom:5px">
         <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">💰 Ghi nhận <b style="color:var(--text)">${vnd(recTotal)}</b></span>
@@ -3014,7 +3014,7 @@ function renderQcInvoice(){
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
       <div onclick="qcInvShow('recAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('💰','Doanh Số Ghi Nhận',vnd(recognizedTotal),'Khách Lẻ '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal)+' · 👆 xem chi tiết',C.teal)}</div>
       ${flatKpi('🧾','Doanh Thu Đã Đi Hàng (Hoá Đơn)',vnd(totalInvoiced),(recognizedTotal?pct(totalInvoiced/recognizedTotal*100):'—')+' so với ghi nhận · '+num(invoices.length)+' hoá đơn',C.teal)}
-      ${flatKpi(diff<0?'⚠️':'✅',diff<0?'Chưa Đi Hàng':'Chênh Lệch',diff<0?vnd(-diff):(diff>0?'+':'')+vnd(diff),diff<0?'chưa đi hết so với ghi nhận':diff>0?'vượt doanh số ghi nhận':'khớp hoàn toàn',diff<0?C.red:C.green)}
+      ${flatKpi(diff<0?'⚠️':'✅','Chưa Đi Đơn',diff<0?vnd(-diff):(diff>0?'+':'')+vnd(diff),diff<0?'chưa đi hết so với ghi nhận':diff>0?'vượt doanh số ghi nhận':'khớp hoàn toàn',diff<0?C.red:C.green)}
     </div>
 
     <div class="sec-label">III. Data Kiot Không Khớp Ghi Nhận</div>
