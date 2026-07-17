@@ -2580,12 +2580,14 @@ function renderQcDoiSoat(){
   const siErrN=siErrRows.length, onlErrN=onlErrRows.length;
   window._qcErrors={si:siErrRows,onl:onlErrRows};
 
-  // ===== Kiểm soát Tag & SĐT khách Sỉ (data hub), cố định từ T6/2026 tới hiện tại — không phụ thuộc bộ lọc ngày trên topbar =====
+  // ===== Kiểm soát Tag & SĐT khách Sỉ (data hub) — theo bộ lọc ngày trên topbar, tối thiểu từ T6/2026 (tag "KH Sỉ" mới dùng từ lúc đó) =====
   const SI_TAG_FLOOR=new Date(2026,5,1);
   const today0=new Date();today0.setHours(23,59,59,999);
+  const tagFrom=fromD&&fromD>SI_TAG_FLOOR?fromD:SI_TAG_FLOOR;
+  const tagTo=toD&&toD<today0?toD:today0;
   const isSiTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('KH SỈ')||t.includes('KH SI');};
-  // 1) Data gắn tag "KH Sỉ" trong data hub, từ T6/2026 tới nay (khử trùng theo SĐT — 1 khách nhiều đơn chỉ tính 1)
-  const siTagRaw=dedupOnl(onlineRows.filter(r=>{if(!isSiTag(r))return false;const d=parseDate(r[COL_ONL.DATE]);return d&&d>=SI_TAG_FLOOR&&d<=today0;}));
+  // 1) Data gắn tag "KH Sỉ" trong data hub, theo khoảng ngày đang lọc (khử trùng theo SĐT — 1 khách nhiều đơn chỉ tính 1)
+  const siTagRaw=dedupOnl(onlineRows.filter(r=>{if(!isSiTag(r))return false;const d=parseDate(r[COL_ONL.DATE]);return d&&d>=tagFrom&&d<=tagTo;}));
   const seenSiPh=new Set();const siTagUniq=[];
   siTagRaw.forEach(r=>{const p=last9(r[COL_ONL.PHONE]);if(p){if(seenSiPh.has(p))return;seenSiPh.add(p);}siTagUniq.push(r);});
   // 2) Trong đó, khách đã cho SĐT
@@ -2602,27 +2604,28 @@ function renderQcDoiSoat(){
   const qcSiTagCols=['Ngày tạo','Tên khách','SĐT','Thẻ hiện tại','Nguồn','NV cập nhật'];
   const qcSiTagRow=r=>[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE]||blank,(r[COL_ONL.TAG]||'').trim()||blank,(r[COL_ONL.SOURCE]||'').replace(/\s*\(\d+\)\s*$/,''),r[COL_ONL.STAFF]];
   const qcSiTagRowWhy=why=>r=>[...qcSiTagRow(r),why];
+  const tagPeriod=fmtDate(tagFrom)+' – '+fmtDate(tagTo);
   window._qcSiTag={
-    tagged:{title:'Data gắn tag KH Sỉ (data hub, từ T6/2026)',cols:qcSiTagCols,rows:siTagUniq.map(qcSiTagRow)},
-    phone:{title:'Data KH Sỉ có SĐT (data hub, từ T6/2026)',cols:qcSiTagCols,rows:siTagPhoneRows.map(qcSiTagRow)},
-    noPhone:{title:'Data KH Sỉ không có SĐT (data hub, từ T6/2026)',cols:qcSiTagCols,rows:siTagNoPhoneRows.map(qcSiTagRow)},
-    updated:{title:'Có SĐT — đã update Master Sỉ (từ T6/2026)',cols:qcSiTagCols,rows:siTagUpdatedRows.map(qcSiTagRow)},
-    noMaster:{title:'Chưa Update Trong Master / Bàn Giao Cho TTMN (từ T6/2026)',cols:[...qcSiTagCols,'Tình trạng'],
+    tagged:{title:'Data gắn tag KH Sỉ (data hub, '+tagPeriod+')',cols:qcSiTagCols,rows:siTagUniq.map(qcSiTagRow)},
+    phone:{title:'Data KH Sỉ có SĐT (data hub, '+tagPeriod+')',cols:qcSiTagCols,rows:siTagPhoneRows.map(qcSiTagRow)},
+    noPhone:{title:'Data KH Sỉ không có SĐT (data hub, '+tagPeriod+')',cols:qcSiTagCols,rows:siTagNoPhoneRows.map(qcSiTagRow)},
+    updated:{title:'Có SĐT — đã update Master Sỉ ('+tagPeriod+')',cols:qcSiTagCols,rows:siTagUpdatedRows.map(qcSiTagRow)},
+    noMaster:{title:'Chưa Update Trong Master / Bàn Giao Cho TTMN ('+tagPeriod+')',cols:[...qcSiTagCols,'Tình trạng'],
       rows:[...siTagCaseA.map(qcSiTagRowWhy('Đã có KH trong Master — chưa update đúng SĐT')),...siTagCaseTtmn.map(qcSiTagRowWhy('Bàn giao TTMN')),...siTagCaseB.map(qcSiTagRowWhy('Chưa có data KH trong Master'))]},
   };
   const siTagN=siTagUniq.length, siTagPhoneN=siTagPhoneRows.length, siTagNoPhoneN=siTagNoPhoneRows.length, siTagUpdatedN=siTagUpdatedRows.length, siTagNoMasterN=siTagNoMasterRows.length;
 
   // ===== Data Hub: có SĐT nhưng thiếu thẻ phân loại KH (Lẻ/Sỉ) hoặc thẻ chất lượng (Lead đạt/tiềm năng) =====
-  //   (toàn bộ data hub, không riêng Sỉ; cố định từ T6/2026, bỏ qua data không có ngày tạo)
+  //   (toàn bộ data hub, không riêng Sỉ; theo bộ lọc ngày, tối thiểu từ T6/2026, bỏ qua data không có ngày tạo)
   const hasKhTypeTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('KH LẺ')||t.includes('KH LE')||t.includes('KH SỈ')||t.includes('KH SI');};
   const hasQualityTag=r=>{const t=U(r[COL_ONL.TAG]);return t.includes('LEAD ĐẠT')||t.includes('LEAD DAT')||t.includes('TIỀM NĂNG')||t.includes('TIEM NANG')||t.includes('CHỐT')||t.includes('CHOT');};
   const dhTagErrRaw=dedupOnl(onlineRows.filter(r=>{
     if(!(r[COL_ONL.PHONE]||'').trim())return false;
-    const d=parseDate(r[COL_ONL.DATE]);if(!d||d<SI_TAG_FLOOR||d>today0)return false;
+    const d=parseDate(r[COL_ONL.DATE]);if(!d||d<tagFrom||d>tagTo)return false;
     return !hasKhTypeTag(r)||!hasQualityTag(r);
   }));
   const dhTagErrN=dhTagErrRaw.length;
-  window._qcDhTag={title:'Data Hub — Có SĐT nhưng thiếu thẻ phân loại (từ T6/2026)',cols:[...['Ngày tạo','Tên khách','SĐT','Thẻ hiện tại','Nguồn','NV cập nhật'],'Thiếu'],
+  window._qcDhTag={title:'Data Hub — Có SĐT nhưng thiếu thẻ phân loại ('+tagPeriod+')',cols:[...['Ngày tạo','Tên khách','SĐT','Thẻ hiện tại','Nguồn','NV cập nhật'],'Thiếu'],
     rows:dhTagErrRaw.map(r=>{const w=[];if(!hasKhTypeTag(r))w.push('Thẻ phân loại KH (Lẻ/Sỉ)');if(!hasQualityTag(r))w.push('Thẻ Lead đạt/tiềm năng');
       return[r[COL_ONL.DATE],r[COL_ONL.NAME],r[COL_ONL.PHONE]||blank,(r[COL_ONL.TAG]||'').trim()||blank,(r[COL_ONL.SOURCE]||'').replace(/\s*\(\d+\)\s*$/,''),r[COL_ONL.STAFF],w.join(' + ')];})};
 
@@ -2779,11 +2782,11 @@ function renderQcDoiSoat(){
         </div>
         ${(siErrN+onlErrN+dhTagErrN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện lỗi nhập liệu</div>'}
       </div>
-      <div class="qc-group-h" style="margin-top:14px">📇 Kiểm Soát Tag & SĐT Khách Sỉ <span style="font-weight:600;color:var(--muted);text-transform:none;font-size:11px">(data hub, nguồn tag "KH Sỉ" · cố định từ T6/2026 đến nay · bỏ qua data không có ngày tạo)</span></div>
+      <div class="qc-group-h" style="margin-top:14px">📇 Kiểm Soát Tag & SĐT Khách Sỉ <span style="font-weight:600;color:var(--muted);text-transform:none;font-size:11px">(data hub, nguồn tag "KH Sỉ" · theo bộ lọc ngày, tối thiểu từ T6/2026 · bỏ qua data không có ngày tạo)</span></div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
         <div class="qc-card" style="--qa:#7c3aed;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).tagged)">
           <div class="qc-h" style="color:var(--text)">🏷️ Gắn Tag "KH Sỉ"</div>
-          ${single('🏷️',num(siTagN),'khách trong data hub từ T6/2026','#7c3aed')}
+          ${single('🏷️',num(siTagN),'khách trong data hub · '+tagPeriod,'#7c3aed')}
           <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#7c3aed">👆 bấm xem data</div>
         </div>
         <div class="qc-card" style="--qa:#0891b2;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).phone)">
