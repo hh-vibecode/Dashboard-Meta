@@ -2855,8 +2855,6 @@ function renderQcInvoice(){
   const nrmMa=v=>(v||'').toString().trim().toUpperCase();
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
-  const ym=d=>d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')):'';
-  const ymPlus=(d,n)=>d?ym(new Date(d.getFullYear(),d.getMonth()+n,1)):'';
   const brSel=brandArr('_kiotBrands');
 
   // 1) Hoá đơn Kiot: dedupe theo Mã hoá đơn (mỗi dòng export là 1 sản phẩm trong hoá đơn, tổng tiền lặp lại)
@@ -2872,16 +2870,26 @@ function renderQcInvoice(){
   if(brSel.length)invoices=invoices.filter(r=>brSel.includes(kiotBrand(r)));
   const invRevenue=r=>Math.max(0,vndNum(r[COL_KIOT.AMOUNT])-vndNum(r[COL_KIOT.DISCOUNT]));
   const totalInvoiced=invoices.reduce((s,r)=>s+invRevenue(r),0);
-  // Khách sỉ mua nhiều đợt (mỗi tháng 1 đơn) dùng chung 1 Mã KH — nên khớp hoá đơn phải theo cả Mã KH LẪN đúng tháng
-  // của ngày chốt đơn (CRM), không chỉ theo Mã KH ở Master, kẻo đơn tháng khác "ăn ké" hoá đơn tháng có Kiot.
-  // Ngày chốt (CRM) và ngày lên hoá đơn (Kiot) thường lệch vài ngày, có thể lệch qua tháng liền trước/sau (chốt cuối
-  // tháng → hoá đơn đầu tháng sau; hoặc CRM cập nhật "chốt" muộn hơn ngày hoá đơn thực tế) → cho khớp tháng chốt và 2 tháng liền kề.
+  // Khách sỉ mua nhiều đợt dùng chung 1 Mã KH — nên không thể chỉ khớp theo Mã KH (kẻo đơn này "ăn ké" hoá đơn của đơn khác).
+  // Logic đúng: ngày chốt (CRM/Báo cáo) luôn ĐỨNG TRƯỚC ngày lên hoá đơn (Kiot), không bao giờ ngược lại. Với mỗi đơn
+  // ghi nhận, tìm trong các hoá đơn CÙNG Mã KH và có ngày >= ngày chốt, hoá đơn nào có giá trị GẦN NHẤT với giá trị
+  // chốt ghi nhận — nếu đủ gần (≤10%, chấp nhận sai số làm tròn/giảm giá nhỏ) thì coi là đã khớp.
   // Việc khớp phải quét TOÀN BỘ hoá đơn Kiot (không giới hạn theo khoảng ngày topbar đang chọn) — đơn chốt trong kỳ
   // đang xem có thể lên hoá đơn muộn hơn, rơi ra ngoài khoảng ngày đang lọc, vẫn phải tính là đã khớp.
   let invoicesForMatch=Object.values(invMap).filter(r=>kiotSrcOf(r));
   if(brSel.length)invoicesForMatch=invoicesForMatch.filter(r=>brSel.includes(kiotBrand(r)));
-  const invoicedMaKhMonthSet=new Set();
-  invoicesForMatch.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);if(!k)return;const m=ym(parseDate(r[COL_KIOT.DATE]));if(m)invoicedMaKhMonthSet.add(k+'|'+m);});
+  const invByMaKh={};
+  invoicesForMatch.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);const d=parseDate(r[COL_KIOT.DATE]);if(!k||!d)return;
+    (invByMaKh[k]=invByMaKh[k]||[]).push({date:d,rev:invRevenue(r)});});
+  const findInvoiceMatch=(maKh,chotDate,chotVal)=>{
+    if(!maKh||!chotDate)return null;
+    const cands=(invByMaKh[maKh]||[]).filter(c=>c.date>=chotDate);
+    if(!cands.length)return null;
+    let best=null,bestDiff=Infinity;
+    cands.forEach(c=>{const diff=Math.abs(c.rev-chotVal);if(diff<bestDiff){bestDiff=diff;best=c;}});
+    const pct=chotVal>0?bestDiff/chotVal*100:100;
+    return pct<=10?best:null;
+  };
 
   // 2) Doanh số ghi nhận — Online (Báo Cáo Online, đã chốt)
   const adCampMap=buildAdCampMap();
@@ -2914,7 +2922,7 @@ function renderQcInvoice(){
   // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn ĐÚNG THÁNG chốt (hoặc tháng kế tiếp) → coi như chưa ra hoá đơn
   //    (khách mua nhiều đợt/nhiều tháng dùng chung Mã KH nên phải khớp theo tháng, không chỉ theo Mã KH)
   const allRec=[...onlRecList,...siRecList];
-  allRec.forEach(x=>{const d=parseDate(x.date);x.invoiced=!!x.maKh&&d&&[0,1,-1].some(n=>invoicedMaKhMonthSet.has(x.maKh+'|'+ymPlus(d,n)));});
+  allRec.forEach(x=>{const d=parseDate(x.date);x.invoiced=!!findInvoiceMatch(x.maKh,d,x.rev);});
   const recognizedTotal=allRec.reduce((s,x)=>s+x.rev,0);
   const onlRecTotal=onlRecList.reduce((s,x)=>s+x.rev,0);
   const siRecTotal=siRecList.reduce((s,x)=>s+x.rev,0);
