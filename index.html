@@ -2856,6 +2856,7 @@ function renderQcInvoice(){
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   const ym=d=>d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')):'';
+  const ymPlus=(d,n)=>d?ym(new Date(d.getFullYear(),d.getMonth()+n,1)):'';
   const brSel=brandArr('_kiotBrands');
 
   // 1) Hoá đơn Kiot: dedupe theo Mã hoá đơn (mỗi dòng export là 1 sản phẩm trong hoá đơn, tổng tiền lặp lại)
@@ -2873,6 +2874,7 @@ function renderQcInvoice(){
   const totalInvoiced=invoices.reduce((s,r)=>s+invRevenue(r),0);
   // Khách sỉ mua nhiều đợt (mỗi tháng 1 đơn) dùng chung 1 Mã KH — nên khớp hoá đơn phải theo cả Mã KH LẪN đúng tháng
   // của ngày chốt đơn (CRM), không chỉ theo Mã KH ở Master, kẻo đơn tháng khác "ăn ké" hoá đơn tháng có Kiot.
+  // Chốt cuối tháng nhưng lên đơn/xuất hoá đơn đầu tháng sau là bình thường → cho khớp cả tháng chốt LẪN tháng kế tiếp.
   const invoicedMaKhMonthSet=new Set();
   invoices.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);if(!k)return;const m=ym(parseDate(r[COL_KIOT.DATE]));if(m)invoicedMaKhMonthSet.add(k+'|'+m);});
 
@@ -2904,10 +2906,10 @@ function renderQcInvoice(){
     return{src:'Sỉ',maKh,name:nm,phone:pho,store,date:r[COL_SICRM.CLOSE_DATE],rev:vndNum(r[COL_SICRM.CLOSE_VALUE])};
   });
 
-  // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn ĐÚNG THÁNG chốt đơn đó → coi như chưa ra hoá đơn
+  // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn ĐÚNG THÁNG chốt (hoặc tháng kế tiếp) → coi như chưa ra hoá đơn
   //    (khách mua nhiều đợt/nhiều tháng dùng chung Mã KH nên phải khớp theo tháng, không chỉ theo Mã KH)
   const allRec=[...onlRecList,...siRecList];
-  allRec.forEach(x=>{x.invoiced=!!x.maKh&&invoicedMaKhMonthSet.has(x.maKh+'|'+ym(parseDate(x.date)));});
+  allRec.forEach(x=>{const d=parseDate(x.date);x.invoiced=!!x.maKh&&(invoicedMaKhMonthSet.has(x.maKh+'|'+ym(d))||invoicedMaKhMonthSet.has(x.maKh+'|'+ymPlus(d,1)));});
   const recognizedTotal=allRec.reduce((s,x)=>s+x.rev,0);
   const onlRecTotal=onlRecList.reduce((s,x)=>s+x.rev,0);
   const siRecTotal=siRecList.reduce((s,x)=>s+x.rev,0);
@@ -2990,7 +2992,7 @@ function renderQcInvoice(){
       <div style="display:flex;gap:20px;margin-top:11px;flex-wrap:wrap;font-size:11.5px">
         <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">📦 Tổng đơn Báo cáo <b style="color:var(--text)">${num(invCount+notCount)} đơn</b></span>
         <span onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">✅ Đã lên Kiot <b style="color:${C.green}">${num(invCount)} đơn</b> <span style="color:var(--muted)">(${vnd(invRevSum)})</span></span>
-        <span onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">⏳ Chưa lên Kiot <b style="color:${C.amber}">${num(notCount)} đơn</b> <span style="color:var(--muted)">(${vnd(notRev)} · ${mmList.length} Mã KH lệch · ${ncList.length} chưa có Mã KH)</span></span>
+        <span onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">⏳ Chưa lên Kiot <b style="color:${C.amber}">${num(notCount)} đơn</b> <span style="color:var(--muted)">(${vnd(notRev)} · ${mmList.length} đã có mã KH trên báo cáo · ${ncList.length} chưa có mã KH trên báo cáo)</span></span>
       </div>
     </div>`;};
   el.innerHTML=`
