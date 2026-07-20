@@ -2881,13 +2881,18 @@ function renderQcInvoice(){
   const invByMaKh={};
   invoicesForMatch.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);const d=parseDate(r[COL_KIOT.DATE]);if(!k||!d)return;
     (invByMaKh[k]=invByMaKh[k]||[]).push({date:d,rev:invRevenue(r)});});
-  const findInvoiceMatch=(maKh,chotDate,chotVal)=>{
+  const nearestInvoice=(maKh,chotDate,chotVal)=>{
     if(!maKh||!chotDate)return null;
     const cands=(invByMaKh[maKh]||[]).filter(c=>c.date>=chotDate);
     if(!cands.length)return null;
     let best=null,bestDiff=Infinity;
     cands.forEach(c=>{const diff=Math.abs(c.rev-chotVal);if(diff<bestDiff){bestDiff=diff;best=c;}});
-    const pct=chotVal>0?bestDiff/chotVal*100:100;
+    return best;
+  };
+  const findInvoiceMatch=(maKh,chotDate,chotVal)=>{
+    const best=nearestInvoice(maKh,chotDate,chotVal);
+    if(!best)return null;
+    const pct=chotVal>0?Math.abs(best.rev-chotVal)/chotVal*100:100;
     return pct<=10?best:null;
   };
 
@@ -2919,10 +2924,16 @@ function renderQcInvoice(){
     return{src:'Sỉ',maKh,name:nm,phone:pho,store,date:r[COL_SICRM.CLOSE_DATE],rev:vndNum(r[COL_SICRM.CLOSE_VALUE])};
   });
 
-  // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn ĐÚNG THÁNG chốt (hoặc tháng kế tiếp) → coi như chưa ra hoá đơn
-  //    (khách mua nhiều đợt/nhiều tháng dùng chung Mã KH nên phải khớp theo tháng, không chỉ theo Mã KH)
+  // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn nào đủ gần giá trị chốt → coi như chưa ra hoá đơn
   const allRec=[...onlRecList,...siRecList];
-  allRec.forEach(x=>{const d=parseDate(x.date);x.invoiced=!!findInvoiceMatch(x.maKh,d,x.rev);});
+  const revDiffSrc=[];
+  allRec.forEach(x=>{
+    const d=parseDate(x.date);
+    const near=nearestInvoice(x.maKh,d,x.rev);
+    x.invoiced=!!(near&&x.rev>0&&Math.abs(near.rev-x.rev)/x.rev*100<=10);
+    if(near)revDiffSrc.push({x,invDate:near.date,invRev:near.rev,diff:near.rev-x.rev});
+  });
+  revDiffSrc.sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
   const recognizedTotal=allRec.reduce((s,x)=>s+x.rev,0);
   const onlRecTotal=onlRecList.reduce((s,x)=>s+x.rev,0);
   const siRecTotal=siRecList.reduce((s,x)=>s+x.rev,0);
@@ -2958,7 +2969,12 @@ function renderQcInvoice(){
   const recAllMap=list=>list.slice().sort((a,b)=>b.rev-a.rev).map(x=>[x.src,x.maKh||'—',recNameCell(x),x.phone||'—',x.date||'—',vnd(x.rev),x.invoiced?'Đã ra hoá đơn':(x.maKh?'Có Mã KH nhưng chưa thấy hoá đơn':'Chưa có Mã KH')]);
   const invCols=['Chi nhánh','Mã hoá đơn','Thời gian','Mã KH','Tên KH','SĐT','Người bán','Doanh thu hoá đơn'];
   const invMapRows=list=>list.slice().sort((a,b)=>invRevenue(b)-invRevenue(a)).map(r=>[r[COL_KIOT.BRANCH],r[COL_KIOT.INVOICE],r[COL_KIOT.DATE],r[COL_KIOT.MA_KH]||'—',r[COL_KIOT.NAME],r[COL_KIOT.PHONE],r[COL_KIOT.SALES]||'—',vnd(invRevenue(r))]);
+  const revDiffCols=['Nguồn','Mã KH','Tên KH','Ngày chốt (báo cáo)','Ngày hoá đơn (Kiot)','Doanh thu báo cáo','Doanh thu Kiot','Chênh lệch'];
+  const revDiffMap=list=>list.map(({x,invDate,invRev,diff})=>[x.src,x.maKh||'—',recNameCell(x),fmtDate(parseDate(x.date)),fmtDate(invDate),vnd(x.rev),vnd(invRev),
+    `<b style="color:${diff===0?'var(--text)':diff<0?C.red:C.green}">${diff>0?'+':''}${vnd(diff)}</b>`]);
+  const revDiffN=revDiffSrc.length, revDiffTotal=revDiffSrc.reduce((s,r)=>s+Math.abs(r.diff),0);
   window._qcInvLists={
+    revDiff:{title:'Hoá Đơn Có Chênh Lệch Doanh Thu — Báo cáo vs KiotViet (cùng Mã KH)',cols:revDiffCols,rows:revDiffMap(revDiffSrc)},
     notInvoiced:{title:'Đơn báo cáo — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedRec)},
     notInvoicedOnl:{title:'Đơn Khách Lẻ — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedOnl)},
     notInvoicedSi:{title:'Đơn Sỉ — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedSi)},
@@ -3030,9 +3046,10 @@ function renderQcInvoice(){
     ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi')}
 
     <div class="sec-label">III. Data Kiot Không Khớp Báo Cáo <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(hoá đơn Kiot đang ghi nhận lỗi — không khớp được với đơn báo cáo nào)</span></div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
       <div onclick="qcInvShow('unmatchedInv')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('❔','Hoá Đơn Kiot Không Khớp Mã KH',num(unmatchedInvoices.length)+' hoá đơn',vnd(unmatchedInvoicesTotal)+' · bán trực tiếp / thiếu Mã KH ở CRM · 👆 xem chi tiết',C.purple)}</div>
       <div onclick="qcInvShow('allInvoices')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🗂️','Toàn Bộ Hoá Đơn Kiot Trong Kỳ',num(invoices.length)+' hoá đơn',vnd(totalInvoiced)+' · 👆 xem chi tiết',C.orange)}</div>
+      <div onclick="qcInvShow('revDiff')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🔍','Hoá Đơn Có Chênh Lệch Doanh Thu',num(revDiffN)+' hoá đơn',vnd(revDiffTotal)+' tổng chênh lệch tuyệt đối · cùng Mã KH, so báo cáo với Kiot · 👆 xem chi tiết',C.red)}</div>
     </div>`;
 }
 function qcInvShow(key){const d=(window._qcInvLists||{})[key];if(d)dataModal(d);}
