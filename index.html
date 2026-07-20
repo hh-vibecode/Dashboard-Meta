@@ -2874,9 +2874,14 @@ function renderQcInvoice(){
   const totalInvoiced=invoices.reduce((s,r)=>s+invRevenue(r),0);
   // Khách sỉ mua nhiều đợt (mỗi tháng 1 đơn) dùng chung 1 Mã KH — nên khớp hoá đơn phải theo cả Mã KH LẪN đúng tháng
   // của ngày chốt đơn (CRM), không chỉ theo Mã KH ở Master, kẻo đơn tháng khác "ăn ké" hoá đơn tháng có Kiot.
-  // Chốt cuối tháng nhưng lên đơn/xuất hoá đơn đầu tháng sau là bình thường → cho khớp cả tháng chốt LẪN tháng kế tiếp.
+  // Ngày chốt (CRM) và ngày lên hoá đơn (Kiot) thường lệch vài ngày, có thể lệch qua tháng liền trước/sau (chốt cuối
+  // tháng → hoá đơn đầu tháng sau; hoặc CRM cập nhật "chốt" muộn hơn ngày hoá đơn thực tế) → cho khớp tháng chốt và 2 tháng liền kề.
+  // Việc khớp phải quét TOÀN BỘ hoá đơn Kiot (không giới hạn theo khoảng ngày topbar đang chọn) — đơn chốt trong kỳ
+  // đang xem có thể lên hoá đơn muộn hơn, rơi ra ngoài khoảng ngày đang lọc, vẫn phải tính là đã khớp.
+  let invoicesForMatch=Object.values(invMap).filter(r=>kiotSrcOf(r));
+  if(brSel.length)invoicesForMatch=invoicesForMatch.filter(r=>brSel.includes(kiotBrand(r)));
   const invoicedMaKhMonthSet=new Set();
-  invoices.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);if(!k)return;const m=ym(parseDate(r[COL_KIOT.DATE]));if(m)invoicedMaKhMonthSet.add(k+'|'+m);});
+  invoicesForMatch.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);if(!k)return;const m=ym(parseDate(r[COL_KIOT.DATE]));if(m)invoicedMaKhMonthSet.add(k+'|'+m);});
 
   // 2) Doanh số ghi nhận — Online (Báo Cáo Online, đã chốt)
   const adCampMap=buildAdCampMap();
@@ -2909,7 +2914,7 @@ function renderQcInvoice(){
   // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn ĐÚNG THÁNG chốt (hoặc tháng kế tiếp) → coi như chưa ra hoá đơn
   //    (khách mua nhiều đợt/nhiều tháng dùng chung Mã KH nên phải khớp theo tháng, không chỉ theo Mã KH)
   const allRec=[...onlRecList,...siRecList];
-  allRec.forEach(x=>{const d=parseDate(x.date);x.invoiced=!!x.maKh&&(invoicedMaKhMonthSet.has(x.maKh+'|'+ym(d))||invoicedMaKhMonthSet.has(x.maKh+'|'+ymPlus(d,1)));});
+  allRec.forEach(x=>{const d=parseDate(x.date);x.invoiced=!!x.maKh&&d&&[0,1,-1].some(n=>invoicedMaKhMonthSet.has(x.maKh+'|'+ymPlus(d,n)));});
   const recognizedTotal=allRec.reduce((s,x)=>s+x.rev,0);
   const onlRecTotal=onlRecList.reduce((s,x)=>s+x.rev,0);
   const siRecTotal=siRecList.reduce((s,x)=>s+x.rev,0);
