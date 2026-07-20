@@ -2988,9 +2988,9 @@ function renderQcInvoice(){
         <div style="position:absolute;inset:0;width:${barPct}%;background:${color};border-radius:5px"></div>
       </div>
       <div style="display:flex;gap:20px;margin-top:11px;flex-wrap:wrap;font-size:11.5px">
-        <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">📦 Tổng <b style="color:var(--text)">${num(invCount+notCount)} đơn</b></span>
-        <span onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">✅ Đã ra HĐ <b style="color:${C.green}">${num(invCount)} đơn</b> <span style="color:var(--muted)">(${vnd(invRevSum)})</span></span>
-        <span onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">⏳ Chưa ra HĐ <b style="color:${C.amber}">${num(notCount)} đơn</b> <span style="color:var(--muted)">(${vnd(notRev)} · ${mmList.length} Mã KH lệch · ${ncList.length} chưa có Mã KH)</span></span>
+        <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">📦 Tổng đơn Báo cáo <b style="color:var(--text)">${num(invCount+notCount)} đơn</b></span>
+        <span onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">✅ Đã lên Kiot <b style="color:${C.green}">${num(invCount)} đơn</b> <span style="color:var(--muted)">(${vnd(invRevSum)})</span></span>
+        <span onclick="qcInvShow('${notKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">⏳ Chưa lên Kiot <b style="color:${C.amber}">${num(notCount)} đơn</b> <span style="color:var(--muted)">(${vnd(notRev)} · ${mmList.length} Mã KH lệch · ${ncList.length} chưa có Mã KH)</span></span>
       </div>
     </div>`;};
   el.innerHTML=`
@@ -3003,21 +3003,21 @@ function renderQcInvoice(){
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
 
-    <div class="sec-label">I. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
-    ${srcBox('Khách Lẻ','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl')}
-    ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi')}
-
-    <div class="sec-label">II. Dữ Liệu Tổng Hợp</div>
+    <div class="sec-label">I. Dữ Liệu Tổng Hợp</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
       <div onclick="qcInvShow('recAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('💰','Doanh Số Báo Cáo',vnd(recognizedTotal),'Khách Lẻ '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal)+' · 👆 xem chi tiết',C.teal)}</div>
       ${flatKpi('🧾','Doanh Số Trên KiotViet',vnd(totalInvoiced),(recognizedTotal?pct(totalInvoiced/recognizedTotal*100):'—')+' so với báo cáo · '+num(invoices.length)+' hoá đơn',C.teal)}
       ${flatKpi(diff<0?'⚠️':'✅','Chưa Đi Đơn',diff<0?vnd(-diff):(diff>0?'+':'')+vnd(diff),diff<0?'giá trị đơn hàng chưa đi so với báo cáo':diff>0?'vượt doanh số báo cáo':'khớp hoàn toàn',diff<0?C.red:C.green)}
     </div>
 
-    <div class="sec-label">III. Data Kiot Không Khớp Báo Cáo</div>
+    <div class="sec-label">II. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
+    ${srcBox('Khách Lẻ','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl')}
+    ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi')}
+
+    <div class="sec-label">III. Data Kiot Không Khớp Báo Cáo <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(hoá đơn Kiot đang ghi nhận lỗi — không khớp được với đơn báo cáo nào)</span></div>
     <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
-      <div onclick="qcInvShow('unmatchedInv')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('❔','Hoá Đơn Không Khớp Mã KH',num(unmatchedInvoices.length)+' hoá đơn',vnd(unmatchedInvoicesTotal)+' · bán trực tiếp / thiếu Mã KH ở CRM · 👆 xem chi tiết',C.purple)}</div>
-      <div onclick="qcInvShow('allInvoices')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🗂️','Toàn Bộ Hoá Đơn Trong Kỳ',num(invoices.length)+' hoá đơn',vnd(totalInvoiced)+' · 👆 xem chi tiết',C.orange)}</div>
+      <div onclick="qcInvShow('unmatchedInv')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('❔','Hoá Đơn Kiot Không Khớp Mã KH',num(unmatchedInvoices.length)+' hoá đơn',vnd(unmatchedInvoicesTotal)+' · bán trực tiếp / thiếu Mã KH ở CRM · 👆 xem chi tiết',C.purple)}</div>
+      <div onclick="qcInvShow('allInvoices')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🗂️','Toàn Bộ Hoá Đơn Kiot Trong Kỳ',num(invoices.length)+' hoá đơn',vnd(totalInvoiced)+' · 👆 xem chi tiết',C.orange)}</div>
     </div>
 
     <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
