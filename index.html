@@ -3019,22 +3019,22 @@ function renderQcInvoice(){
     const notTable=notList.length?`<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed">
         <thead><tr style="text-align:left;color:var(--muted)">
-          <th style="padding:5px 8px;font-weight:700;width:9%;white-space:nowrap">Mã KH</th><th style="padding:5px 8px;font-weight:700;width:17%;white-space:nowrap">Tên KH</th>
-          <th style="padding:5px 8px;font-weight:700;text-align:center;width:9%;white-space:nowrap">Ngày chốt</th><th style="padding:5px 8px;font-weight:700;text-align:right;width:13%;white-space:nowrap">Doanh số báo cáo</th>
-          <th style="padding:5px 8px;font-weight:700;width:24%">Lý do</th>
-          <th style="padding:5px 8px;font-weight:700;text-align:center;width:9%;white-space:nowrap">Ngày HĐ gần nhất</th><th style="padding:5px 8px;font-weight:700;text-align:right;width:13%;white-space:nowrap">Doanh số HĐ gần nhất</th>
+          <th style="padding:5px 6px;font-weight:700;width:8%;white-space:nowrap">Mã KH</th><th style="padding:5px 6px;font-weight:700;width:15%;white-space:nowrap">Tên KH</th>
+          <th style="padding:5px 6px;font-weight:700;width:8%;white-space:nowrap">Ngày chốt</th><th style="padding:5px 6px;font-weight:700;width:11%;white-space:nowrap">Doanh số báo cáo</th>
+          <th style="padding:5px 6px;font-weight:700;width:9%;white-space:nowrap">Ngày HĐ gần nhất</th><th style="padding:5px 6px;font-weight:700;width:11%;white-space:nowrap">Doanh số HĐ gần nhất</th>
+          <th style="padding:5px 6px;font-weight:700;width:38%">Note</th>
         </tr></thead>
         <tbody>${notList.slice().sort((a,b)=>b.rev-a.rev).map(x=>{
           const d=parseDate(x.date);
           const near=nearestInvoice(x.maKh,d,x.rev);
           return `<tr style="border-top:1px solid var(--border)">
-          <td style="padding:5px 8px;text-align:left;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.maKh||'—'}</td>
-          <td style="padding:5px 8px;text-align:left;overflow:hidden;text-overflow:ellipsis">${recNameCell(x)}</td>
-          <td style="padding:5px 8px;text-align:center;color:var(--muted);white-space:nowrap">${x.date||'—'}</td>
-          <td style="padding:5px 8px;text-align:right;font-weight:700;white-space:nowrap">${vnd(x.rev)}</td>
-          <td style="padding:5px 8px;text-align:left;color:${C.amber}">${notReasonOf(x,near)}</td>
-          <td style="padding:5px 8px;text-align:center;color:var(--muted);white-space:nowrap">${near?fmtDate(near.date):'—'}</td>
-          <td style="padding:5px 8px;text-align:right;color:var(--muted);white-space:nowrap">${near?vnd(near.rev):'—'}</td>
+          <td style="padding:5px 6px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.maKh||'—'}</td>
+          <td style="padding:5px 6px;overflow:hidden;text-overflow:ellipsis">${recNameCell(x)}</td>
+          <td style="padding:5px 6px;color:var(--muted);white-space:nowrap">${x.date||'—'}</td>
+          <td style="padding:5px 6px;font-weight:700;white-space:nowrap">${vnd(x.rev)}</td>
+          <td style="padding:5px 6px;color:var(--muted);white-space:nowrap">${near?fmtDate(near.date):'—'}</td>
+          <td style="padding:5px 6px;color:var(--muted);white-space:nowrap">${near?vnd(near.rev):'—'}</td>
+          <td style="padding:5px 6px;color:${C.amber}">${notReasonOf(x,near)}</td>
         </tr>`;}).join('')}</tbody>
       </table>
     </div>`:'';
