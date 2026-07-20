@@ -2946,11 +2946,6 @@ function renderQcInvoice(){
   const mismatchSi=notInvoicedSi.filter(x=>x.maKh), noCodeSi=notInvoicedSi.filter(x=>!x.maKh);
   const diff=totalInvoiced-recognizedTotal;
 
-  // Hoá đơn Kiot không khớp bất kỳ đơn ghi nhận nào trong kỳ (data-quality: bán trực tiếp k qua CRM, hoặc CRM thiếu Mã KH)
-  const recognizedMaKhSet=new Set(allRec.map(x=>x.maKh).filter(Boolean));
-  const unmatchedInvoices=invoices.filter(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);return !k||!recognizedMaKhSet.has(k);});
-  const unmatchedInvoicesTotal=unmatchedInvoices.reduce((s,r)=>s+invRevenue(r),0);
-
   // 5) Chia hoá đơn Kiot theo Online / Sỉ — dựa trên Mã KH của bên nào đang ghi nhận nó
   const onlMaKhSet=new Set(onlRecList.map(x=>x.maKh).filter(Boolean));
   const siMaKhSet=new Set(siRecList.map(x=>x.maKh).filter(Boolean));
@@ -2981,8 +2976,6 @@ function renderQcInvoice(){
     mismatchSi:{title:'Đơn Sỉ — có Mã KH nhưng không khớp hoá đơn nào (cần soát lại)',cols:recCols,rows:recMap(mismatchSi)},
     noCodeOnl:{title:'Đơn Khách Lẻ — chưa có Mã KH',cols:recCols,rows:recMap(noCodeOnl)},
     noCodeSi:{title:'Đơn Sỉ — chưa có Mã KH',cols:recCols,rows:recMap(noCodeSi)},
-    unmatchedInv:{title:'Hoá đơn Kiot — không khớp đơn báo cáo nào',cols:invCols,rows:invMapRows(unmatchedInvoices)},
-    allInvoices:{title:'Toàn bộ hoá đơn Kiot trong kỳ',cols:invCols,rows:invMapRows(invoices)},
     invOnl:{title:'Hoá đơn Kiot — khớp khách Lẻ',cols:invCols,rows:invMapRows(onlInvoices)},
     invSi:{title:'Hoá đơn Kiot — khớp khách Sỉ',cols:invCols,rows:invMapRows(siInvoices)},
     recOnl:{title:'Đơn Khách Lẻ — doanh số báo cáo',cols:recAllCols,rows:recAllMap(onlRecList)},
@@ -3078,12 +3071,7 @@ function renderQcInvoice(){
     <div class="sec-label">II. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
     ${srcBox('Khách Lẻ','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl',notInvoicedOnl)}
     ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi',notInvoicedSi)}
-
-    <div class="sec-label">III. Data Kiot Không Khớp Báo Cáo <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(hoá đơn Kiot đang ghi nhận lỗi — không khớp được với đơn báo cáo nào)</span></div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr)">
-      <div onclick="qcInvShow('unmatchedInv')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('❔','Hoá Đơn Kiot Không Khớp Mã KH',num(unmatchedInvoices.length)+' hoá đơn',vnd(unmatchedInvoicesTotal)+' · bán trực tiếp / thiếu Mã KH ở CRM · 👆 xem chi tiết',C.purple)}</div>
-      <div onclick="qcInvShow('allInvoices')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🗂️','Toàn Bộ Hoá Đơn Kiot Trong Kỳ',num(invoices.length)+' hoá đơn',vnd(totalInvoiced)+' · 👆 xem chi tiết',C.orange)}</div>
-    </div>`;
+    `;
 }
 function qcInvShow(key){const d=(window._qcInvLists||{})[key];if(d)dataModal(d);}
 function qcInvShowNotInvoiced(){
