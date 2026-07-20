@@ -3007,7 +3007,7 @@ function renderQcInvoice(){
     ${srcBox('Khách Lẻ','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl')}
     ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi')}
 
-    <div class="sec-label">II. Tổng Hợp Toàn Công Ty</div>
+    <div class="sec-label">II. Dữ Liệu Tổng Hợp</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
       <div onclick="qcInvShow('recAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('💰','Doanh Số Báo Cáo',vnd(recognizedTotal),'Khách Lẻ '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal)+' · 👆 xem chi tiết',C.teal)}</div>
       ${flatKpi('🧾','Doanh Số Trên KiotViet',vnd(totalInvoiced),(recognizedTotal?pct(totalInvoiced/recognizedTotal*100):'—')+' so với báo cáo · '+num(invoices.length)+' hoá đơn',C.teal)}
