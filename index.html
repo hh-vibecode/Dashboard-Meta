@@ -272,12 +272,12 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     </nav>
     <div class="sb-section" id="sec-sale-label" style="margin-top:12px">Sale</div>
     <nav id="sec-sale">
-      <div class="nav-item" onclick="toggleSiGroup()" id="nav-si-group"><span class="nav-icon">🏪</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Báo Cáo Sỉ<span id="si-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
+      <div class="nav-item" onclick="toggleSiGroup()" id="nav-si-group"><span class="nav-icon">🏪</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Báo Cáo Khách Hàng Sỉ<span id="si-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
       <div id="si-subnav">
         <div class="nav-item" onclick="switchPage('sale-si')" id="nav-sale-si" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">📊</span><span class="nav-label">Tổng Quan</span></div>
         <div class="nav-item" onclick="switchPage('sale-si-data')" id="nav-sale-si-data" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">👤</span><span class="nav-label">CRM</span></div>
       </div>
-      <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo Online</span></div>
+      <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo Khách Hàng Lẻ</span></div>
     </nav>
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
     <nav id="sec-qc">
@@ -1422,7 +1422,7 @@ function renderSaleSi(){
 
   const siClk=(key,html)=>`<div onclick="siShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
   document.getElementById('page-sale-si').innerHTML=`
-    <div class="page-title">Báo Cáo Sale Sỉ</div>
+    <div class="page-title">Báo Cáo Khách Hàng Sỉ</div>
     <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng (đã đủ Nguồn + Tên KH) · 📅 ${curPeriodLabel()}</div>
 
     <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết · doanh thu tính theo ngày chốt đơn)</span></div>
@@ -1920,11 +1920,11 @@ function renderSaleOnl(){
     <td style="padding:9px 14px"><div style="height:5px;background:var(--bg2);border-radius:4px"><div style="height:5px;background:#dc2626;border-radius:4px;width:${lost>0?(cnt/lost*100).toFixed(0):0}%"></div></div></td>
   </tr>`).join('');
   // Revenue by brand/channel
-  const totalRev=rows.reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
-  function revByChan(kw){return rows.filter(r=>(r[COL_SAONL.CHANNEL]||'').toLowerCase().includes(kw.toLowerCase())).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);}
+  function revByChan(kw){return rows.filter(r=>st(r,'chốt')&&(r[COL_SAONL.CHANNEL]||'').toLowerCase().includes(kw.toLowerCase())).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);}
   const revCT=revByChan('chánh tâm')+revByChan('chanh tam');
   const revHT=revByChan('hiền thuỷ')+revByChan('hien thuy')+revByChan('hienthuy');
   const revSD=revByChan('shidai');
+  const revTTV=revByChan('tự tại viên')+revByChan('tu tai vien')+revByChan('nến bơ')+revByChan('nen bo');
   // Revenue by sales
   const revBySalesRows=Object.entries(bySales).filter(([,d])=>d.rev>0).sort((a,b)=>b[1].rev-a[1].rev).map(([s,d])=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:9px 14px;font-weight:700">${s}</td>
@@ -1934,12 +1934,24 @@ function renderSaleOnl(){
   const brandSel=brandChips('_saonlBrands','renderSaleOnl');
   document.getElementById('page-sale-onl').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-      <div><div class="page-title">Báo Cáo Sale Online</div>
+      <div><div class="page-title">Báo Cáo Khách Hàng Lẻ</div>
       <div class="page-sub">Phân tích lead online · ${total} leads · 📅 ${curPeriodLabel()}</div></div>
       ${brandSel}
     </div>
 
-    <div class="sec-label">I. Tổng Quan Lead <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết)</span></div>
+    <div class="sec-label">I. Tổng Doanh Thu</div>
+    <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
+      ${clk('closed',mkKpi('✅','Tổng Doanh Thu Đã Chốt',vnd(closedRev),num(closed)+' đơn · doanh số thực','g-green'))}
+      ${clk('pot',mkKpi('💎','Giá Trị Tiềm Năng',vnd(totalPot),'toàn bộ leads','g-yellow'))}
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:12px">
+      ${mkKpi('🏮','Chánh Tâm',vnd(revCT),'đã chốt','g-blue')}
+      ${mkKpi('🌊','Hiền Thuỷ',vnd(revHT),'đã chốt','g-yellow')}
+      ${mkKpi('🐉','Shidai',vnd(revSD),'đã chốt','g-blue')}
+      ${mkKpi('🕯️','Tự Tại Viên',vnd(revTTV),'đã chốt','g-purple')}
+    </div>
+
+    <div class="sec-label" style="margin-top:16px">II. Tổng Quan Lead <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết)</span></div>
     <div class="kpi-grid">
       ${clk('total',mkKpi('👥','Tổng Lead Tiềm Năng',num(total),'tất cả lead','g-blue'))}
       ${mkKpi('🎯','Tỉ Lệ Chốt',pct(closeRate),num(closed)+'/'+num(total)+' lead','g-yellow')}
@@ -1951,21 +1963,10 @@ function renderSaleOnl(){
       ${clk('offline',mkKpi('🏪','Data Offline',num(dataOff),'nguồn offline','g-purple'))}
     </div>
 
-    <div class="charts-2col-grid">
-      <div>
-        <div class="sec-label">II. Lead Theo Kênh</div>
-        <div class="chart-card"><div class="chart-wrap" style="height:${Math.max(200,chanEntries.length*32)}px"><canvas id="cSaonlChan"></canvas></div></div>
-      </div>
-      <div>
-        <div class="sec-label">IV. Giá Trị</div>
-        <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
-          ${clk('closed',mkKpi('✅','Giá Trị Đã Chốt',vnd(closedRev),num(closed)+' đơn · doanh số thực','g-green'))}
-          ${clk('pot',mkKpi('💎','Giá Trị Tiềm Năng',vnd(totalPot),'toàn bộ leads','g-yellow'))}
-        </div>
-      </div>
-    </div>
+    <div class="sec-label">III. Lead Theo Kênh</div>
+    <div class="chart-card"><div class="chart-wrap" style="height:${Math.max(200,chanEntries.length*32)}px"><canvas id="cSaonlChan"></canvas></div></div>
 
-    <div class="sec-label">III. Lead Theo Sales</div>
+    <div class="sec-label">IV. Lead Theo Sales</div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES PHỤ TRÁCH</th>
@@ -2000,14 +2001,7 @@ function renderSaleOnl(){
         </table></div></div>
       </div>
       <div>
-        <div class="sec-label">VII. Doanh Thu Theo Kênh</div>
-        <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
-          ${mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'tất cả','g-green')}
-          ${mkKpi('🏮','Chánh Tâm',vnd(revCT),'','g-blue')}
-          ${mkKpi('🌊','Hiền Thuỷ',vnd(revHT),'','g-yellow')}
-          ${mkKpi('🐉','Shidai',vnd(revSD),'','g-blue')}
-        </div>
-        <div class="sec-label" style="margin-top:16px">VIII. Doanh Thu Theo Sales</div>
+        <div class="sec-label">VII. Doanh Thu Theo Sales</div>
         <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
             <th style="padding:9px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
