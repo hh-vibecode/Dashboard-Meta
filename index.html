@@ -2857,15 +2857,17 @@ function renderQcInvoice(){
   const C={blue:'#2563eb',purple:'#7c3aed',teal:'#0891b2',green:'#0abf7a',red:'#e11d48',amber:'#ca8a04',orange:'#ea580c'};
 
   // 1) Hoá đơn Kiot: dedupe theo Mã hoá đơn (mỗi dòng export là 1 sản phẩm trong hoá đơn, tổng tiền lặp lại)
-  //    KHÔNG lọc theo người bán — "Người bán" trên hoá đơn Kiot là người xử lý đơn/thu ngân tại thời điểm đó, không
-  //    nhất thiết là sales phụ trách gốc trong CRM (đã xác nhận có case Mã KH + giá trị khớp chính xác nhưng người
-  //    bán trên hoá đơn khác hẳn) → khớp phải dựa vào Mã KH, không lọc trước theo tên người bán.
+  //    Người tạo hoá đơn: Toàn/Huế = Sỉ, Thảo Ngọc = Lẻ — đây là bộ lọc chính. Nhưng nếu Mã KH trên hoá đơn khớp
+  //    thẳng với 1 khách đang có trong báo cáo thì vẫn tính, dù người tạo là ai khác (đã xác nhận case KH007360:
+  //    người tạo khác nhưng đúng là cùng 1 đơn thật — Mã KH khớp là đủ, không bắt buộc đúng người tạo nữa).
+  const normVN=s=>(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/gi,'d').toLowerCase();
+  const kiotSrcOf=r=>{const s=normVN(r[COL_KIOT.SALES]);
+    if(s.includes('toan')||s.includes('hue'))return'Sỉ';
+    if(s.includes('thao ngoc'))return'Lẻ';
+    return null;};
   const invMap={};
   kiotRows.forEach(r=>{const code=(r[COL_KIOT.INVOICE]||'').trim();if(!code||invMap[code])return;invMap[code]=r;});
-  let invoices=Object.values(invMap).filter(r=>inR(parseDate(r[COL_KIOT.DATE])));
-  if(brSel.length)invoices=invoices.filter(r=>brSel.includes(kiotBrand(r)));
   const invRevenue=r=>Math.max(0,vndNum(r[COL_KIOT.AMOUNT])-vndNum(r[COL_KIOT.DISCOUNT]));
-  const totalInvoiced=invoices.reduce((s,r)=>s+invRevenue(r),0);
   // Khách sỉ mua nhiều đợt dùng chung 1 Mã KH — nên không thể chỉ khớp theo Mã KH (kẻo đơn này "ăn ké" hoá đơn của đơn khác).
   // Logic đúng: ngày chốt (CRM/Báo cáo) luôn ĐỨNG TRƯỚC ngày lên hoá đơn (Kiot), không bao giờ ngược lại. Với mỗi đơn
   // ghi nhận, tìm trong các hoá đơn CÙNG Mã KH và có ngày >= ngày chốt, hoá đơn nào có giá trị GẦN NHẤT với giá trị
@@ -2927,6 +2929,17 @@ function renderQcInvoice(){
     const near=nearestInvoice(x.maKh,d,x.rev);
     x.invoiced=!!(near&&x.rev>0&&Math.abs(near.rev-x.rev)/x.rev*100<=10);
   });
+  const recognizedMaKhSet=new Set(allRec.map(x=>x.maKh).filter(Boolean));
+  const onlMaKhSet=new Set(onlRecList.map(x=>x.maKh).filter(Boolean));
+  const siMaKhSet=new Set(siRecList.map(x=>x.maKh).filter(Boolean));
+  // Hoá đơn Kiot được tính vào đối soát nếu: người tạo là Toàn/Huế/Thảo Ngọc, HOẶC Mã KH khớp thẳng 1 khách trong báo cáo
+  let invoices=Object.values(invMap).filter(r=>{
+    if(!inR(parseDate(r[COL_KIOT.DATE])))return false;
+    const k=nrmMa(r[COL_KIOT.MA_KH]);
+    return !!kiotSrcOf(r)||(!!k&&recognizedMaKhSet.has(k));
+  });
+  if(brSel.length)invoices=invoices.filter(r=>brSel.includes(kiotBrand(r)));
+  const totalInvoiced=invoices.reduce((s,r)=>s+invRevenue(r),0);
   const recognizedTotal=allRec.reduce((s,x)=>s+x.rev,0);
   const onlRecTotal=onlRecList.reduce((s,x)=>s+x.rev,0);
   const siRecTotal=siRecList.reduce((s,x)=>s+x.rev,0);
@@ -2940,11 +2953,15 @@ function renderQcInvoice(){
   const mismatchSi=notInvoicedSi.filter(x=>x.maKh), noCodeSi=notInvoicedSi.filter(x=>!x.maKh);
   const diff=totalInvoiced-recognizedTotal;
 
-  // 5) Chia hoá đơn Kiot theo Online / Sỉ — dựa trên Mã KH của bên nào đang ghi nhận nó
-  const onlMaKhSet=new Set(onlRecList.map(x=>x.maKh).filter(Boolean));
-  const siMaKhSet=new Set(siRecList.map(x=>x.maKh).filter(Boolean));
-  const onlInvoices=invoices.filter(r=>onlMaKhSet.has(nrmMa(r[COL_KIOT.MA_KH])));
-  const siInvoices=invoices.filter(r=>siMaKhSet.has(nrmMa(r[COL_KIOT.MA_KH])));
+  // 5) Chia hoá đơn Kiot theo Online / Sỉ — ưu tiên theo người tạo (Toàn/Huế=Sỉ, Thảo Ngọc=Lẻ), người tạo khác thì
+  //    fallback theo Mã KH đang ghi nhận nó thuộc bên nào
+  const srcOfInv=r=>{const s=kiotSrcOf(r);if(s)return s;
+    const k=nrmMa(r[COL_KIOT.MA_KH]);
+    if(onlMaKhSet.has(k))return'Lẻ';
+    if(siMaKhSet.has(k))return'Sỉ';
+    return null;};
+  const onlInvoices=invoices.filter(r=>srcOfInv(r)==='Lẻ');
+  const siInvoices=invoices.filter(r=>srcOfInv(r)==='Sỉ');
   const onlInvoicedTotal=onlInvoices.reduce((s,r)=>s+invRevenue(r),0);
   const siInvoicedTotal=siInvoices.reduce((s,r)=>s+invRevenue(r),0);
   const onlDiff=onlInvoicedTotal-onlRecTotal, siDiff=siInvoicedTotal-siRecTotal;
