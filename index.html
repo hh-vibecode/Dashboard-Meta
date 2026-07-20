@@ -272,12 +272,12 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     </nav>
     <div class="sb-section" id="sec-sale-label" style="margin-top:12px">Sale</div>
     <nav id="sec-sale">
-      <div class="nav-item" onclick="toggleSiGroup()" id="nav-si-group"><span class="nav-icon">🏪</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Báo Cáo Khách Hàng Sỉ<span id="si-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
+      <div class="nav-item" onclick="toggleSiGroup()" id="nav-si-group"><span class="nav-icon">🏪</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Báo Cáo KH Sỉ<span id="si-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
       <div id="si-subnav">
         <div class="nav-item" onclick="switchPage('sale-si')" id="nav-sale-si" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">📊</span><span class="nav-label">Tổng Quan</span></div>
         <div class="nav-item" onclick="switchPage('sale-si-data')" id="nav-sale-si-data" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">👤</span><span class="nav-label">CRM</span></div>
       </div>
-      <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo Khách Hàng Lẻ</span></div>
+      <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo KH Lẻ</span></div>
     </nav>
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
     <nav id="sec-qc">
@@ -1422,7 +1422,7 @@ function renderSaleSi(){
 
   const siClk=(key,html)=>`<div onclick="siShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
   document.getElementById('page-sale-si').innerHTML=`
-    <div class="page-title">Báo Cáo Khách Hàng Sỉ</div>
+    <div class="page-title">Báo Cáo KH Sỉ</div>
     <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng (đã đủ Nguồn + Tên KH) · 📅 ${curPeriodLabel()}</div>
 
     <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết · doanh thu tính theo ngày chốt đơn)</span></div>
@@ -1934,7 +1934,7 @@ function renderSaleOnl(){
   const brandSel=brandChips('_saonlBrands','renderSaleOnl');
   document.getElementById('page-sale-onl').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-      <div><div class="page-title">Báo Cáo Khách Hàng Lẻ</div>
+      <div><div class="page-title">Báo Cáo KH Lẻ</div>
       <div class="page-sub">Phân tích lead online · ${total} leads · 📅 ${curPeriodLabel()}</div></div>
       ${brandSel}
     </div>
