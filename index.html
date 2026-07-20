@@ -2849,9 +2849,13 @@ function renderQcInvoice(){
   const el=document.getElementById('page-qc-invoice');
   if(!kiotRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu hoá đơn Kiot...</div>';return;}
   const _f=document.getElementById('dateFrom'),_t=document.getElementById('dateTo');
-  const fromD=_f&&_f.value?localDate(_f.value):null,toD=_t&&_t.value?localDate(_t.value,true):null;
-  const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
-  const dsPeriodLabel=curPeriodLabel();
+  // Data ghi nhận (Sale Online/CRM Sỉ) chỉ đáng tin từ T6/2026 trở đi — luôn sàn tại đó dù không chọn ngày lọc
+  const DS_FLOOR=new Date(2026,5,1);
+  const fromDSel=_f&&_f.value?localDate(_f.value):null,toDSel=_t&&_t.value?localDate(_t.value,true):null;
+  const fromD=fromDSel&&fromDSel>DS_FLOOR?fromDSel:DS_FLOOR,toD=toDSel;
+  const inR=d=>!!d&&d>=fromD&&(!toD||d<=toD);
+  const dsToday=new Date();dsToday.setHours(23,59,59,999);
+  const dsPeriodLabel=fmtDate(fromD)+' → '+(toD?fmtDate(toD):fmtDate(dsToday));
   const nrmMa=v=>(v||'').toString().trim().toUpperCase();
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
