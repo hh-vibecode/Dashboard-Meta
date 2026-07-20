@@ -2856,6 +2856,7 @@ function renderQcInvoice(){
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   const brSel=brandArr('_kiotBrands');
+  const C={blue:'#2563eb',purple:'#7c3aed',teal:'#0891b2',green:'#0abf7a',red:'#e11d48',amber:'#ca8a04',orange:'#ea580c'};
 
   // 1) Hoá đơn Kiot: dedupe theo Mã hoá đơn (mỗi dòng export là 1 sản phẩm trong hoá đơn, tổng tiền lặp lại)
   //    Chỉ nhặt hoá đơn của đúng người bán phụ trách Sỉ (Toàn/Huế) hoặc Lẻ (Thảo Ngọc); người bán khác bỏ qua.
@@ -2909,9 +2910,10 @@ function renderQcInvoice(){
   const onlRecList=onlClosed.map(r=>({src:'Online',maKh:nrmMa(r[COL_SAONL.MA_KH]),name:r[COL_SAONL.NAME],phone:r[COL_SAONL.PHONE],date:r[COL_SAONL.DATE_CLOSE],rev:vndNum(r[COL_SAONL.REVENUE])})).filter(x=>x.rev>0);
 
   // 3) Doanh số ghi nhận — Sỉ (CRM Sỉ đã chốt, nối Mã KH qua Master Sỉ bằng Lead ID/SĐT)
-  const makhByKey={},nameByKeySi={},phoneByKeySi={},storeByKeySi={};
+  const makhByKey={},nameByKeySi={},phoneByKeySi={},storeByKeySi={},totalRevByMaKh={};
   saleSiRows.forEach(r=>{const mk=nrmMa(r[COL_SI.MA_KH]),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),ph9=last9(r[COL_SI.PHONE]),st=(r[COL_SI.STORE]||'').trim();
-    [nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph9?'PH:'+ph9:''].forEach(k=>{if(!k)return;if(!makhByKey[k]&&mk)makhByKey[k]=mk;if(!nameByKeySi[k]&&nm&&nm!=='—')nameByKeySi[k]=nm;if(!phoneByKeySi[k]&&r[COL_SI.PHONE])phoneByKeySi[k]=r[COL_SI.PHONE];if(!storeByKeySi[k]&&st)storeByKeySi[k]=st;});});
+    [nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph9?'PH:'+ph9:''].forEach(k=>{if(!k)return;if(!makhByKey[k]&&mk)makhByKey[k]=mk;if(!nameByKeySi[k]&&nm&&nm!=='—')nameByKeySi[k]=nm;if(!phoneByKeySi[k]&&r[COL_SI.PHONE])phoneByKeySi[k]=r[COL_SI.PHONE];if(!storeByKeySi[k]&&st)storeByKeySi[k]=st;});
+    if(mk)totalRevByMaKh[mk]=Math.max(totalRevByMaKh[mk]||0,vndNum(r[COL_SI.TOTAL_REV]));});
   const brandSiRow=r=>{const a=(r[COL_SICRM.AD_ID]||'').trim();return brandTextSa(r[COL_SICRM.CHANNEL])||(a&&adCampMap[a]?brandTextSa(adCampMap[a]):null);};
   let siClosed=(saleSiCrmRows||[]).filter(r=>vndNum(r[COL_SICRM.CLOSE_VALUE])>0&&inR(parseDate(r[COL_SICRM.CLOSE_DATE])));
   if(brSel.length)siClosed=siClosed.filter(r=>brSel.includes(brandSiRow(r)));
@@ -2927,8 +2929,20 @@ function renderQcInvoice(){
   // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn nào đủ gần giá trị chốt → coi như chưa ra hoá đơn
   const allRec=[...onlRecList,...siRecList];
   const revDiffSrc=[];
+  // Data bất thường: hoá đơn Kiot cùng Mã KH, giá trị gần giống, nhưng lại TẠO TRƯỚC ngày chốt trên báo cáo — vô lý vì
+  // ngày chốt (báo cáo) phải luôn đứng trước ngày lên hoá đơn (Kiot); khả năng cao CRM cập nhật "ngày chốt" sai/muộn.
+  const anomalySrc=[];
   allRec.forEach(x=>{
     const d=parseDate(x.date);
+    if(x.maKh&&d){
+      const before=(invByMaKh[x.maKh]||[]).filter(c=>c.date<d);
+      if(before.length){
+        let best=null,bestDiff=Infinity;
+        before.forEach(c=>{const diff=Math.abs(c.rev-x.rev);if(diff<bestDiff){bestDiff=diff;best=c;}});
+        const pct=x.rev>0?bestDiff/x.rev*100:100;
+        if(pct<=10)anomalySrc.push({x,invDate:best.date,invRev:best.rev,diff:best.rev-x.rev});
+      }
+    }
     const near=nearestInvoice(x.maKh,d,x.rev);
     x.invoiced=!!(near&&x.rev>0&&Math.abs(near.rev-x.rev)/x.rev*100<=10);
     if(near)revDiffSrc.push({x,invDate:near.date,invRev:near.rev,diff:near.rev-x.rev});
@@ -3002,7 +3016,6 @@ function renderQcInvoice(){
     <div style="font-size:20px;font-weight:900;color:var(--text)">${val}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4">${sub}</div>
   </div>`;
-  const C={blue:'#2563eb',purple:'#7c3aed',teal:'#0891b2',green:'#0abf7a',red:'#e11d48',amber:'#ca8a04',orange:'#ea580c'};
   const srcBox=(label,icon,color,recTotal,invTotal,dff,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey,mmList,mmKey,ncList,ncKey,recListKey)=>{
     const barPct=recTotal>0?Math.min(100,invTotal/recTotal*100):0;
     return `
