@@ -2929,9 +2929,14 @@ function renderQcInvoice(){
   // 4) Đối soát: khách chưa có Mã KH, hoặc Mã KH không có hoá đơn nào đủ gần giá trị chốt → coi như chưa ra hoá đơn
   const allRec=[...onlRecList,...siRecList];
   const revDiffSrc=[];
-  // Data bất thường: hoá đơn Kiot cùng Mã KH, giá trị gần giống, nhưng lại TẠO TRƯỚC ngày chốt trên báo cáo — vô lý vì
-  // ngày chốt (báo cáo) phải luôn đứng trước ngày lên hoá đơn (Kiot); khả năng cao CRM cập nhật "ngày chốt" sai/muộn.
+  // Data bất thường — gom nhiều kiểu check, mỗi dòng có "note" giải thích lý do bị gắn cờ:
+  // (A) Hoá đơn Kiot cùng Mã KH, giá trị gần giống, nhưng lại TẠO TRƯỚC ngày chốt trên báo cáo — vô lý vì ngày chốt
+  //     (báo cáo) phải luôn đứng trước ngày lên hoá đơn (Kiot); khả năng cao CRM cập nhật "ngày chốt" sai/muộn.
+  // (B) Giá trị chốt của khách Sỉ trùng khớp bất thường với TỔNG doanh thu cộng dồn (Master Sỉ) của chính khách đó,
+  //     dù khách đã có nhiều lượt chốt khác — nghi nhập nhầm số tổng cộng dồn vào ô giá trị chốt của 1 đơn lẻ.
   const anomalySrc=[];
+  const siCloseCount={};
+  siRecList.forEach(x=>{if(x.maKh)siCloseCount[x.maKh]=(siCloseCount[x.maKh]||0)+1;});
   allRec.forEach(x=>{
     const d=parseDate(x.date);
     if(x.maKh&&d){
@@ -2940,7 +2945,15 @@ function renderQcInvoice(){
         let best=null,bestDiff=Infinity;
         before.forEach(c=>{const diff=Math.abs(c.rev-x.rev);if(diff<bestDiff){bestDiff=diff;best=c;}});
         const pct=x.rev>0?bestDiff/x.rev*100:100;
-        if(pct<=10)anomalySrc.push({x,invDate:best.date,invRev:best.rev,diff:best.rev-x.rev});
+        if(pct<=10)anomalySrc.push({x,invDate:best.date,invRev:best.rev,diff:best.rev-x.rev,
+          note:`Hoá đơn Kiot tạo trước ngày chốt ${Math.round((d-best.date)/86400000)} ngày — CRM có thể ghi sai/muộn ngày chốt`});
+      }
+    }
+    if(x.src==='Sỉ'&&x.maKh&&(siCloseCount[x.maKh]||0)>1){
+      const totalRev=totalRevByMaKh[x.maKh]||0;
+      if(totalRev>0&&x.rev>0&&Math.abs(x.rev-totalRev)/totalRev*100<=15){
+        anomalySrc.push({x,invDate:null,invRev:totalRev,diff:totalRev-x.rev,
+          note:`Giá trị chốt (${vnd(x.rev)}) trùng khớp bất thường với tổng doanh thu cộng dồn Master Sỉ của khách (${vnd(totalRev)}) — nghi nhập nhầm số tổng thay vì số đơn lẻ`});
       }
     }
     const near=nearestInvoice(x.maKh,d,x.rev);
@@ -2987,7 +3000,12 @@ function renderQcInvoice(){
   const revDiffMap=list=>list.map(({x,invDate,invRev,diff})=>[x.src,x.maKh||'—',recNameCell(x),fmtDate(parseDate(x.date)),fmtDate(invDate),vnd(x.rev),vnd(invRev),
     `<b style="color:${diff===0?'var(--text)':diff<0?C.red:C.green}">${diff>0?'+':''}${vnd(diff)}</b>`]);
   const revDiffN=revDiffSrc.length, revDiffTotal=revDiffSrc.reduce((s,r)=>s+Math.abs(r.diff),0);
+  const anomalyCols=['Nguồn','Mã KH','Tên KH','Ngày chốt (báo cáo)','Ngày hoá đơn (Kiot)','Doanh thu báo cáo','Doanh thu Kiot','Note'];
+  const anomalyMap=list=>list.map(({x,invDate,invRev,note})=>[x.src,x.maKh||'—',recNameCell(x),fmtDate(parseDate(x.date)),invDate?fmtDate(invDate):'—',vnd(x.rev),vnd(invRev),
+    `<span style="color:${C.red}">⚠️ ${note}</span>`]);
+  const anomalyN=anomalySrc.length;
   window._qcInvLists={
+    anomaly:{title:'Data Bất Thường — cần soát lại thủ công',cols:anomalyCols,rows:anomalyMap(anomalySrc)},
     revDiff:{title:'Hoá Đơn Có Chênh Lệch Doanh Thu — Báo cáo vs KiotViet (cùng Mã KH)',cols:revDiffCols,rows:revDiffMap(revDiffSrc)},
     notInvoiced:{title:'Đơn báo cáo — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedRec)},
     notInvoicedOnl:{title:'Đơn Khách Lẻ — chưa ra hoá đơn',cols:recCols,rows:recMap(notInvoicedOnl)},
@@ -3059,10 +3077,11 @@ function renderQcInvoice(){
     ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi')}
 
     <div class="sec-label">III. Data Kiot Không Khớp Báo Cáo <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(hoá đơn Kiot đang ghi nhận lỗi — không khớp được với đơn báo cáo nào)</span></div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
       <div onclick="qcInvShow('unmatchedInv')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('❔','Hoá Đơn Kiot Không Khớp Mã KH',num(unmatchedInvoices.length)+' hoá đơn',vnd(unmatchedInvoicesTotal)+' · bán trực tiếp / thiếu Mã KH ở CRM · 👆 xem chi tiết',C.purple)}</div>
       <div onclick="qcInvShow('allInvoices')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🗂️','Toàn Bộ Hoá Đơn Kiot Trong Kỳ',num(invoices.length)+' hoá đơn',vnd(totalInvoiced)+' · 👆 xem chi tiết',C.orange)}</div>
       <div onclick="qcInvShow('revDiff')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🔍','Hoá Đơn Có Chênh Lệch Doanh Thu',num(revDiffN)+' hoá đơn',vnd(revDiffTotal)+' tổng chênh lệch tuyệt đối · cùng Mã KH, so báo cáo với Kiot · 👆 xem chi tiết',C.red)}</div>
+      <div onclick="qcInvShow('anomaly')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('🚨','Data Bất Thường',num(anomalyN)+' bản ghi',anomalyN?'có note giải thích lý do · 👆 xem chi tiết':'không phát hiện bất thường',C.red)}</div>
     </div>`;
 }
 function qcInvShow(key){const d=(window._qcInvLists||{})[key];if(d)dataModal(d);}
