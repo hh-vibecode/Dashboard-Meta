@@ -1255,11 +1255,14 @@ function renderSaleSi(){
   const ciOf=r=>siContactInfo(r,crmMap);
   // "Chưa ra đơn" lấy trực tiếp theo cột Phân loại KH: Tiềm năng, chưa ra đơn / Không tiềm năng / Mất kết nối
   const stOf=r=>(r[COL_SI.STATUS]||'').toLowerCase();
+  // "Không tiềm năng" chứa sẵn chuỗi con "tiềm năng" nên phải loại trừ nó ra trước khi test "tiềm năng" đơn thuần,
+  // nếu không khách Không tiềm năng sẽ bị lẫn vào nhóm Tiềm năng, chưa ra đơn (bug đã xảy ra thực tế)
+  const isPhoStatus=r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(stOf(r));
   const notYetRows=baseRows.filter(r=>!isDon(r));
-  const tiemRows=notYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r)));
+  const tiemRows=notYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r))&&!isPhoStatus(r));
   const lostRows=notYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
   // "Không tiềm năng" chỉ tính khách ĐÃ được gắn trạng thái đó; khách chưa có trạng thái gì (bỏ trống/khác) tách riêng, không gộp vào Không tiềm năng
-  const phoRows=notYetRows.filter(r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(stOf(r)));
+  const phoRows=notYetRows.filter(isPhoStatus);
   const noStatusRows=notYetRows.filter(r=>!tiemRows.includes(r)&&!lostRows.includes(r)&&!phoRows.includes(r));
   const tiemNoDon=tiemRows.length;
   // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0); tra cứu tên/SĐT từ master sỉ
@@ -1288,9 +1291,9 @@ function renderSaleSi(){
   const onlNewRows=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online');
   const onlDonRows=onlNewRows.filter(isDon);
   const onlNotYetRows=onlNewRows.filter(r=>!isDon(r));
-  const onlTiemRows=onlNotYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r)));
+  const onlTiemRows=onlNotYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r))&&!isPhoStatus(r));
   const onlLostRows=onlNotYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
-  const onlKtnRows=onlNotYetRows.filter(r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(stOf(r)));
+  const onlKtnRows=onlNotYetRows.filter(isPhoStatus);
   const onlChuaPlRows=onlNotYetRows.filter(r=>!onlTiemRows.includes(r)&&!onlLostRows.includes(r)&&!onlKtnRows.includes(r));
 
   window._siLists={
@@ -1667,8 +1670,8 @@ function renderSaleSiData(){
   // Đồng bộ màu 4 trạng thái chuẩn (cột Phân loại KH) với Báo Cáo Sỉ Tổng Quan: Đã ra đơn=xanh lá · Tiềm năng=tím · Không tiềm năng=xanh cyan · Mất kết nối=đỏ
   const statusChip=s=>{const v=(s||'').trim();if(!v)return'<span style="color:var(--muted)">—</span>';const t=v.toLowerCase();
     if(t.includes('đã ra đơn'))return chip(v,'#dcfce7','#16a34a');
-    if(/tiềm năng|tiem nang/.test(t))return chip(v,'#ede9fe','#7c3aed');
     if(/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(t))return chip(v,'#cffafe','#0891b2');
+    if(/tiềm năng|tiem nang/.test(t))return chip(v,'#ede9fe','#7c3aed');
     if(/mất kết n|mat ket n/.test(t))return chip(v,'#fee2e2','#e11d48');
     return chip(v,'#e5e7eb','#6b7280');};
   window._siProfiles=enriched;window._siHist=histMap;
@@ -1753,7 +1756,7 @@ function openSiProfile(i){
   const recs=siCareRecords(r,window._siHist||{});
   const chip=(t,bg,fg)=>`<span style="display:inline-block;padding:3px 11px;border-radius:6px;background:${bg};color:${fg};font-size:12px;font-weight:700">${t}</span>`;
   const v=(r[COL_SI.STATUS]||'').trim(),tl=v.toLowerCase();
-  const sttChip=!v?'':tl.includes('đã ra đơn')?chip(v,'#dcfce7','#16a34a'):/tiềm năng|tiem nang/.test(tl)?chip(v,'#ede9fe','#7c3aed'):/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(tl)?chip(v,'#cffafe','#0891b2'):/mất kết n|mat ket n/.test(tl)?chip(v,'#fee2e2','#e11d48'):chip(v,'#e5e7eb','#6b7280');
+  const sttChip=!v?'':tl.includes('đã ra đơn')?chip(v,'#dcfce7','#16a34a'):/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(tl)?chip(v,'#cffafe','#0891b2'):/tiềm năng|tiem nang/.test(tl)?chip(v,'#ede9fe','#7c3aed'):/mất kết n|mat ket n/.test(tl)?chip(v,'#fee2e2','#e11d48'):chip(v,'#e5e7eb','#6b7280');
   const info=(label,val,full)=>`<div style="${full?'grid-column:1/-1;':''}display:flex;flex-direction:column;gap:2px"><span style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em">${label}</span><span style="font-size:13px;font-weight:600;word-break:break-word">${(val&&String(val).trim())||'—'}</span></div>`;
   const money=(label,val,color)=>`<div style="background:var(--bg2);border-radius:10px;padding:12px 14px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">${label}</div><div style="font-size:17px;font-weight:800;color:${color||'var(--text)'};margin-top:2px">${val}</div></div>`;
   const careTable=recs.length?`<table style="width:100%;border-collapse:collapse">
@@ -2485,7 +2488,7 @@ function renderQcDoiSoat(){
   // ===== Chất lượng data Sỉ tính theo MASTER SỈ (nguồn online, lọc theo ngày tạo) =====
   //   Sales gắn tiềm năng/chốt ở cột "Phân loại KH" của Master, KHÔNG gắn tag ở data hub → phải lấy từ Master
   const isDonSiM=r=>/đã ra đơn|da ra don/i.test(r[COL_SI.STATUS]||'')||vndNum(r[COL_SI.TOTAL_REV])>0;
-  const isTiemSiM=r=>/tiềm năng|tiem nang/i.test(r[COL_SI.STATUS]||'');
+  const isTiemSiM=r=>{const s=r[COL_SI.STATUS]||'';return/tiềm năng|tiem nang/i.test(s)&&!/không tiềm năng|khong tiem nang|phổ thông|pho thong/i.test(s);};
   const datSiM=siOnline.length;                                             // Lead Đạt Sỉ = khách sỉ online đã ghi nhận vào Master trong kỳ
   const datPhoneSiM=siOnline.filter(r=>(r[COL_SI.PHONE]||'').trim()).length; // SĐT thu về
   const chotSiM=siOnline.filter(isDonSiM).length;                            // Lead Chốt = đã ra đơn / có doanh thu
