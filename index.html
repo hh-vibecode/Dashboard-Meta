@@ -3047,18 +3047,16 @@ function renderQcInvoice(){
     </div>`:'';
     return `
     <div style="border:1px solid var(--border);border-radius:14px;padding:13px 16px;margin-bottom:10px;background:var(--bg2)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
-        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${icon} ${label}</div>
-        <div style="font-size:11.5px;font-weight:800;color:${dff<0?C.red:C.green}">${dff<0?'⚠️':'✅'} Chưa Đi Đơn ${dff<0?vnd(-dff):(dff>0?'+':'')+vnd(dff)}</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${icon} ${label}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:9px">
         ${statChip('💰','Báo Cáo',vnd(recTotal),'',color,`qcInvShow('${recListKey}')`)}
         ${statChip('🧾','Trên KiotViet',vnd(invTotal),pct(recTotal?invTotal/recTotal*100:0)+' so với báo cáo',color,`qcInvShow('${invListKey}')`)}
+        ${statChip(dff<0?'⚠️':'✅','Chưa Đi Đơn',dff<0?vnd(-dff):(dff>0?'+':'')+vnd(dff),dff<0?'':'khớp/vượt báo cáo',dff<0?C.red:C.green,'')}
       </div>
       <div style="position:relative;height:9px;background:var(--border);border-radius:5px;overflow:hidden">
         <div style="position:absolute;inset:0;width:${barPct}%;background:${color};border-radius:5px"></div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px">
         ${statChip('📦','Tổng Đơn Báo Cáo',num(invCount+notCount)+' đơn','',color,`qcInvShow('${recListKey}')`)}
         ${statChip('✅','Đã Lên Kiot',num(invCount)+' đơn',vnd(invRevSum),C.green,`qcInvShow('${invRec}')`)}
         ${statChip('⚠️','Data Có Vấn Đề',num(notCount)+' đơn',vnd(notRev),C.amber,'')}
