@@ -2989,18 +2989,16 @@ function renderQcInvoice(){
     noCodeSi:{title:'Đơn Sỉ — chưa có Mã KH',cols:recCols,rows:recMap(noCodeSi)},
     invOnl:{title:'Hoá đơn Kiot — khớp khách Lẻ',cols:invCols,rows:invMapRows(onlInvoices)},
     invSi:{title:'Hoá đơn Kiot — khớp khách Sỉ',cols:invCols,rows:invMapRows(siInvoices)},
+    invAll:{title:'Hoá đơn Kiot — trong kỳ đối soát',cols:invCols,rows:invMapRows(invoices)},
     recOnl:{title:'Đơn Khách Lẻ — doanh số báo cáo',cols:recAllCols,rows:recAllMap(onlRecList)},
     recSi:{title:'Đơn Sỉ — doanh số báo cáo',cols:recAllCols,rows:recAllMap(siRecList)},
     recAll:{title:'Toàn bộ đơn — doanh số báo cáo',cols:recAllCols,rows:recAllMap(allRec)},
   };
 
-  const flatKpi=(icon,label,val,sub,color)=>`<div style="background:var(--surface);border:1px solid var(--border);border-left:4px solid ${color};border-radius:12px;padding:14px 16px;height:100%">
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
-      <span style="font-size:15px;line-height:1">${icon}</span>
-      <span style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">${label}</span>
-    </div>
-    <div style="font-size:20px;font-weight:900;color:var(--text)">${val}</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4">${sub}</div>
+  const statChip=(icon,label,val,sub,color,onclick)=>`<div ${onclick?`onclick="${onclick}"`:''} title="${onclick?'Bấm để xem chi tiết':''}" style="${onclick?'cursor:pointer;':''}flex:1 1 130px;background:${color}14;border:1px solid ${color}35;border-radius:10px;padding:9px 11px">
+    <div style="font-size:10px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${icon} ${label}</div>
+    <div style="font-size:15px;font-weight:900;color:var(--text);margin-top:3px;white-space:nowrap">${val}</div>
+    ${sub?`<div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap">${sub}</div>`:''}
   </div>`;
   const notReasonOf=(x,near)=>{
     if(!x.maKh)return'Chưa có Mã KH';
@@ -3044,21 +3042,21 @@ function renderQcInvoice(){
     </div>`:'';
     return `
     <div style="border:1px solid var(--border);border-radius:14px;padding:13px 16px;margin-bottom:10px;background:var(--bg2)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
         <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${icon} ${label}</div>
         <div style="font-size:11.5px;font-weight:800;color:${dff<0?C.red:C.green}">${dff<0?'⚠️':'✅'} Chưa Đi Đơn ${dff<0?vnd(-dff):(dff>0?'+':'')+vnd(dff)}</div>
       </div>
-      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;margin-bottom:5px">
-        <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">💰 Báo cáo <b style="color:var(--text)">${vnd(recTotal)}</b></span>
-        <span onclick="qcInvShow('${invListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">🧾 Trên KiotViet <b style="color:var(--text)">${vnd(invTotal)}</b> <span style="color:${color};font-weight:800">${pct(recTotal?invTotal/recTotal*100:0)}</span></span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">
+        ${statChip('💰','Báo Cáo',vnd(recTotal),'',color,`qcInvShow('${recListKey}')`)}
+        ${statChip('🧾','Trên KiotViet',vnd(invTotal),pct(recTotal?invTotal/recTotal*100:0)+' so với báo cáo',color,`qcInvShow('${invListKey}')`)}
       </div>
       <div style="position:relative;height:9px;background:var(--border);border-radius:5px;overflow:hidden">
         <div style="position:absolute;inset:0;width:${barPct}%;background:${color};border-radius:5px"></div>
       </div>
-      <div style="display:flex;gap:20px;margin-top:11px;flex-wrap:wrap;font-size:11.5px">
-        <span onclick="qcInvShow('${recListKey}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">📦 Tổng đơn Báo cáo <b style="color:var(--text)">${num(invCount+notCount)} đơn</b></span>
-        <span onclick="qcInvShow('${invRec}')" title="Bấm để xem chi tiết" style="cursor:pointer;color:var(--muted)">✅ Đã lên Kiot <b style="color:${C.green}">${num(invCount)} đơn</b> <span style="color:var(--muted)">(${vnd(invRevSum)})</span></span>
-        <span style="color:var(--muted)">⚠️ Data Có Vấn Đề <b style="color:${C.amber}">${num(notCount)} đơn</b> <span style="color:var(--muted)">(${vnd(notRev)})</span></span>
+      <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap">
+        ${statChip('📦','Tổng Đơn Báo Cáo',num(invCount+notCount)+' đơn','',color,`qcInvShow('${recListKey}')`)}
+        ${statChip('✅','Đã Lên Kiot',num(invCount)+' đơn',vnd(invRevSum),C.green,`qcInvShow('${invRec}')`)}
+        ${statChip('⚠️','Data Có Vấn Đề',num(notCount)+' đơn',vnd(notRev),C.amber,'')}
       </div>
       ${notTable}
     </div>`;};
@@ -3074,9 +3072,9 @@ function renderQcInvoice(){
 
     <div class="sec-label">I. Dữ Liệu Tổng Hợp</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-      <div onclick="qcInvShow('recAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${flatKpi('💰','Doanh Số Báo Cáo',vnd(recognizedTotal),'Khách Lẻ '+vnd(onlRecTotal)+' · Sỉ '+vnd(siRecTotal)+' · 👆 xem chi tiết',C.teal)}</div>
-      ${flatKpi('🧾','Doanh Số Trên KiotViet',vnd(totalInvoiced),(recognizedTotal?pct(totalInvoiced/recognizedTotal*100):'—')+' so với báo cáo · '+num(invoices.length)+' hoá đơn',C.teal)}
-      ${flatKpi(diff<0?'⚠️':'✅','Chưa Đi Đơn',diff<0?vnd(-diff):(diff>0?'+':'')+vnd(diff),diff<0?'giá trị đơn hàng chưa đi so với báo cáo':diff>0?'vượt doanh số báo cáo':'khớp hoàn toàn',diff<0?C.red:C.green)}
+      <div onclick="qcInvShow('recAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('💰','Doanh Số Báo Cáo',vnd(recognizedTotal),'🌐 Khách Lẻ '+vnd(onlRecTotal)+' · 🏪 Sỉ '+vnd(siRecTotal),'g-teal')}</div>
+      <div onclick="qcInvShow('invAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('🧾','Doanh Số Trên KiotViet',vnd(totalInvoiced),(recognizedTotal?pct(totalInvoiced/recognizedTotal*100):'—')+' so với báo cáo · '+num(invoices.length)+' hoá đơn','g-blue')}</div>
+      <div onclick="qcInvShow('notInvoiced')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi(diff<0?'⚠️':'✅','Chưa Đi Đơn',diff<0?vnd(-diff):(diff>0?'+':'')+vnd(diff),diff<0?'giá trị đơn hàng chưa đi so với báo cáo':diff>0?'vượt doanh số báo cáo':'khớp hoàn toàn',diff<0?'g-red':'g-green')}</div>
     </div>
 
     <div class="sec-label">II. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
