@@ -2961,7 +2961,9 @@ function renderQcInvoice(){
   // Trong "chưa ra hoá đơn", tách rõ: có Mã KH nhưng không khớp hoá đơn nào (đáng ngờ, cần soát lại) vs chưa có Mã KH (chưa nhập)
   const mismatchOnl=notInvoicedOnl.filter(x=>x.maKh), noCodeOnl=notInvoicedOnl.filter(x=>!x.maKh);
   const mismatchSi=notInvoicedSi.filter(x=>x.maKh), noCodeSi=notInvoicedSi.filter(x=>!x.maKh);
-  const diff=totalInvoiced-recognizedTotal;
+  // "Chưa Đi Đơn" = đúng bằng tổng giá trị báo cáo của các đơn chưa khớp hoá đơn (= tổng "Data Có Vấn Đề"),
+  // KHÔNG lấy tổng doanh số Kiot trừ báo cáo (2 tổng đó độc lập, có thể lệch nhau do 1 khách có nhiều hoá đơn/kỳ)
+  const diff=-notInvoicedTotal;
 
   // 5) Chia hoá đơn Kiot theo Online / Sỉ — ưu tiên theo người tạo (Toàn/Huế=Sỉ, Thảo Ngọc=Lẻ), người tạo khác thì
   //    fallback theo Mã KH đang ghi nhận nó thuộc bên nào
@@ -2974,7 +2976,6 @@ function renderQcInvoice(){
   const siInvoices=invoices.filter(r=>srcOfInv(r)==='Sỉ');
   const onlInvoicedTotal=onlInvoices.reduce((s,r)=>s+invRevenue(r),0);
   const siInvoicedTotal=siInvoices.reduce((s,r)=>s+invRevenue(r),0);
-  const onlDiff=onlInvoicedTotal-onlRecTotal, siDiff=siInvoicedTotal-siRecTotal;
 
   const invoicedOnl=invoicedRec.filter(x=>x.src==='Online'), invoicedSi=invoicedRec.filter(x=>x.src==='Sỉ');
   const notInvoicedOnlTotal=notInvoicedOnl.reduce((s,x)=>s+x.rev,0), notInvoicedSiTotal=notInvoicedSi.reduce((s,x)=>s+x.rev,0);
@@ -3026,8 +3027,10 @@ function renderQcInvoice(){
     const diffPct=x.rev>0?Math.abs(near.rev-x.rev)/x.rev*100:100;
     return`Có hoá đơn gần nhất nhưng giá trị lệch ${pct(diffPct)} so với báo cáo`;
   };
-  const srcBox=(label,icon,color,recTotal,invTotal,dff,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey,mmList,mmKey,ncList,ncKey,recListKey,notList)=>{
+  const srcBox=(label,icon,color,recTotal,invTotal,invCount,invRec,invRevSum,notCount,notRev,notKey,invListKey,mmList,mmKey,ncList,ncKey,recListKey,notList)=>{
     const barPct=recTotal>0?Math.min(100,invTotal/recTotal*100):0;
+    // "Chưa Đi Đơn" = đúng bằng tổng "Data Có Vấn Đề" bên dưới (recTotal luôn = invRevSum + notRev)
+    const dff=-notRev;
     const notTable=notList.length?`<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed">
         <thead><tr style="text-align:left;color:var(--muted)">
@@ -3056,7 +3059,7 @@ function renderQcInvoice(){
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:9px">
         ${statChip('💰','Báo Cáo',vnd(recTotal),'',color,`qcInvShow('${recListKey}')`)}
         ${statChip('🧾','Trên KiotViet',vnd(invTotal),pct(recTotal?invTotal/recTotal*100:0)+' so với báo cáo',color,`qcInvShow('${invListKey}')`)}
-        ${statChip(dff<0?'⚠️':'✅','Chưa Đi Đơn',dff<0?vnd(-dff):(dff>0?'+':'')+vnd(dff),dff<0?'':'khớp/vượt báo cáo',dff<0?C.red:C.green,'')}
+        ${statChip(dff<0?'⚠️':'✅','Chưa Đi Đơn',dff<0?vnd(-dff):'0 đ',dff<0?'= tổng Data Có Vấn Đề':'khớp hoàn toàn',dff<0?C.red:C.green,'')}
       </div>
       <div style="position:relative;height:9px;background:var(--border);border-radius:5px;overflow:hidden">
         <div style="position:absolute;inset:0;width:${barPct}%;background:${color};border-radius:5px"></div>
@@ -3082,12 +3085,12 @@ function renderQcInvoice(){
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
       <div onclick="qcInvShow('recAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('💰','Doanh Số Báo Cáo',vnd(recognizedTotal),'🌐 Khách Lẻ '+vnd(onlRecTotal)+' · 🏪 Sỉ '+vnd(siRecTotal),'g-teal')}</div>
       <div onclick="qcInvShow('invAll')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('🧾','Doanh Số Trên KiotViet',vnd(totalInvoiced),(recognizedTotal?pct(totalInvoiced/recognizedTotal*100):'—')+' so với báo cáo · '+num(invoices.length)+' hoá đơn','g-blue')}</div>
-      <div onclick="qcInvShow('notInvoiced')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi(diff<0?'⚠️':'✅','Chưa Đi Đơn',diff<0?vnd(-diff):(diff>0?'+':'')+vnd(diff),diff<0?'giá trị đơn hàng chưa đi so với báo cáo':diff>0?'vượt doanh số báo cáo':'khớp hoàn toàn',diff<0?'g-red':'g-green')}</div>
+      <div onclick="qcInvShow('notInvoiced')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi(diff<0?'⚠️':'✅','Chưa Đi Đơn',diff<0?vnd(-diff):'0 đ',diff<0?'giá trị đơn hàng chưa đi so với báo cáo':'khớp hoàn toàn',diff<0?'g-red':'g-green')}</div>
     </div>
 
     <div class="sec-label">II. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
-    ${srcBox('Khách Lẻ','🌐',C.blue,onlRecTotal,onlInvoicedTotal,onlDiff,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl',notInvoicedOnl)}
-    ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,siDiff,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi',notInvoicedSi)}
+    ${srcBox('Khách Lẻ','🌐',C.blue,onlRecTotal,onlInvoicedTotal,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl',notInvoicedOnl)}
+    ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi',notInvoicedSi)}
     `;
 }
 function qcInvShow(key){const d=(window._qcInvLists||{})[key];if(d)dataModal(d);}
