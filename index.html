@@ -1925,10 +1925,15 @@ function renderSaleOnl(){
   </tr>`).join('');
   // Revenue by brand/channel
   function revByChan(kw){return rows.filter(r=>st(r,'chốt')&&(r[COL_SAONL.CHANNEL]||'').toLowerCase().includes(kw.toLowerCase())).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);}
+  function rowsByChan(...kws){return rows.filter(r=>st(r,'chốt')&&kws.some(kw=>(r[COL_SAONL.CHANNEL]||'').toLowerCase().includes(kw.toLowerCase())));}
   const revCT=revByChan('chánh tâm')+revByChan('chanh tam');
   const revHT=revByChan('hiền thuỷ')+revByChan('hien thuy')+revByChan('hienthuy');
   const revSD=revByChan('shidai');
   const revTTV=revByChan('tự tại viên')+revByChan('tu tai vien')+revByChan('nến bơ')+revByChan('nen bo');
+  window._saonlLists.ct={title:'Chánh Tâm — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('chánh tâm','chanh tam'))};
+  window._saonlLists.ht={title:'Hiền Thuỷ — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('hiền thuỷ','hien thuy','hienthuy'))};
+  window._saonlLists.sd={title:'Shidai — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('shidai'))};
+  window._saonlLists.ttv={title:'Tự Tại Viên — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('tự tại viên','tu tai vien','nến bơ','nen bo'))};
   // Revenue by sales
   const revBySalesRows=Object.entries(bySales).filter(([,d])=>d.rev>0).sort((a,b)=>b[1].rev-a[1].rev).map(([s,d])=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:9px 14px;font-weight:700">${s}</td>
@@ -1949,10 +1954,10 @@ function renderSaleOnl(){
       ${clk('pot',mkKpi('💎','Giá Trị Tiềm Năng',vnd(totalPot),'toàn bộ leads','g-yellow'))}
     </div>
     <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:12px">
-      ${mkKpi('🏮','Chánh Tâm',vnd(revCT),'đã chốt','g-blue')}
-      ${mkKpi('🌊','Hiền Thuỷ',vnd(revHT),'đã chốt','g-yellow')}
-      ${mkKpi('🐉','Shidai',vnd(revSD),'đã chốt','g-blue')}
-      ${mkKpi('🕯️','Tự Tại Viên',vnd(revTTV),'đã chốt','g-purple')}
+      ${clk('ct',mkKpi('🏮','Chánh Tâm',vnd(revCT),'đã chốt','g-blue'))}
+      ${clk('ht',mkKpi('🌊','Hiền Thuỷ',vnd(revHT),'đã chốt','g-yellow'))}
+      ${clk('sd',mkKpi('🐉','Shidai',vnd(revSD),'đã chốt','g-blue'))}
+      ${clk('ttv',mkKpi('🕯️','Tự Tại Viên',vnd(revTTV),'đã chốt','g-purple'))}
     </div>
 
     <div class="sec-label" style="margin-top:16px">II. Tổng Quan Lead <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết)</span></div>
