@@ -2174,7 +2174,7 @@ function buildOnlineCampTable(){
   let _onlChotIdx=0;
   const chotCols=['Ngày','Mã đơn','Tên khách','SĐT','Ads ID','Lý do'];
   const regChotList=(title,rows)=>{if(!rows||!rows.length)return null;const idx=_onlChotIdx++;window._onlChotLists[idx]={title,cols:chotCols,rows};return idx;};
-  const chotCell=(v,idx)=>`<td ${v>0&&idx!=null?`onclick="event.stopPropagation();qcOnlChotShow(${idx})" title="Bấm để xem chi tiết" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted"`:''} style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?'#e11d48':'var(--muted)'}">${v||'—'}</td>`;
+  const chotCell=(v,idx)=>`<td ${v>0&&idx!=null?`onclick="event.stopPropagation();qcOnlChotShow(${idx})" title="Bấm để xem chi tiết" style="cursor:pointer"`:''} style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?'#e11d48':'var(--muted)'}">${v||'—'}</td>`;
 
   // Gom theo brand
   const grpByBrand={};
