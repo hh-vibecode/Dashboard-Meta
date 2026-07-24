@@ -1904,7 +1904,7 @@ function renderSaleOnl(){
   // Đơn đã chốt: dùng doanh thu thực tế (cột Doanh thu), không phải giá trị tiềm năng
   const closedRev=rows.filter(r=>st(r,'chốt')).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
   // Top potential customers (loại bỏ lead đã mất)
-  const topPot=rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0&&!st(r,'mất')).sort((a,b)=>toN(b[COL_SAONL.POTENTIAL])-toN(a[COL_SAONL.POTENTIAL])).slice(0,10);
+  const topPot=rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0&&!st(r,'mất')&&!st(r,'chốt')).sort((a,b)=>toN(b[COL_SAONL.POTENTIAL])-toN(a[COL_SAONL.POTENTIAL])).slice(0,10);
   const topPotRows=topPot.map(r=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:8px 12px;font-size:12px;color:var(--muted)">${r[COL_SAONL.LEAD_ID]||'—'}</td>
     <td style="padding:8px 12px;font-weight:700">${r[COL_SAONL.NAME]||'—'}</td>
