@@ -2126,7 +2126,9 @@ function buildOnlineCampTable(){
     byCamp[camp].total++;
   });
   // Doanh số đã chốt theo chiến dịch: đơn Sale Online đã chốt + đơn CRM Sỉ đã chốt, nối qua chính Ad ID của đơn đó (không qua data hub)
-  const addRev=(camp,v)=>{if(byCamp[camp])byCamp[camp].rev+=v;};
+  // Nếu campaign chưa có lead nào trong Data Hub rơi đúng kỳ đang lọc (vd lead tạo tháng trước, chốt đơn tháng này) thì
+  // vẫn phải tạo dòng cho campaign đó để hiện đủ doanh số — không được bỏ rơi doanh số ra khỏi bảng.
+  const addRev=(camp,v)=>{if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0,rev:0};byCamp[camp].rev+=v;};
   (saleOnlRows||[]).filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||'')&&inR(parseDate(r[COL_SAONL.DATE_CLOSE]))).forEach(r=>{
     const adId=(r[COL_SAONL.AD_ID]||'').trim();const camp=adId&&adCampMap[adId]?adCampMap[adId]:null;if(camp)addRev(camp,vndNum(r[COL_SAONL.REVENUE]));});
   (saleSiCrmRows||[]).filter(r=>vndNum(r[COL_SICRM.CLOSE_VALUE])>0&&inR(parseDate(r[COL_SICRM.CLOSE_DATE]))).forEach(r=>{
