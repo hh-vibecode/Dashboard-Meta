@@ -2105,8 +2105,15 @@ function buildOnlineCampTable(){
   const inR=d=>!fromD&&!toD?true:(!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD));
   const brSel=brandArr('_mktBrands');
   const onlineRowsF=onlineRows.filter(r=>inR(parseDate(r[COL_ONL.DATE])));
+  // Lý do 1 đơn chốt không (hoặc có) khớp được chiến dịch — dùng cho modal drill-down khi bấm vào cột Chốt Đơn
+  const chotReasonOf=(camp,adId)=>{
+    if(camp==='Data chưa phân loại')return'<span style="color:#ca8a04;font-weight:700">⚠️ Chưa nhập Ads ID ở Data Hub</span>';
+    if(camp==='ID chưa khớp chiến dịch')return`<span style="color:#e11d48;font-weight:700">⚠️ Ads ID "${adId}" không khớp chiến dịch nào trong Ads Manager</span>`;
+    return`<span style="color:var(--green)">✓ Đã khớp Ads ID ${adId}</span>`;
+  };
   // Group by campaign
   const byCamp={};
+  const chotByCamp={};
   onlineRowsF.forEach(r=>{
     const adId=(r[COL_ONL.AD_ID]||'').trim();
     const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Data chưa phân loại');
@@ -2117,7 +2124,10 @@ function buildOnlineCampTable(){
     // phễu cộng dồn: chốt ⊂ tiềm năng ⊂ đạt
     if(isTiem||isChot)byCamp[camp].tiem++;
     if(hasTag(tag,'LEAD ĐẠT')||isTiem||isChot)byCamp[camp].dat++;
-    if(isChot)byCamp[camp].chot++;
+    if(isChot){
+      byCamp[camp].chot++;
+      (chotByCamp[camp]=chotByCamp[camp]||[]).push([r[COL_ONL.DATE],r[COL_ONL.ORDER_ID]||'—',r[COL_ONL.NAME]||'—',r[COL_ONL.PHONE]||'—',adId||'—',chotReasonOf(camp,adId)]);
+    }
     if(hasTag(tag,'KH LẺ'))byCamp[camp].le++;
     if(hasTag(tag,'KH SỈ'))byCamp[camp].si++;
     const nw=(r[COL_ONL.NEWOLD]||'').trim().toLowerCase();
@@ -2138,6 +2148,12 @@ function buildOnlineCampTable(){
   const grpRank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
   const sumOf=list=>list.reduce((a,[,s])=>({tiem:a.tiem+s.tiem,dat:a.dat+s.dat,le:a.le+s.le,si:a.si+s.si,chot:a.chot+s.chot,moi:a.moi+s.moi,cu:a.cu+s.cu,total:a.total+s.total,rev:a.rev+s.rev}),{tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0,rev:0});
   const cell=(v,color)=>`<td style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?color:'var(--muted)'}">${v||'—'}</td>`;
+  // Cột Chốt Đơn: bấm vào xem chi tiết từng đơn (kèm Ads ID + lý do đã/chưa khớp chiến dịch)
+  window._onlChotLists={};
+  let _onlChotIdx=0;
+  const chotCols=['Ngày','Mã đơn','Tên khách','SĐT','Ads ID','Lý do'];
+  const regChotList=(title,rows)=>{if(!rows||!rows.length)return null;const idx=_onlChotIdx++;window._onlChotLists[idx]={title,cols:chotCols,rows};return idx;};
+  const chotCell=(v,idx)=>`<td ${v>0&&idx!=null?`onclick="event.stopPropagation();qcOnlChotShow(${idx})" title="Bấm để xem chi tiết" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted"`:''} style="padding:9px 14px;text-align:center;font-size:13px;font-weight:700;color:${v>0?'#e11d48':'var(--muted)'}">${v||'—'}</td>`;
 
   // Gom theo brand
   const grpByBrand={};
@@ -2148,23 +2164,27 @@ function buildOnlineCampTable(){
   const bodyRows=BRANDS.filter(([k])=>grpByBrand[k]&&grpByBrand[k].length).map(([k,label,color])=>{
     const t=sumOf(grpByBrand[k]);
     const sorted=grpByBrand[k].sort(([a],[b])=>{const ra=grpRank(a),rb=grpRank(b);if(ra!==rb)return ra-rb;return a.localeCompare(b,'vi');});
-    const subRows=sorted.map(([camp,s])=>`<tr class="onl-sub onl-sub-${k}" style="display:none;background:var(--bg2);border-bottom:1px solid var(--border)">
+    const subRows=sorted.map(([camp,s])=>{
+      const idx=regChotList(`Đơn chốt — ${camp}`,chotByCamp[camp]);
+      return `<tr class="onl-sub onl-sub-${k}" style="display:none;background:var(--bg2);border-bottom:1px solid var(--border)">
       <td style="padding:8px 14px 8px 38px;font-size:12px;font-weight:500;color:var(--text2);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${camp}">↳ ${camp}</td>
-      ${cell(s.dat,'var(--green)')}${cell(s.tiem,'#ca8a04')}${cell(s.chot,'#e11d48')}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
+      ${cell(s.dat,'var(--green)')}${cell(s.tiem,'#ca8a04')}${chotCell(s.chot,idx)}${cell(s.le,'#2563eb')}${cell(s.si,'#7c3aed')}
       <td style="padding:8px 14px;text-align:center;font-size:13px;font-weight:800">${s.total}</td>
       ${cell(s.moi,'#0abf7a')}${cell(s.cu,'#f97316')}
       <td style="padding:8px 14px;text-align:right;font-size:12px;font-weight:800;color:${s.rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${s.rev>0?vnd(s.rev):'—'}</td>
-    </tr>`).join('');
+    </tr>`;}).join('');
+    const brandChotRows=sorted.flatMap(([camp])=>chotByCamp[camp]||[]);
+    const brandIdx=regChotList(`Đơn chốt — ${label}`,brandChotRows);
     const brandRow=`<tr onclick="toggleOnlBrand('${k}')" style="cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 14px;font-size:13px;font-weight:800;color:${color}"><span id="onl-arrow-${k}" style="display:inline-block;width:14px;color:var(--muted);font-size:10px">▶</span> ${label} <span style="font-weight:400;color:var(--muted);font-size:11px">(${sorted.length} chiến dịch)</span></td>
-      ${cell(t.dat,'var(--green)')}${cell(t.tiem,'#ca8a04')}${cell(t.chot,'#e11d48')}${cell(t.le,'#2563eb')}${cell(t.si,'#7c3aed')}
+      ${cell(t.dat,'var(--green)')}${cell(t.tiem,'#ca8a04')}${chotCell(t.chot,brandIdx)}${cell(t.le,'#2563eb')}${cell(t.si,'#7c3aed')}
       <td style="padding:10px 14px;text-align:center;font-size:14px;font-weight:800">${t.total}</td>
       ${cell(t.moi,'#0abf7a')}${cell(t.cu,'#f97316')}
       <td style="padding:10px 14px;text-align:right;font-size:13px;font-weight:800;color:${t.rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${t.rev>0?vnd(t.rev):'—'}</td>
     </tr>`;
     return brandRow+subRows;
   }).join('');
-  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} data · theo Ad ID · click thương hiệu để xem chiến dịch · 📅 ${curPeriodLabel()})</span></div>
+  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} data · theo Ad ID · click thương hiệu để xem chiến dịch · click số Chốt Đơn để xem chi tiết đơn + Ads ID + lý do · 📅 ${curPeriodLabel()})</span></div>
   <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
     <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
       <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THƯƠNG HIỆU</th>
@@ -2249,6 +2269,7 @@ function toggleOnlBrand(k){
   open.forEach(el=>{if(show===null)show=el.style.display==='none';el.style.display=show?'':'none';});
   const ar=document.getElementById('onl-arrow-'+k);if(ar)ar.textContent=show?'▼':'▶';
 }
+function qcOnlChotShow(idx){const d=(window._onlChotLists||{})[idx];if(d)dataModal(d);}
 
 function renderSaleOverview(){
   const rows=crmHubRows.filter(saleRangePred(r=>parseDate(r[COL_CRM.DATE])));
@@ -3243,10 +3264,12 @@ function renderQcCompare(){
   const pmLastDay=new Date(now.getFullYear(),now.getMonth(),0).getDate();
   const lastMonthStart=`${pm.getFullYear()}-${pad(pm.getMonth()+1)}-01`;
   const lastMonthEnd=`${pm.getFullYear()}-${pad(pm.getMonth()+1)}-${pad(pmLastDay)}`;
-  const defAFrom=qcCmpClampDate(window._qcCmpAFrom||thisMonthStart);
-  const defATo=qcCmpClampDate(window._qcCmpATo||todayStr);
-  const defBFrom=qcCmpClampDate(window._qcCmpBFrom||lastMonthStart);
-  const defBTo=qcCmpClampDate(window._qcCmpBTo||lastMonthEnd);
+  // Mặc định: A (trái) = tháng trước, B (phải) = tháng này — đúng thứ tự thời gian trái→phải, và tự
+  // tính lại theo ngày hiện tại mỗi lần vào trang nên sang tháng mới sẽ tự dời mốc mặc định theo
+  const defAFrom=qcCmpClampDate(window._qcCmpAFrom||lastMonthStart);
+  const defATo=qcCmpClampDate(window._qcCmpATo||lastMonthEnd);
+  const defBFrom=qcCmpClampDate(window._qcCmpBFrom||thisMonthStart);
+  const defBTo=qcCmpClampDate(window._qcCmpBTo||todayStr);
   window._qcCmpAFrom=defAFrom;window._qcCmpATo=defATo;window._qcCmpBFrom=defBFrom;window._qcCmpBTo=defBTo;
   const rangeLabel=(f,t)=>fmtDate(localDate(f))+' → '+fmtDate(localDate(t));
   const rA={from:defAFrom,to:defATo,label:rangeLabel(defAFrom,defATo)};
