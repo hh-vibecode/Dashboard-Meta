@@ -854,20 +854,19 @@ function calcSiOnlineStats(from,to,brSel){
 
 // 8 chỉ số Ads/Sale Performance của trang Tổng Quan MKT, tính lại cho 1 khoảng ngày bất kỳ (dùng cho QC So Sánh Tháng)
 // — độc lập hoàn toàn với bộ lọc ngày/brand trên topbar, không đụng tới DOM
-function mktMetricsForRange(fromStr,toStr){
+function mktMetricsForRange(fromStr,toStr,brSel){
+  brSel=brSel||[];
   const fromD=fromStr?localDate(fromStr):null,toD=toStr?localDate(toStr,true):null;
-  const adRows=allRows.filter(r=>{
+  let adRows=allRows.filter(r=>{
     const d=parseDate(r[COL.DATE]);if(!d)return true;
     if(fromD&&d<fromD)return false;
     if(toD&&d>toD)return false;
     return true;
   });
+  if(brSel.length)adRows=adRows.filter(r=>brSel.includes(detectBrand(r[COL.CAMPAIGN])));
   const kpi=calcKPI(adRows);
   const saleFiltered=filterSaleRows(fromStr,toStr);
   const saleStats=calcSaleStats(saleFiltered);
-  const siOn=calcSiOnlineStats(fromStr,toStr,[]);
-  const leRevenue=saleStats?saleStats.totalRevenue:0,leOrders=saleStats?saleStats.totalOrders:0;
-  const combRevenue=leRevenue+siOn.revenue,combOrders=leOrders+siOn.orders;
   const brands=[['CT','Chánh Tâm'],['HT','Hiền Thuỷ'],['Shidai','Shidai'],['TTV','Tự Tại Viên']];
   const byBrand={};
   brands.forEach(([k,label])=>{
@@ -875,6 +874,13 @@ function mktMetricsForRange(fromStr,toStr){
     const si=calcSiOnlineStats(fromStr,toStr,[k]).revenue;
     byBrand[k]={label,le,si,total:le+si};
   });
+  const brandKeys=brands.map(([k])=>k);
+  const activeBrands=brSel.length?brandKeys.filter(k=>brSel.includes(k)):brandKeys;
+  // Không filter: giữ nguyên tổng gốc từ saleStats (khớp với Tổng Quan MKT). Có filter: cộng theo brand đã chọn.
+  const leRevenue=brSel.length?activeBrands.reduce((s,k)=>s+byBrand[k].le,0):(saleStats?saleStats.totalRevenue:0);
+  const leOrders=brSel.length?(saleStats?activeBrands.reduce((s,k)=>s+saleStats.byBrand[k].orders,0):0):(saleStats?saleStats.totalOrders:0);
+  const siOn=calcSiOnlineStats(fromStr,toStr,brSel);
+  const combRevenue=leRevenue+siOn.revenue,combOrders=leOrders+siOn.orders;
   return{
     totalSpend:kpi.totalSpend,
     totalMess:kpi.totalMess,
@@ -3221,26 +3227,35 @@ function mktShowDoanhSo(){
 }
 
 // ===== QC — So Sánh Tháng: 8 chỉ số Ads/Sale Performance của Tổng Quan MKT, đối đầu giữa 2 tháng =====
-const QC_CMP_FLOOR='2026-06'; // tháng bắt đầu có data chi phí ads, không cho chọn trước mốc này
-function qcCmpClampMonth(m){return m&&m<QC_CMP_FLOOR?QC_CMP_FLOOR:m;}
+const QC_CMP_FLOOR='2026-06-01'; // ngày bắt đầu có data chi phí ads, không cho chọn trước mốc này
+function qcCmpClampDate(d){return d&&d<QC_CMP_FLOOR?QC_CMP_FLOOR:d;}
 function renderQcCompare(){
   const el=document.getElementById('page-qc-compare');
   if(!el)return;
   if(!allRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
   const pad=n=>String(n).padStart(2,'0');
   const now=new Date();
-  const defA=qcCmpClampMonth(window._qcCmpA||`${now.getFullYear()}-${pad(now.getMonth()+1)}`);
+  const todayStr=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const thisMonthStart=`${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
   const pm=new Date(now.getFullYear(),now.getMonth()-1,1);
-  const defB=qcCmpClampMonth(window._qcCmpB||`${pm.getFullYear()}-${pad(pm.getMonth()+1)}`);
-  window._qcCmpA=defA;window._qcCmpB=defB;
-  const monthRange=m=>{const[y,mo]=m.split('-').map(Number);const last=new Date(y,mo,0).getDate();
-    return{from:`${y}-${pad(mo)}-01`,to:`${y}-${pad(mo)}-${pad(last)}`,label:`Tháng ${mo}/${y}`};};
-  const rA=monthRange(defA),rB=monthRange(defB);
-  const mA=mktMetricsForRange(rA.from,rA.to),mB=mktMetricsForRange(rB.from,rB.to);
+  const pmLastDay=new Date(now.getFullYear(),now.getMonth(),0).getDate();
+  const lastMonthStart=`${pm.getFullYear()}-${pad(pm.getMonth()+1)}-01`;
+  const lastMonthEnd=`${pm.getFullYear()}-${pad(pm.getMonth()+1)}-${pad(pmLastDay)}`;
+  const defAFrom=qcCmpClampDate(window._qcCmpAFrom||thisMonthStart);
+  const defATo=qcCmpClampDate(window._qcCmpATo||todayStr);
+  const defBFrom=qcCmpClampDate(window._qcCmpBFrom||lastMonthStart);
+  const defBTo=qcCmpClampDate(window._qcCmpBTo||lastMonthEnd);
+  window._qcCmpAFrom=defAFrom;window._qcCmpATo=defATo;window._qcCmpBFrom=defBFrom;window._qcCmpBTo=defBTo;
+  const rangeLabel=(f,t)=>fmtDate(localDate(f))+' → '+fmtDate(localDate(t));
+  const rA={from:defAFrom,to:defATo,label:rangeLabel(defAFrom,defATo)};
+  const rB={from:defBFrom,to:defBTo,label:rangeLabel(defBFrom,defBTo)};
+  const brSel=brandArr('_qcCmpBrands');
+  const mA=mktMetricsForRange(rA.from,rA.to,brSel),mB=mktMetricsForRange(rB.from,rB.to,brSel);
   window._qcCmpData={mA,mB,labelA:rA.label,labelB:rB.label};
 
   const CA='#2563eb',CB='#ea580c';
-  const growth=(a,b)=>{if(a==null||b==null)return null;if(b===0)return a>0?Infinity:0;return(a-b)/Math.abs(b)*100;};
+  // Tăng trưởng luôn tính từ bên trái (mốc so sánh) sang bên phải: (phải-trái)/|trái|*100 — không phụ thuộc tháng nào mới hơn
+  const growth=(a,b)=>{if(a==null||b==null)return null;if(a===0)return b>0?Infinity:0;return(b-a)/Math.abs(a)*100;};
   const gBadge=g=>{if(g===null)return'<span style="color:var(--muted)">—</span>';
     if(g===Infinity)return'<span style="color:var(--green)">▲ mới</span>';
     const up=g>=0;return`<span style="color:${up?'var(--green)':'var(--red)'}">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;};
@@ -3261,7 +3276,7 @@ function renderQcCompare(){
         </div>
         <div style="text-align:left"><div style="font-size:20px;font-weight:900;color:${winB?'var(--green)':'var(--text)'}">${fmt(type,b)}</div></div>
       </div>
-      <div style="display:flex;height:6px;border-radius:4px;overflow:hidden;background:var(--border);margin:0 4px 10px">
+      <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--border);width:70%;margin:0 auto 10px">
         <div style="width:${barA}%;background:${CA}"></div><div style="width:${100-barA}%;background:${CB}"></div>
       </div>
     </div>`;
@@ -3275,16 +3290,21 @@ function renderQcCompare(){
 
   el.innerHTML=`
     <div class="page-title">QC — So Sánh Tháng</div>
-    <div class="page-sub">Đối đầu 8 chỉ số Ads/Sale Performance (Tổng Quan MKT) giữa 2 tháng bất kỳ · chỉ chọn được từ ${monthRange(QC_CMP_FLOOR).label} trở đi (bắt đầu có data chi phí ads)</div>
+    <div class="page-sub">Đối đầu 8 chỉ số Ads/Sale Performance (Tổng Quan MKT) giữa 2 mốc thời gian bất kỳ (tháng, tuần, hoặc khoảng ngày tuỳ chọn) · chỉ chọn được từ ${fmtDate(localDate(QC_CMP_FLOOR))} trở đi (bắt đầu có data chi phí ads)</div>
     <div class="period-bar">
       <div class="date-filter">
-        <label>🅰️ Tháng A</label>
-        <input type="month" id="qcCmpAInput" min="${QC_CMP_FLOOR}" value="${defA}" onchange="qcCmpSetMonth('A',this.value)">
+        <label>🅰️ Từ</label>
+        <input type="date" id="qcCmpAFromInput" min="${QC_CMP_FLOOR}" value="${defAFrom}" onchange="qcCmpSetRange('A','From',this.value)">
+        <label>Đến</label>
+        <input type="date" id="qcCmpAToInput" min="${QC_CMP_FLOOR}" value="${defATo}" onchange="qcCmpSetRange('A','To',this.value)">
       </div>
       <div class="date-filter">
-        <label>🅱️ Tháng B</label>
-        <input type="month" id="qcCmpBInput" min="${QC_CMP_FLOOR}" value="${defB}" onchange="qcCmpSetMonth('B',this.value)">
+        <label>🅱️ Từ</label>
+        <input type="date" id="qcCmpBFromInput" min="${QC_CMP_FLOOR}" value="${defBFrom}" onchange="qcCmpSetRange('B','From',this.value)">
+        <label>Đến</label>
+        <input type="date" id="qcCmpBToInput" min="${QC_CMP_FLOOR}" value="${defBTo}" onchange="qcCmpSetRange('B','To',this.value)">
       </div>
+      ${brandChips('_qcCmpBrands','renderQcCompare')}
     </div>
     <div style="border:1px solid var(--border);border-radius:16px;background:var(--bg2);overflow:hidden;margin-top:14px">
       <div style="display:grid;grid-template-columns:1fr auto 1fr;padding:14px 4px 10px;background:var(--surface);border-bottom:1px solid var(--border)">
@@ -3309,10 +3329,10 @@ function renderQcCompare(){
     </div>
     <div style="font-size:11px;color:var(--muted);margin-top:10px">👆 Bấm vào hàng Doanh Số để xem tăng trưởng theo từng brand</div>`;
 }
-function qcCmpSetMonth(which,val){
+function qcCmpSetRange(which,part,val){
   if(!val)return;
-  val=qcCmpClampMonth(val);
-  if(which==='A')window._qcCmpA=val;else window._qcCmpB=val;
+  val=qcCmpClampDate(val);
+  window['_qcCmp'+which+part]=val;
   renderQcCompare();
 }
 function qcCmpShowBrandGrowth(){
@@ -3320,7 +3340,7 @@ function qcCmpShowBrandGrowth(){
   const{mA,mB,labelA,labelB}=d;
   const rows=['CT','HT','Shidai','TTV'].map(k=>{
     const a=mA.byBrand[k].total,b=mB.byBrand[k].total;
-    const g=b>0?(a-b)/b*100:(a>0?null:0);
+    const g=a>0?(b-a)/a*100:(b>0?null:0);
     const gTxt=g===null?'<span style="color:var(--green)">▲ mới</span>':(g>=0?`<span style="color:var(--green)">▲ ${g.toFixed(1)}%</span>`:`<span style="color:var(--red)">▼ ${Math.abs(g).toFixed(1)}%</span>`);
     return[mA.byBrand[k].label,vnd(a),vnd(b),gTxt];
   });
