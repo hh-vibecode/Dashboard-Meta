@@ -2105,18 +2105,39 @@ function buildOnlineCampTable(){
   const inR=d=>!fromD&&!toD?true:(!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD));
   const brSel=brandArr('_mktBrands');
   const onlineRowsF=onlineRows.filter(r=>inR(parseDate(r[COL_ONL.DATE])));
+  // Data Hub nhiều khi bị thiếu Ads ID, nhưng sales có điền bù Ads ID bên Sale Online/CRM Sỉ khi chốt đơn.
+  // Gióng qua bằng số cuối Lead ID (vd Lead ID "ONLCT479" bên Sale Online ↔ Mã đơn "479" bên Data Hub) để lấy lại
+  // Ads ID thật, tránh rơi oan vào "Chưa phân loại" — áp dụng cho toàn bộ data (Lead Đạt/Tiềm Năng/Chốt Đơn...), không riêng Chốt Đơn.
+  const numOnly=s=>(s||'').toString().replace(/\D/g,'');
+  const adIdByOrderNum={};
+  (saleOnlRows||[]).forEach(r=>{
+    const n=numOnly(r[COL_SAONL.LEAD_ID]);const adId=(r[COL_SAONL.AD_ID]||'').trim();
+    if(n&&adId&&!adIdByOrderNum[n])adIdByOrderNum[n]=adId;
+  });
+  (saleSiCrmRows||[]).forEach(r=>{
+    const n=numOnly(r[COL_SICRM.LEAD_ID]);const adId=(r[COL_SICRM.AD_ID]||'').trim();
+    if(n&&adId&&!adIdByOrderNum[n])adIdByOrderNum[n]=adId;
+  });
   // Lý do 1 đơn chốt không (hoặc có) khớp được chiến dịch — dùng cho modal drill-down khi bấm vào cột Chốt Đơn
-  const chotReasonOf=(camp,adId)=>{
-    if(camp==='Data chưa phân loại')return'<span style="color:#ca8a04;font-weight:700">⚠️ Chưa nhập Ads ID ở Data Hub</span>';
+  const chotReasonOf=(camp,adId,rescued)=>{
+    if(camp==='Data chưa phân loại')return'<span style="color:#ca8a04;font-weight:700">⚠️ Chưa nhập Ads ID ở Data Hub, cũng không tìm thấy bên Sale Online/CRM Sỉ</span>';
     if(camp==='ID chưa khớp chiến dịch')return`<span style="color:#e11d48;font-weight:700">⚠️ Ads ID "${adId}" không khớp chiến dịch nào trong Ads Manager</span>`;
+    if(rescued)return`<span style="color:var(--green)">✓ Ads ID lấy từ Sale Online/CRM Sỉ: ${adId} (Data Hub bị thiếu)</span>`;
     return`<span style="color:var(--green)">✓ Đã khớp Ads ID ${adId}</span>`;
   };
   // Group by campaign
   const byCamp={};
   const chotByCamp={};
   onlineRowsF.forEach(r=>{
-    const adId=(r[COL_ONL.AD_ID]||'').trim();
-    const camp=adId&&adCampMap[adId]?adCampMap[adId]:(adId?'ID chưa khớp chiến dịch':'Data chưa phân loại');
+    const rawAdId=(r[COL_ONL.AD_ID]||'').trim();
+    let adId=rawAdId,camp=null,rescued=false;
+    if(rawAdId&&adCampMap[rawAdId]){camp=adCampMap[rawAdId];}
+    else{
+      const n=numOnly(r[COL_ONL.ORDER_ID]);
+      const fbAdId=n?adIdByOrderNum[n]:null;
+      if(fbAdId&&adCampMap[fbAdId]){adId=fbAdId;camp=adCampMap[fbAdId];rescued=true;}
+      else{camp=rawAdId?'ID chưa khớp chiến dịch':'Data chưa phân loại';}
+    }
     if(brSel.length&&!brSel.includes(onlineBrand(camp)))return;
     if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0,rev:0};
     const tag=(r[COL_ONL.TAG]||'');
@@ -2126,7 +2147,7 @@ function buildOnlineCampTable(){
     if(hasTag(tag,'LEAD ĐẠT')||isTiem||isChot)byCamp[camp].dat++;
     if(isChot){
       byCamp[camp].chot++;
-      (chotByCamp[camp]=chotByCamp[camp]||[]).push([r[COL_ONL.DATE],r[COL_ONL.ORDER_ID]||'—',r[COL_ONL.NAME]||'—',r[COL_ONL.PHONE]||'—',adId||'—',chotReasonOf(camp,adId)]);
+      (chotByCamp[camp]=chotByCamp[camp]||[]).push([r[COL_ONL.DATE],r[COL_ONL.ORDER_ID]||'—',r[COL_ONL.NAME]||'—',r[COL_ONL.PHONE]||'—',adId||'—',chotReasonOf(camp,adId,rescued)]);
     }
     if(hasTag(tag,'KH LẺ'))byCamp[camp].le++;
     if(hasTag(tag,'KH SỈ'))byCamp[camp].si++;
