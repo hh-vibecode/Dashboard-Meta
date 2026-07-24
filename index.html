@@ -65,9 +65,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .top-select:focus{border-color:var(--accent)}
 .date-filter{display:flex;align-items:center;gap:6px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:4px 10px;flex-shrink:0}
 .date-filter label{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap}
-input[type="date"]{background:transparent;border:none;padding:3px 4px;color:var(--text);font-size:11.5px;font-family:var(--font);outline:none;cursor:pointer;border-radius:6px;min-width:100px;transition:background .15s}
-input[type="date"]:hover,input[type="date"]:focus{background:var(--surface)}
-input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;filter:invert(30%) sepia(80%) saturate(500%) hue-rotate(210deg)}
+input[type="date"],input[type="month"]{background:transparent;border:none;padding:3px 4px;color:var(--text);font-size:11.5px;font-family:var(--font);outline:none;cursor:pointer;border-radius:6px;min-width:100px;transition:background .15s}
+input[type="date"]:hover,input[type="date"]:focus,input[type="month"]:hover,input[type="month"]:focus{background:var(--surface)}
+input[type="date"]::-webkit-calendar-picker-indicator,input[type="month"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;filter:invert(30%) sepia(80%) saturate(500%) hue-rotate(210deg)}
 .fdiv{width:1px;height:15px;background:var(--border)}
 .theme-toggle{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1.5px solid var(--border);border-radius:20px;padding:4px 10px 4px 7px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);font-family:var(--font);transition:all .2s;white-space:nowrap;flex-shrink:0}
 .theme-toggle:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-l)}
@@ -283,6 +283,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <nav id="sec-qc">
       <div class="nav-item" onclick="switchPage('qc-doisoat')" id="nav-qc-doisoat"><span class="nav-icon">🧾</span><span class="nav-label">Báo Cáo Chung</span></div>
       <div class="nav-item" onclick="switchPage('qc-invoice')" id="nav-qc-invoice"><span class="nav-icon">⚖️</span><span class="nav-label">Đối Soát Đơn Hàng</span></div>
+      <div class="nav-item" onclick="switchPage('qc-compare')" id="nav-qc-compare"><span class="nav-icon">⚔️</span><span class="nav-label">So Sánh Tháng</span></div>
     </nav>
   </div>
 
@@ -315,6 +316,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       </div>
     </div>
     <div class="tab-page" id="page-qc-invoice">
+      <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
+    </div>
+    <div class="tab-page" id="page-qc-compare">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
   </div>
@@ -377,7 +381,7 @@ function doLogin(){
   else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
 }
 // Phân quyền: role => danh sách trang được xem (null = xem hết)
-const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice'],'sale-onl':['sale-onl','qc-doisoat','qc-invoice']};
+const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','qc-doisoat','qc-invoice','qc-compare']};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
@@ -406,7 +410,7 @@ function initAuth(){
 }
 
 function switchPage(p){
-  ['overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice'].forEach(x=>{
+  ['overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
@@ -496,6 +500,7 @@ async function loadData(){
     renderSaleOnl();
     renderQcDoiSoat();
     renderQcInvoice();
+    renderQcCompare();
   }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
 
@@ -732,6 +737,7 @@ function buildAdCampMap(){
   return map;
 }
 
+function adIdNote(id){const v=(id||'').toString().trim();return v?v:'<b style="color:#e11d48">⚠️ Thiếu Ads ID</b>';}
 function filterSaleRows(from,to){
   const base=saleRowsRaw.filter(r=>{
     const src=(r[COL_SALE.SOURCE]||'').trim().toLowerCase();
@@ -840,10 +846,46 @@ function calcSiOnlineStats(from,to,brSel){
     const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
     const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
     const st=lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
-    list.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],siNameCell(nm,st),pho,'Sỉ · Online',vnd(cv)]);
+    list.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],siNameCell(nm,st),pho,'Sỉ · Online',adIdNote(r[COL_SICRM.AD_ID]),vnd(cv)]);
   });
   list.sort((a,b)=>{const da=parseDate(a[0]),db=parseDate(b[0]);return(db?db:0)-(da?da:0);});
   return{revenue,orders:list.length,list};
+}
+
+// 8 chỉ số Ads/Sale Performance của trang Tổng Quan MKT, tính lại cho 1 khoảng ngày bất kỳ (dùng cho QC So Sánh Tháng)
+// — độc lập hoàn toàn với bộ lọc ngày/brand trên topbar, không đụng tới DOM
+function mktMetricsForRange(fromStr,toStr){
+  const fromD=fromStr?localDate(fromStr):null,toD=toStr?localDate(toStr,true):null;
+  const adRows=allRows.filter(r=>{
+    const d=parseDate(r[COL.DATE]);if(!d)return true;
+    if(fromD&&d<fromD)return false;
+    if(toD&&d>toD)return false;
+    return true;
+  });
+  const kpi=calcKPI(adRows);
+  const saleFiltered=filterSaleRows(fromStr,toStr);
+  const saleStats=calcSaleStats(saleFiltered);
+  const siOn=calcSiOnlineStats(fromStr,toStr,[]);
+  const leRevenue=saleStats?saleStats.totalRevenue:0,leOrders=saleStats?saleStats.totalOrders:0;
+  const combRevenue=leRevenue+siOn.revenue,combOrders=leOrders+siOn.orders;
+  const brands=[['CT','Chánh Tâm'],['HT','Hiền Thuỷ'],['Shidai','Shidai'],['TTV','Tự Tại Viên']];
+  const byBrand={};
+  brands.forEach(([k,label])=>{
+    const le=saleStats?saleStats.byBrand[k].revenue:0;
+    const si=calcSiOnlineStats(fromStr,toStr,[k]).revenue;
+    byBrand[k]={label,le,si,total:le+si};
+  });
+  return{
+    totalSpend:kpi.totalSpend,
+    totalMess:kpi.totalMess,
+    costPerMess:kpi.costPerMess,
+    adsDs:combRevenue>0?kpi.totalSpend/combRevenue*100:null,
+    combRevenue,combOrders,
+    dsPerOrder:combOrders>0?combRevenue/combOrders:null,
+    closeRate:(combOrders>0&&kpi.totalMess>0)?combOrders/kpi.totalMess*100:null,
+    leRevenue,siRevenue:siOn.revenue,leOrders,siOrders:siOn.orders,
+    byBrand
+  };
 }
 
 function toCsv(u){
@@ -913,7 +955,7 @@ function clearFilter(){
   window._mktBrands=[];
   const pf=document.getElementById('prodFilter');if(pf)pf.value='all';
   if(allRows.length)renderAll(allRows);
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
 }
 function localDate(str,end=false){
   const p=str.split('-');
@@ -936,7 +978,7 @@ function curPeriodLabel(){
 // Đổi ngày → re-render cả MKT lẫn các báo cáo Sale
 function onDateChange(){
   if(allRows.length)applyFilter();
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
 }
 function applyQuickFilter(){
   const v=document.getElementById('quickFilter').value;
@@ -1052,13 +1094,16 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
   const siOn=calcSiOnlineStats(_f0?_f0.value:'',_t0?_t0.value:'',brandArr('_mktBrands'));
   const isChotLe=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
   const leClosed=(saleFiltered||[]).filter(isChotLe);
-  const leList=leClosed.map(r=>[r[COL_SALE.DATE_CLOSE],r[COL_SALE.LEAD_ID],r[COL_SALE.NAME],r[COL_SALE.PHONE],r[COL_SALE.CHANNEL]||r[COL_SALE.SOURCE],vnd(vndNum(r[COL_SALE.REVENUE]))]);
+  const leList=leClosed.map(r=>[r[COL_SALE.DATE_CLOSE],r[COL_SALE.LEAD_ID],r[COL_SALE.NAME],r[COL_SALE.PHONE],r[COL_SALE.CHANNEL]||r[COL_SALE.SOURCE],adIdNote(r[COL_SALE.AD_ID]),vnd(vndNum(r[COL_SALE.REVENUE]))]);
   const leRevenue=saleStats?saleStats.totalRevenue:0,leOrders=saleStats?saleStats.totalOrders:0;
   const combRevenue=leRevenue+siOn.revenue,combOrders=leOrders+siOn.orders;
   window._mktSaleBreak={leRevenue,leOrders,siRevenue:siOn.revenue,siOrders:siOn.orders};
+  const chotList=[...leList.map(r=>['Lẻ',...r]),...siOn.list.map(r=>['Sỉ',...r])]
+    .sort((a,b)=>{const da=parseDate(a[1]),db=parseDate(b[1]);return(db?db:0)-(da?da:0);});
   window._mktSaleLists={
-    le:{title:'Doanh số Lẻ (Sale Online) — đã chốt',cols:['Ngày chốt','Lead ID','Tên','SĐT','Kênh','Giá trị'],rows:leList},
-    si:{title:'Doanh số Sỉ — nguồn Online, đã chốt',cols:['Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Nguồn','Giá trị'],rows:siOn.list},
+    le:{title:'Doanh số Lẻ (Sale Online) — đã chốt',cols:['Ngày chốt','Lead ID','Tên','SĐT','Kênh','Ads ID','Giá trị'],rows:leList},
+    si:{title:'Doanh số Sỉ — nguồn Online, đã chốt',cols:['Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Nguồn','Ads ID','Giá trị'],rows:siOn.list},
+    chot:{title:'Đơn đã chốt — Sỉ + Lẻ',cols:['Nguồn','Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Kênh/Nguồn','Ads ID','Giá trị'],rows:chotList},
   };
   // ADS/DS theo brand: chi phí ads / doanh số
   const adsDsBrand=[
@@ -1091,7 +1136,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     <div class="sec-label">Sale Performance</div>
     <div class="kpi-grid">
       <div onclick="mktShowDoanhSo()" title="Bấm để xem chi tiết Sỉ / Lẻ" style="cursor:pointer">${mkKpi('💵','Doanh Số',combRevenue>0?vnd(combRevenue):'—',combOrders+' đơn đã chốt (Sỉ+Lẻ) · 👆 xem chi tiết','g-teal')}</div>
-      ${mkKpi('🛍️','Số Đơn Chốt',combOrders>0?num(combOrders):'—',saleStats?'từ '+num(saleStats.totalLeads)+' lead tiềm năng':'chưa có dữ liệu','g-orange')}
+      <div onclick="mktShowDetail('chot')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi('🛍️','Số Đơn Chốt',combOrders>0?num(combOrders):'—',(saleStats?'từ '+num(saleStats.totalLeads)+' lead tiềm năng':'chưa có dữ liệu')+' · 👆 xem chi tiết','g-orange')}</div>
       ${mkKpi('📦','DS TB / Đơn',combOrders>0?vnd(combRevenue/combOrders):'—','trung bình / đơn chốt','g-pink')}
       ${mkKpi('🎯','Tỷ Lệ Chốt',combOrders>0&&kpi.totalMess>0?pct(combOrders/kpi.totalMess*100):'—',combOrders>0?'đơn chốt / tổng mess':'chưa có dữ liệu','g-red')}
     </div>
@@ -3174,6 +3219,114 @@ function mktShowDoanhSo(){
       </div>
     </div></div>`;
 }
+
+// ===== QC — So Sánh Tháng: 8 chỉ số Ads/Sale Performance của Tổng Quan MKT, đối đầu giữa 2 tháng =====
+const QC_CMP_FLOOR='2026-06'; // tháng bắt đầu có data chi phí ads, không cho chọn trước mốc này
+function qcCmpClampMonth(m){return m&&m<QC_CMP_FLOOR?QC_CMP_FLOOR:m;}
+function renderQcCompare(){
+  const el=document.getElementById('page-qc-compare');
+  if(!el)return;
+  if(!allRows.length){el.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  const pad=n=>String(n).padStart(2,'0');
+  const now=new Date();
+  const defA=qcCmpClampMonth(window._qcCmpA||`${now.getFullYear()}-${pad(now.getMonth()+1)}`);
+  const pm=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const defB=qcCmpClampMonth(window._qcCmpB||`${pm.getFullYear()}-${pad(pm.getMonth()+1)}`);
+  window._qcCmpA=defA;window._qcCmpB=defB;
+  const monthRange=m=>{const[y,mo]=m.split('-').map(Number);const last=new Date(y,mo,0).getDate();
+    return{from:`${y}-${pad(mo)}-01`,to:`${y}-${pad(mo)}-${pad(last)}`,label:`Tháng ${mo}/${y}`};};
+  const rA=monthRange(defA),rB=monthRange(defB);
+  const mA=mktMetricsForRange(rA.from,rA.to),mB=mktMetricsForRange(rB.from,rB.to);
+  window._qcCmpData={mA,mB,labelA:rA.label,labelB:rB.label};
+
+  const CA='#2563eb',CB='#ea580c';
+  const growth=(a,b)=>{if(a==null||b==null)return null;if(b===0)return a>0?Infinity:0;return(a-b)/Math.abs(b)*100;};
+  const gBadge=g=>{if(g===null)return'<span style="color:var(--muted)">—</span>';
+    if(g===Infinity)return'<span style="color:var(--green)">▲ mới</span>';
+    const up=g>=0;return`<span style="color:${up?'var(--green)':'var(--red)'}">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;};
+  const fmt=(type,v)=>{if(v==null)return'—';return type==='vnd'?vnd(v):type==='pct'?pct(v):num(Math.round(v));};
+
+  const row=(icon,label,type,a,b,lowerBetter,onclick)=>{
+    const g=growth(a,b);
+    const winA=a!=null&&b!=null&&lowerBetter!=null&&(lowerBetter?a<b:a>b);
+    const winB=a!=null&&b!=null&&lowerBetter!=null&&(lowerBetter?b<a:b>a);
+    const rawA=a==null?0:Math.abs(a),rawB=b==null?0:Math.abs(b);
+    const tot=rawA+rawB||1,barA=rawA/tot*100;
+    return`<div ${onclick?`onclick="${onclick}" title="Bấm để xem chi tiết" style="cursor:pointer"`:''}>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;padding:14px 4px 8px">
+        <div style="text-align:right"><div style="font-size:20px;font-weight:900;color:${winA?'var(--green)':'var(--text)'}">${fmt(type,a)}</div></div>
+        <div style="text-align:center;min-width:130px">
+          <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap">${icon} ${label}</div>
+          <div style="font-size:11px;font-weight:800;margin-top:3px">${gBadge(g)}</div>
+        </div>
+        <div style="text-align:left"><div style="font-size:20px;font-weight:900;color:${winB?'var(--green)':'var(--text)'}">${fmt(type,b)}</div></div>
+      </div>
+      <div style="display:flex;height:6px;border-radius:4px;overflow:hidden;background:var(--border);margin:0 4px 10px">
+        <div style="width:${barA}%;background:${CA}"></div><div style="width:${100-barA}%;background:${CB}"></div>
+      </div>
+    </div>`;
+  };
+  const subRow=(icon,label,a,b,totA,totB)=>`
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;padding:6px 4px 6px 14px">
+      <div style="text-align:right"><span style="font-size:13px;font-weight:700;color:var(--text2)">${vnd(a)}</span><span style="font-size:10.5px;color:var(--muted);margin-left:5px">${totA?pct(a/totA*100):'—'}</span></div>
+      <div style="text-align:center;min-width:130px;font-size:10px;font-weight:700;color:var(--muted)">${icon} ${label}</div>
+      <div style="text-align:left"><span style="font-size:10.5px;color:var(--muted);margin-right:5px">${totB?pct(b/totB*100):'—'}</span><span style="font-size:13px;font-weight:700;color:var(--text2)">${vnd(b)}</span></div>
+    </div>`;
+
+  el.innerHTML=`
+    <div class="page-title">QC — So Sánh Tháng</div>
+    <div class="page-sub">Đối đầu 8 chỉ số Ads/Sale Performance (Tổng Quan MKT) giữa 2 tháng bất kỳ · chỉ chọn được từ ${monthRange(QC_CMP_FLOOR).label} trở đi (bắt đầu có data chi phí ads)</div>
+    <div class="period-bar">
+      <div class="date-filter">
+        <label>🅰️ Tháng A</label>
+        <input type="month" id="qcCmpAInput" min="${QC_CMP_FLOOR}" value="${defA}" onchange="qcCmpSetMonth('A',this.value)">
+      </div>
+      <div class="date-filter">
+        <label>🅱️ Tháng B</label>
+        <input type="month" id="qcCmpBInput" min="${QC_CMP_FLOOR}" value="${defB}" onchange="qcCmpSetMonth('B',this.value)">
+      </div>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:16px;background:var(--bg2);overflow:hidden;margin-top:14px">
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;padding:14px 4px 10px;background:var(--surface);border-bottom:1px solid var(--border)">
+        <div style="text-align:right;font-size:13px;font-weight:900;color:${CA}">🅰️ ${rA.label}</div>
+        <div style="min-width:130px"></div>
+        <div style="text-align:left;font-size:13px;font-weight:900;color:${CB}">🅱️ ${rB.label}</div>
+      </div>
+      <div style="padding:4px 14px 14px">
+        <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;padding:10px 4px 2px">Ads Performance</div>
+        ${row('💰','Tổng Chi Phí','vnd',mA.totalSpend,mB.totalSpend,null)}
+        ${row('💬','Tổng Mess','num',mA.totalMess,mB.totalMess,false)}
+        ${row('📌','CP / Mess','vnd',mA.costPerMess,mB.costPerMess,true)}
+        ${row('📊','ADS/DS','pct',mA.adsDs,mB.adsDs,true)}
+        <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;padding:14px 4px 2px;border-top:1px solid var(--border);margin-top:8px">Sale Performance</div>
+        ${row('💵','Doanh Số','vnd',mA.combRevenue,mB.combRevenue,false,'qcCmpShowBrandGrowth()')}
+        ${subRow('🌐','Lẻ',mA.leRevenue,mB.leRevenue,mA.combRevenue,mB.combRevenue)}
+        ${subRow('🏪','Sỉ',mA.siRevenue,mB.siRevenue,mA.combRevenue,mB.combRevenue)}
+        ${row('🛍️','Số Đơn Chốt','num',mA.combOrders,mB.combOrders,false)}
+        ${row('📦','DS TB / Đơn','vnd',mA.dsPerOrder,mB.dsPerOrder,false)}
+        ${row('🎯','Tỷ Lệ Chốt','pct',mA.closeRate,mB.closeRate,false)}
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px">👆 Bấm vào hàng Doanh Số để xem tăng trưởng theo từng brand</div>`;
+}
+function qcCmpSetMonth(which,val){
+  if(!val)return;
+  val=qcCmpClampMonth(val);
+  if(which==='A')window._qcCmpA=val;else window._qcCmpB=val;
+  renderQcCompare();
+}
+function qcCmpShowBrandGrowth(){
+  const d=window._qcCmpData;if(!d)return;
+  const{mA,mB,labelA,labelB}=d;
+  const rows=['CT','HT','Shidai','TTV'].map(k=>{
+    const a=mA.byBrand[k].total,b=mB.byBrand[k].total;
+    const g=b>0?(a-b)/b*100:(a>0?null:0);
+    const gTxt=g===null?'<span style="color:var(--green)">▲ mới</span>':(g>=0?`<span style="color:var(--green)">▲ ${g.toFixed(1)}%</span>`:`<span style="color:var(--red)">▼ ${Math.abs(g).toFixed(1)}%</span>`);
+    return[mA.byBrand[k].label,vnd(a),vnd(b),gTxt];
+  });
+  dataModal({title:`Tăng trưởng Doanh Số theo Brand — ${labelA} vs ${labelB}`,cols:['Brand',labelA,labelB,'Tăng trưởng'],rows});
+}
+
 // Modal lỗi trạng thái (Sỉ + Online)
 function qcShowStatusErr(){
   const d=window._qcStatusErr||{si:[],onl:[]};
