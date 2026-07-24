@@ -2125,6 +2125,15 @@ function buildOnlineCampTable(){
     if(rescued)return`<span style="color:var(--green)">✓ Ads ID lấy từ Sale Online/CRM Sỉ: ${adId} (Data Hub bị thiếu)</span>`;
     return`<span style="color:var(--green)">✓ Đã khớp Ads ID ${adId}</span>`;
   };
+  // Data Hub hay bị trễ cập nhật thẻ TIỀM NĂNG cho khách Sỉ dù Master Data Sỉ (nguồn Online) đã ghi rõ trạng thái
+  // "Tiềm năng, chưa ra đơn" — đối chiếu qua Lead ID ↔ Mã đơn (số cuối) để bù nhận diện tiềm năng, không tạo dòng mới,
+  // chỉ nâng đúng dòng Data Hub hiện có lên đúng trạng thái thật.
+  const isPhoSiRow=r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/i.test(r[COL_SI.STATUS]||'');
+  const isTiemSiRow=r=>/tiềm năng|tiem nang/i.test(r[COL_SI.STATUS]||'')&&!isPhoSiRow(r);
+  const siTiemByNum=new Set();
+  (saleSiRows||[]).filter(r=>(r[COL_SI.SOURCE]||'').trim().toLowerCase()==='online'&&isTiemSiRow(r)).forEach(r=>{
+    const n=numOnly(r[COL_SI.LEAD_ID]);if(n)siTiemByNum.add(n);
+  });
   // Group by campaign
   const byCamp={};
   const chotByCamp={};
@@ -2141,7 +2150,8 @@ function buildOnlineCampTable(){
     if(brSel.length&&!brSel.includes(onlineBrand(camp)))return;
     if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0,rev:0};
     const tag=(r[COL_ONL.TAG]||'');
-    const isChot=hasTag(tag,'CHỐT'),isTiem=hasTag(tag,'TIỀM NĂNG');
+    const orderNum=numOnly(r[COL_ONL.ORDER_ID]);
+    const isChot=hasTag(tag,'CHỐT'),isTiem=hasTag(tag,'TIỀM NĂNG')||(orderNum&&siTiemByNum.has(orderNum));
     // phễu cộng dồn: chốt ⊂ tiềm năng ⊂ đạt
     if(isTiem||isChot)byCamp[camp].tiem++;
     if(hasTag(tag,'LEAD ĐẠT')||isTiem||isChot)byCamp[camp].dat++;
