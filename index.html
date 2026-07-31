@@ -897,21 +897,21 @@ function mktMetricsForRange(fromStr,toStr,brSel){
     if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';return null;};
   const onlBrandOf=r=>{const a=(r[COL_ONL.AD_ID]||'').trim();return brandTextSa(r[COL_ONL.SOURCE])||(a&&adCampMap[a]?brandTextSa(adCampMap[a]):null);};
   const hasTag=(tag,val)=>tag.toUpperCase().includes(val);
-  let nDat=0,nTiem=0;
+  let nDat=0,nTiem=0,nTiemLe=0,nTiemSi=0;
   (onlineRows||[]).forEach(r=>{
     const d=parseDate(r[COL_ONL.DATE]);if(!d)return;if(fromD&&d<fromD)return;if(toD&&d>toD)return;
     if(brSel.length&&!brSel.includes(onlBrandOf(r)))return;
     const tag=(r[COL_ONL.TAG]||'');
     const orderNum=numOnly(r[COL_ONL.ORDER_ID]);
     const isChot=hasTag(tag,'CHỐT'),isTiem=hasTag(tag,'TIỀM NĂNG')||(orderNum&&siTiemByNum.has(orderNum));
-    if(isTiem||isChot)nTiem++;
+    if(isTiem||isChot){nTiem++;if(hasTag(tag,'KH SỈ'))nTiemSi++;else nTiemLe++;}
     if(hasTag(tag,'LEAD ĐẠT')||isTiem||isChot)nDat++;
   });
   return{
     totalSpend:kpi.totalSpend,
     totalMess:kpi.totalMess,
     costPerMess:kpi.costPerMess,
-    nDat,nTiem,
+    nDat,nTiem,nTiemLe,nTiemSi,
     costPerDat:nDat>0?kpi.totalSpend/nDat:null,
     costPerTiem:nTiem>0?kpi.totalSpend/nTiem:null,
     adsDs:combRevenue>0?kpi.totalSpend/combRevenue*100:null,
@@ -3319,6 +3319,10 @@ const QC_CMP_GROUPS=[
   {name:'MKT PERFORMANCE',color:'#4361ee',cols:[
     {key:'totalSpend',label:'Tổng Chi Phí',icon:'💰',type:'vnd'},
     {key:'totalMess',label:'Tổng Mess',icon:'💬',type:'num'},
+    {key:'nTiem',label:'Số Data Tiềm Năng',icon:'🧑‍🤝‍🧑',type:'num',expandKey:'tiemSrc',expandCols:[
+      {key:'nTiemLe',label:'Tiềm Năng Lẻ',icon:'🌐',type:'num'},
+      {key:'nTiemSi',label:'Tiềm Năng Sỉ (nguồn Online)',icon:'🏪',type:'num'},
+    ]},
     {key:'costPerMess',label:'CP / Mess',icon:'📌',type:'vnd',lowerBetter:true,expandKey:'cost',expandCols:[
       {key:'costPerDat',label:'CP / Data Đạt',icon:'🎯',type:'vnd',lowerBetter:true},
       {key:'costPerTiem',label:'CP / Tiềm Năng',icon:'🧲',type:'vnd',lowerBetter:true},
@@ -3404,7 +3408,7 @@ function renderQcCompare(){
       ${cells}
     </tr>`;
   }
-  const EXPAND_CLS={brand:'qccmp-sub-brand',cost:'qccmp-sub-cost'};
+  const EXPAND_CLS={brand:'qccmp-sub-brand',cost:'qccmp-sub-cost',tiemSrc:'qccmp-sub-tiemsrc'};
   const bodyHtml=QC_CMP_GROUPS.map(g=>{
     const groupRow=`<tr><td colspan="${rowsData.length+1}" style="padding:7px 18px;font-size:11px;font-weight:800;color:#fff;background:${g.color};letter-spacing:.04em;position:sticky;left:0">${g.name}</td></tr>`;
     const metricRows=g.cols.map(c=>{
@@ -3456,7 +3460,7 @@ function renderQcCompare(){
         </table>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:10px">👆 Bấm vào hàng Doanh Số hoặc CP / Mess để xổ ra chi tiết</div>`;
+    <div style="font-size:11px;color:var(--muted);margin-top:10px">👆 Bấm vào hàng Doanh Số, Số Data Tiềm Năng hoặc CP / Mess để xổ ra chi tiết</div>`;
 }
 function qcCmpSetMonthRange(part,val){
   if(!val)return;
