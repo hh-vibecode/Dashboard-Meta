@@ -501,7 +501,8 @@ async function loadData(){
     renderQcDoiSoat();
     renderQcInvoice();
     renderQcCompare();
-  }catch(e){showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
+    stopThinking();
+  }catch(e){stopThinking();showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
 
 async function fetchCsvWithProxy(rawUrl,idx=0){
@@ -4016,8 +4017,18 @@ function groupByCamp(rows){
 
 // ── Helpers ──
 function mkKpi(icon,label,val,sub,grad){return`<div class="kpi ${grad}"><div class="kpi-icon">${icon}</div><div class="kpi-lbl">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;}
-function showLoading(){const l='<div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải…</span><br><span id="loadStatus" style="font-size:11px;color:var(--muted);margin-top:6px;display:block"></span></div>';document.getElementById('page-overview').innerHTML=l;document.getElementById('page-detail').innerHTML=l;}
-function setStatus(msg){const el=document.getElementById('loadStatus');if(el)el.textContent=msg;console.log('[STATUS]',msg);}
+const THINK_PHRASES=['🔌 Đang kết nối dữ liệu...','🧮 Đang tạo công thức...','🧠 Đang suy đoán logic...','🔍 Đang dò quét mẫu hình ẩn...','⚙️ Đang tối ưu hoá thuật toán...','📡 Đang đồng bộ hoá đa nguồn...','🧬 Đang phân tích tương quan...','🎯 Đang tính toán xác suất...','🗺️ Đang mô phỏng kịch bản...','💾 Đang truy xuất bộ nhớ...','🔗 Đang biên dịch chuỗi suy luận...','📊 Đang dựng mô hình dự đoán...'];
+function showLoading(){
+  const l='<div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">🤔 Thinking…</span><br><span id="loadStatus" style="font-size:11px;color:var(--muted);margin-top:6px;display:block"></span></div>';
+  document.getElementById('page-overview').innerHTML=l;document.getElementById('page-detail').innerHTML=l;
+  if(window._thinkInterval)clearInterval(window._thinkInterval);
+  let i=0;
+  const tick=()=>{const el=document.getElementById('loadStatus');if(!el){clearInterval(window._thinkInterval);return;}el.textContent=THINK_PHRASES[i%THINK_PHRASES.length];i++;};
+  tick();
+  window._thinkInterval=setInterval(tick,850);
+}
+function stopThinking(){if(window._thinkInterval){clearInterval(window._thinkInterval);window._thinkInterval=null;}}
+function setStatus(msg){console.log('[STATUS]',msg);}
 function showErr(msg){const e=`<div class="err-box">❌ ${msg}</div>`;document.getElementById('page-overview').innerHTML=e;document.getElementById('page-detail').innerHTML=e;}
 function parseDate(v){
   if(!v)return null;const s=String(v).trim();
