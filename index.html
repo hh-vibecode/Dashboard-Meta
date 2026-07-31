@@ -1948,12 +1948,16 @@ function renderSaleOnl(){
   // Danh sách chi tiết để click (card có số liệu, không phải %)
   const saoCols=['Ngày tạo','Lead ID','Họ tên','SĐT','Nguồn','Kênh','Sales','Sản phẩm','Trạng thái','Giá trị TN','Doanh thu','Ngày chốt'];
   const saoMap=list=>list.map(r=>[r[COL_SAONL.DATE],r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.SOURCE],r[COL_SAONL.CHANNEL],r[COL_SAONL.SALES],r[COL_SAONL.PRODUCT],r[COL_SAONL.STATUS],toN(r[COL_SAONL.POTENTIAL])>0?vnd(toN(r[COL_SAONL.POTENTIAL])):'',toN(r[COL_SAONL.REVENUE])>0?vnd(toN(r[COL_SAONL.REVENUE])):'',r[COL_SAONL.DATE_CLOSE]]);
+  // Mất Lead: bỏ Trạng thái (luôn là "Mất")/Doanh thu/Ngày chốt (luôn trống vì chưa từng chốt), thay bằng
+  // lý do mất lead (Nhóm nguyên nhân + Nguyên nhân cụ thể) — đây mới là thứ cần biết khi xem 1 lead đã mất
+  const lostCols=['Ngày tạo','Lead ID','Họ tên','SĐT','Nguồn','Kênh','Sales','Sản phẩm','Giá trị TN','Nhóm nguyên nhân','Nguyên nhân cụ thể'];
+  const lostMap=list=>list.map(r=>[r[COL_SAONL.DATE],r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.SOURCE],r[COL_SAONL.CHANNEL],r[COL_SAONL.SALES],r[COL_SAONL.PRODUCT],toN(r[COL_SAONL.POTENTIAL])>0?vnd(toN(r[COL_SAONL.POTENTIAL])):'',r[COL_SAONL.LOST_GROUP]||'—',r[COL_SAONL.LOST_REASON]||'—']);
   window._saonlLists={
     total:{title:'Tất cả lead online',cols:saoCols,rows:saoMap(rows)},
     caring:{title:'Đang chăm sóc',cols:saoCols,rows:saoMap(rows.filter(r=>st(r,'đang chăm sóc')))},
     longCare:{title:'CS dài hạn',cols:saoCols,rows:saoMap(rows.filter(r=>st(r,'dài hạn')))},
     closed:{title:'Đã chốt',cols:saoCols,rows:saoMap(rows.filter(r=>st(r,'chốt')))},
-    lost:{title:'Mất lead',cols:saoCols,rows:saoMap(rows.filter(r=>st(r,'mất')))},
+    lost:{title:'Mất lead',cols:lostCols,rows:lostMap(rows.filter(r=>st(r,'mất')))},
     online:{title:'Data nguồn Online',cols:saoCols,rows:saoMap(rows.filter(r=>(r[COL_SAONL.SOURCE]||'').toLowerCase().includes('online')))},
     offline:{title:'Data nguồn Offline',cols:saoCols,rows:saoMap(rows.filter(r=>(r[COL_SAONL.SOURCE]||'').toLowerCase().includes('offline')))},
     pot:{title:'Lead có giá trị tiềm năng',cols:saoCols,rows:saoMap(rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0))},
