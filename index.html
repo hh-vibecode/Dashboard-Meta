@@ -917,7 +917,11 @@ function mktMetricsForRange(fromStr,toStr,brSel){
     adsDs:combRevenue>0?kpi.totalSpend/combRevenue*100:null,
     combRevenue,combOrders,
     dsPerOrder:combOrders>0?combRevenue/combOrders:null,
+    dsPerOrderLe:leOrders>0?leRevenue/leOrders:null,
+    dsPerOrderSi:siOn.orders>0?siOn.revenue/siOn.orders:null,
     closeRate:(combOrders>0&&kpi.totalMess>0)?combOrders/kpi.totalMess*100:null,
+    closeRateLe:kpi.totalMess>0?leOrders/kpi.totalMess*100:null,
+    closeRateSi:kpi.totalMess>0?siOn.orders/kpi.totalMess*100:null,
     leRevenue,siRevenue:siOn.revenue,leOrders,siOrders:siOn.orders,
     byBrand
   };
@@ -3330,12 +3334,19 @@ const QC_CMP_GROUPS=[
     {key:'adsDs',label:'ADS/DS',icon:'📊',type:'pct',lowerBetter:true},
   ]},
   {name:'SALE PERFORMANCE',color:'#0abf7a',cols:[
-    {key:'combRevenue',label:'Doanh Số',icon:'💵',type:'vnd',expandKey:'brand'},
-    {key:'leRevenue',label:'DS Lẻ',icon:'🌐',type:'vnd',sub:true},
-    {key:'siRevenue',label:'DS Sỉ',icon:'🏪',type:'vnd',sub:true},
-    {key:'combOrders',label:'Số Đơn Chốt',icon:'🛍️',type:'num'},
-    {key:'dsPerOrder',label:'DS TB/Đơn',icon:'📦',type:'vnd'},
-    {key:'closeRate',label:'Tỷ Lệ Chốt',icon:'🎯',type:'pct'},
+    {key:'combRevenue',label:'Doanh Số',icon:'💵',type:'vnd',expandKey:'dsRoot'},
+    {key:'combOrders',label:'Số Đơn Chốt',icon:'🛍️',type:'num',expandKey:'orders',expandCols:[
+      {key:'leOrders',label:'Đơn Lẻ',icon:'🌐',type:'num'},
+      {key:'siOrders',label:'Đơn Sỉ (nguồn Online)',icon:'🏪',type:'num'},
+    ]},
+    {key:'dsPerOrder',label:'DS TB/Đơn',icon:'📦',type:'vnd',expandKey:'dsPerOrder',expandCols:[
+      {key:'dsPerOrderLe',label:'DS TB/Đơn Lẻ',icon:'🌐',type:'vnd'},
+      {key:'dsPerOrderSi',label:'DS TB/Đơn Sỉ (nguồn Online)',icon:'🏪',type:'vnd'},
+    ]},
+    {key:'closeRate',label:'Tỷ Lệ Chốt',icon:'🎯',type:'pct',expandKey:'closeRateSrc',expandCols:[
+      {key:'closeRateLe',label:'Tỷ Lệ Chốt Lẻ',icon:'🌐',type:'pct'},
+      {key:'closeRateSi',label:'Tỷ Lệ Chốt Sỉ (nguồn Online)',icon:'🏪',type:'pct'},
+    ]},
   ]},
 ];
 function qcCmpMonthStr(y,m){return`${y}-${String(m+1).padStart(2,'0')}`;}
@@ -3393,22 +3404,32 @@ function renderQcCompare(){
   const headerHtml=`<th style="padding:12px 18px;text-align:left;font-size:11px;font-weight:800;color:var(--muted);background:var(--bg2);white-space:nowrap;position:sticky;left:0;top:0;z-index:3">CHỈ SỐ</th>`+
     rowsData.map(mo=>`<th style="padding:12px 18px;text-align:center;font-size:12px;font-weight:800;color:var(--text);background:var(--bg2);white-space:nowrap;position:sticky;top:0;z-index:2">${mo.label}</th>`).join('');
   const brandDefs=[['CT','Chánh Tâm'],['HT','Hiền Thuỷ'],['Shidai','Shidai'],['TTV','Tự Tại Viên']];
-  const brandRowsHtml=brandDefs.map(([k,label])=>{
-    const cells=rowsData.map((row,i)=>{
-      const val=row.metrics.byBrand[k].total;
-      const prevVal=i>0?rowsData[i-1].metrics.byBrand[k].total:null;
-      return priCell('vnd',val,prevVal,i===0,false);
-    }).join('');
-    return subRowHtml('qccmp-sub-brand',label,cells);
-  }).join('');
-  // Sinh HTML hàng con xổ ra (dùng chung cho brand + chi phí) — mỗi hàng con ẩn mặc định, có class riêng để toggle
-  function subRowHtml(cls,label,cells){
-    return`<tr class="${cls}" style="display:none;background:var(--bg2);border-bottom:1px solid var(--border)">
-      <td style="padding:10px 18px 10px 34px;font-weight:600;font-size:12px;color:var(--text2);white-space:nowrap;background:var(--bg2);border-right:1px solid var(--border);position:sticky;left:0">↳ ${label}</td>
+  // Sinh HTML hàng con xổ ra (dùng chung mọi tầng) — mỗi hàng con ẩn mặc định, có class riêng để toggle, indent theo depth
+  function subRowHtml(cls,label,cells,depth){
+    const pad=18+16*depth;
+    return`<tr class="${cls}" style="display:none;background:${depth>1?'var(--surface)':'var(--bg2)'};border-bottom:1px solid var(--border)">
+      <td style="padding:${depth>1?9:10}px 18px ${depth>1?9:10}px ${pad}px;font-weight:${depth>1?500:600};font-size:${depth>1?11.5:12}px;color:var(--text2);white-space:nowrap;background:${depth>1?'var(--surface)':'var(--bg2)'};border-right:1px solid var(--border);position:sticky;left:0">↳ ${label}</td>
       ${cells}
     </tr>`;
   }
-  const EXPAND_CLS={brand:'qccmp-sub-brand',cost:'qccmp-sub-cost',tiemSrc:'qccmp-sub-tiemsrc'};
+  // Doanh Số: xổ ra Lẻ/Sỉ (tầng 1), mỗi bên lại xổ tiếp ra 4 thương hiệu riêng theo đúng bên đó (tầng 2)
+  const dsRootHtml=[['leRevenue','le','DS Lẻ','🌐','qccmp-sub-ds-le-brand'],['siRevenue','si','DS Sỉ (nguồn Online)','🏪','qccmp-sub-ds-si-brand']].map(([metricKey,brKey,label,icon,brandCls])=>{
+    const cells=rowsData.map((row,i)=>{
+      const val=row.metrics[metricKey],prevVal=i>0?rowsData[i-1].metrics[metricKey]:null;
+      return priCell('vnd',val,prevVal,i===0,false);
+    }).join('');
+    const labelCell=`<td onclick="qcCmpToggleGroup('${brandCls}','${brandCls}-arrow')" title="Bấm để xem theo brand" style="cursor:pointer;padding:10px 18px 10px 34px;font-weight:600;font-size:12px;color:var(--text2);white-space:nowrap;background:var(--bg2);border-right:1px solid var(--border);position:sticky;left:0"><span id="${brandCls}-arrow" style="display:inline-block;width:11px;color:var(--muted);font-size:8px">▶</span> ↳ ${icon} ${label}</td>`;
+    const row=`<tr class="qccmp-sub-dsroot" style="display:none;background:var(--bg2);border-bottom:1px solid var(--border)">${labelCell}${cells}</tr>`;
+    const brandRows=brandDefs.map(([k,bl])=>{
+      const bcells=rowsData.map((rowD,i)=>{
+        const v=rowD.metrics.byBrand[k][brKey],pv=i>0?rowsData[i-1].metrics.byBrand[k][brKey]:null;
+        return priCell('vnd',v,pv,i===0,false);
+      }).join('');
+      return subRowHtml(brandCls,bl,bcells,2);
+    }).join('');
+    return row+brandRows;
+  }).join('');
+  const EXPAND_CLS={cost:'qccmp-sub-cost',tiemSrc:'qccmp-sub-tiemsrc',orders:'qccmp-sub-orders',dsPerOrder:'qccmp-sub-dsperorder',closeRateSrc:'qccmp-sub-closerate'};
   const bodyHtml=QC_CMP_GROUPS.map(g=>{
     const groupRow=`<tr><td colspan="${rowsData.length+1}" style="padding:7px 18px;font-size:11px;font-weight:800;color:#fff;background:${g.color};letter-spacing:.04em;position:sticky;left:0">${g.name}</td></tr>`;
     const metricRows=g.cols.map(c=>{
@@ -3419,19 +3440,20 @@ function renderQcCompare(){
         return priCell(c.type,val,prevVal,i===0,c.lowerBetter);
       }).join('');
       const cls=c.expandKey&&EXPAND_CLS[c.expandKey];
-      const arrowId=cls?cls+'-arrow':'';
+      const arrowId=cls?cls+'-arrow':(c.expandKey==='dsRoot'?'qccmp-sub-dsroot-arrow':'');
+      const toggleCls=c.expandKey==='dsRoot'?'qccmp-sub-dsroot':cls;
       const labelCell=c.expandKey
-        ?`<td onclick="qcCmpToggleGroup('${cls}','${arrowId}')" title="Bấm để xổ chi tiết" style="cursor:pointer;padding:12px 18px;font-weight:700;font-size:12.5px;white-space:nowrap;background:var(--surface);border-right:1px solid var(--border);position:sticky;left:0"><span id="${arrowId}" style="display:inline-block;width:12px;color:var(--muted);font-size:9px">▶</span> ${c.icon} ${c.label}</td>`
+        ?`<td onclick="qcCmpToggleGroup('${toggleCls}','${arrowId}')" title="Bấm để xổ chi tiết" style="cursor:pointer;padding:12px 18px;font-weight:700;font-size:12.5px;white-space:nowrap;background:var(--surface);border-right:1px solid var(--border);position:sticky;left:0"><span id="${arrowId}" style="display:inline-block;width:12px;color:var(--muted);font-size:9px">▶</span> ${c.icon} ${c.label}</td>`
         :`<td style="padding:12px 18px;font-weight:700;font-size:12.5px;white-space:nowrap;background:var(--surface);border-right:1px solid var(--border);position:sticky;left:0">${c.icon} ${c.label}</td>`;
       const row=`<tr style="border-bottom:1px solid var(--border)">${labelCell}${cells}</tr>`;
-      if(c.expandKey==='brand')return row+brandRowsHtml;
+      if(c.expandKey==='dsRoot')return row+dsRootHtml;
       if(c.expandCols){
         const subRows=c.expandCols.map(sc=>{
           const subCells=rowsData.map((rowD,i)=>{
             const prevVal=i>0?rowsData[i-1].metrics[sc.key]:null;
             return priCell(sc.type,rowD.metrics[sc.key],prevVal,i===0,sc.lowerBetter);
           }).join('');
-          return subRowHtml(cls,`${sc.icon} ${sc.label}`,subCells);
+          return subRowHtml(cls,`${sc.icon} ${sc.label}`,subCells,1);
         }).join('');
         return row+subRows;
       }
