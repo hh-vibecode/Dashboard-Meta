@@ -242,6 +242,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <option value="30days">30 ngày qua</option>
       <option value="thismonth">Tháng này</option>
       <option value="lastmonth">Tháng trước</option>
+      <option value="3months">3 tháng gần nhất</option>
     </select>
     <div class="fdiv"></div>
     <label>Từ</label>
@@ -1004,7 +1005,11 @@ function clearFilter(){
   document.getElementById('quickFilter').value='';
   window._mktBrands=[];
   const pf=document.getElementById('prodFilter');if(pf)pf.value='all';
-  if(allRows.length)renderAll(allRows);
+  // Bug: thiếu tham số saleFiltered khiến renderAll() tính Sale Performance (Doanh Số/Số Đơn Chốt...) trên
+  // mảng rỗng thay vì toàn bộ data khi bấm Xoá — phải tự tính lại giống hệt applyFilter()
+  const saleFiltered=filterSaleRows('','');
+  window._saleFiltered=saleFiltered;
+  if(allRows.length)renderAll(allRows,saleFiltered);
   renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
 }
 function localDate(str,end=false){
@@ -1047,6 +1052,7 @@ function applyQuickFilter(){
     from=fmt(new Date(today.getFullYear(),today.getMonth()-1,1));
     to=fmt(new Date(today.getFullYear(),today.getMonth(),0));
   }
+  else if(v==='3months'){from=fmt(new Date(today.getFullYear(),today.getMonth()-2,1));to=fmt(today);}
   document.getElementById('dateFrom').value=from;
   document.getElementById('dateTo').value=to;
   onDateChange();
