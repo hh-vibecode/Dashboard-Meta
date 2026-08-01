@@ -1953,7 +1953,13 @@ function renderSaleOnl(){
     if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
     if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
     if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';return null;};
-  const brandOf=r=>{const a=(r[COL_SAONL.AD_ID]||'').trim();return brandText(r[COL_SAONL.CHANNEL])||(a&&adCampMap[a]?brandText(adCampMap[a]):null);};
+  // Ưu tiên Ads ID → chiến dịch thật (giống hệt Tổng Quan MKT), text ở cột Kênh chỉ dùng khi Ads ID không khớp
+  // được chiến dịch nào — trước đây ưu tiên ngược lại (text trước) khiến doanh số theo brand lệch hẳn so với
+  // Tổng Quan MKT dù cùng 1 sheet dữ liệu. Riêng Tự Tại Viên/Nến Bơ luôn theo text kênh/fanpage, bất kể Ads ID.
+  const brandOf=r=>{const a=(r[COL_SAONL.AD_ID]||'').trim();const txtBr=brandText(r[COL_SAONL.CHANNEL]);
+    if(txtBr==='TTV')return'TTV';
+    if(a&&adCampMap[a])return brandText(adCampMap[a])||txtBr;
+    return txtBr;};
   let rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
   if(brSel.length)rows=rows.filter(r=>brSel.includes(brandOf(r)));
   const toN=vndNum;
@@ -2028,17 +2034,18 @@ function renderSaleOnl(){
     <td style="padding:9px 14px;font-size:18px;font-weight:800;color:#dc2626">${cnt}</td>
     <td style="padding:9px 14px"><div style="height:5px;background:var(--bg2);border-radius:4px"><div style="height:5px;background:#dc2626;border-radius:4px;width:${lost>0?(cnt/lost*100).toFixed(0):0}%"></div></div></td>
   </tr>`).join('');
-  // Revenue by brand/channel
-  function revByChan(kw){return rows.filter(r=>st(r,'chốt')&&(r[COL_SAONL.CHANNEL]||'').toLowerCase().includes(kw.toLowerCase())).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);}
-  function rowsByChan(...kws){return rows.filter(r=>st(r,'chốt')&&kws.some(kw=>(r[COL_SAONL.CHANNEL]||'').toLowerCase().includes(kw.toLowerCase())));}
-  const revCT=revByChan('chánh tâm')+revByChan('chanh tam');
-  const revHT=revByChan('hiền thuỷ')+revByChan('hien thuy')+revByChan('hienthuy');
-  const revSD=revByChan('shidai');
-  const revTTV=revByChan('tự tại viên')+revByChan('tu tai vien')+revByChan('nến bơ')+revByChan('nen bo');
-  window._saonlLists.ct={title:'Chánh Tâm — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('chánh tâm','chanh tam'))};
-  window._saonlLists.ht={title:'Hiền Thuỷ — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('hiền thuỷ','hien thuy','hienthuy'))};
-  window._saonlLists.sd={title:'Shidai — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('shidai'))};
-  window._saonlLists.ttv={title:'Tự Tại Viên — đã chốt',cols:saoCols,rows:saoMap(rowsByChan('tự tại viên','tu tai vien','nến bơ','nen bo'))};
+  // Revenue by brand — dùng chung brandOf(r) (ưu tiên Ads ID/campaign thật) để khớp với Tổng Quan MKT,
+  // thay vì so khớp text cột Kênh riêng lẻ như trước (2 cách tính ra 2 số khác nhau cho cùng 1 chỉ số).
+  function rowsByBrand(br){return rows.filter(r=>st(r,'chốt')&&brandOf(r)===br);}
+  function revByBrand(br){return rowsByBrand(br).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);}
+  const revCT=revByBrand('CT');
+  const revHT=revByBrand('HT');
+  const revSD=revByBrand('Shidai');
+  const revTTV=revByBrand('TTV');
+  window._saonlLists.ct={title:'Chánh Tâm — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('CT'))};
+  window._saonlLists.ht={title:'Hiền Thuỷ — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('HT'))};
+  window._saonlLists.sd={title:'Shidai — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('Shidai'))};
+  window._saonlLists.ttv={title:'Tự Tại Viên — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('TTV'))};
   // Revenue by sales
   const revBySalesRows=Object.entries(bySales).filter(([,d])=>d.rev>0).sort((a,b)=>b[1].rev-a[1].rev).map(([s,d])=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:9px 14px;font-weight:700">${s}</td>
