@@ -599,6 +599,17 @@ function parseMktCsv(text){
     const dom=adDominantCamp[adId];
     if(dom&&(row[COL.CAMPAIGN]||'').trim()!==dom)row[COL.CAMPAIGN]=dom;
   });
+  // Chiến dịch bị đổi tên giữa chừng trong Ads Manager: quảng cáo cũ export dưới tên cũ, quảng cáo mới thêm
+  // vào SAU khi đổi tên export dưới tên mới → cùng 1 nhóm quảng cáo/chiến dịch thật lại tách thành 2 dòng khác
+  // nhau trên bảng theo chiến dịch. Đã xác nhận qua Ads Manager: "Hiền Thuỷ - Thần Tài 12/06" (Ad ID
+  // 120248854033970679, 120248674568150679, tạo 12-16/6) và "Hiền Thuỷ - Chung 12/06" (Ad ID
+  // 120249907304850679, 120250016448560679, tạo 7-10/7) đều thuộc cùng 1 nhóm quảng cáo "Mess mass 1" —
+  // gộp về tên mới nhất cho nhất quán.
+  const CAMPAIGN_ALIASES={'Hiền Thuỷ - Thần Tài 12/06':'Hiền Thuỷ - Chung 12/06'};
+  allData.forEach(row=>{
+    const camp=(row[COL.CAMPAIGN]||'').trim();
+    if(CAMPAIGN_ALIASES[camp])row[COL.CAMPAIGN]=CAMPAIGN_ALIASES[camp];
+  });
   window.allRowsRaw=allData;
   allRows=allData.filter(row=>{
     const campName=(row[COL.CAMPAIGN]||'').trim();
