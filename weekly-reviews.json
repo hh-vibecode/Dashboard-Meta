@@ -1,0 +1,100 @@
+[
+  {
+    "weekLabel": "31/07 – 06/08/2026",
+    "weekStart": "2026-07-31",
+    "weekEnd": "2026-08-06",
+    "prevWeekLabel": "24/07 – 30/07/2026",
+    "prevWeekStart": "2026-07-24",
+    "prevWeekEnd": "2026-07-30",
+    "generatedAt": "2026-08-10T07:31:43Z",
+    "metrics": {
+      "totalSpend": 15637830,
+      "totalMess": 588,
+      "costPerMess": 26594.948979591838,
+      "nDat": 112,
+      "nTiem": 8,
+      "nTiemLe": 8,
+      "nTiemSi": 0,
+      "costPerDat": 139623.48214285713,
+      "costPerTiem": 1954728.75,
+      "adsDs": 6.944498474574014,
+      "combRevenue": 225183000,
+      "combOrders": 11,
+      "dsPerOrder": 20471181.818181816,
+      "dsPerOrderLe": 1193750,
+      "dsPerOrderSi": 71877666.66666667,
+      "closeRate": 1.870748299319728,
+      "closeRateLe": 1.3605442176870748,
+      "closeRateSi": 0.5102040816326531,
+      "leRevenue": 9550000,
+      "siRevenue": 215633000,
+      "leOrders": 8,
+      "siOrders": 3,
+      "byBrand": {
+        "CT": {"label": "Chánh Tâm", "le": 7400000, "si": 0, "total": 7400000},
+        "HT": {"label": "Hiền Thuỷ", "le": 0, "si": 0, "total": 0},
+        "Shidai": {"label": "Shidai", "le": 0, "si": 215633000, "total": 215633000},
+        "TTV": {"label": "Tự Tại Viên", "le": 2150000, "si": 0, "total": 2150000}
+      }
+    },
+    "prevMetrics": {
+      "totalSpend": 14181364,
+      "totalMess": 484,
+      "costPerMess": 29300.338842975205,
+      "nDat": 106,
+      "nTiem": 4,
+      "nTiemLe": 4,
+      "nTiemSi": 0,
+      "costPerDat": 133786.45283018867,
+      "costPerTiem": 3545341,
+      "adsDs": 5.62364240564055,
+      "combRevenue": 252174000,
+      "combOrders": 3,
+      "dsPerOrder": 84058000,
+      "dsPerOrderLe": 84058000,
+      "dsPerOrderSi": null,
+      "closeRate": 0.6198347107438017,
+      "closeRateLe": 0.6198347107438017,
+      "closeRateSi": 0,
+      "leRevenue": 252174000,
+      "siRevenue": 0,
+      "leOrders": 3,
+      "siOrders": 0,
+      "byBrand": {
+        "CT": {"label": "Chánh Tâm", "le": 221832000, "si": 0, "total": 221832000},
+        "HT": {"label": "Hiền Thuỷ", "le": 18792000, "si": 0, "total": 18792000},
+        "Shidai": {"label": "Shidai", "le": 11550000, "si": 0, "total": 11550000},
+        "TTV": {"label": "Tự Tại Viên", "le": 0, "si": 0, "total": 0}
+      }
+    },
+    "summary": "Doanh số tuần giảm nhẹ 10,7% (225,2tr) dù chi phí ads và mess đều tăng — ADS/DS xấu đi. Điểm sáng: chất lượng lead & tỷ lệ chốt cải thiện rõ, nhưng doanh số đang phụ thuộc gần hết vào 1 nhóm đơn Sỉ Shidai — cần theo dõi tính bền vững.",
+    "highlights": [
+      {
+        "type": "bad",
+        "title": "ADS/DS xấu đi dù chi phí ads tăng",
+        "detail": "Chi phí quảng cáo +10,3% (15,64tr) và tổng mess +21,5% (588), nhưng doanh số lại giảm -10,7% → ADS/DS tăng từ 5,62% lên 6,94% (+1,32 điểm %). Chi phí bỏ ra cho mỗi đồng doanh thu đang tăng, cần theo dõi tuần tới."
+      },
+      {
+        "type": "warn",
+        "title": "Doanh số Lẻ sụt mạnh, Chánh Tâm gần như mất doanh số",
+        "detail": "Lẻ chỉ còn 9,55tr (tuần trước 252,2tr). Riêng Chánh Tâm rơi từ 221,8tr xuống 7,4tr (-96,7%). Khả năng cao tuần trước có 1 đơn giá trị đột biến (outlier) — cần xác minh thay vì kết luận vội Chánh Tâm đang suy yếu."
+      },
+      {
+        "type": "warn",
+        "title": "Doanh số phụ thuộc gần hết vào Sỉ/Shidai",
+        "detail": "Sỉ chiếm 95,8% tổng doanh số tuần này (215,6tr/225,2tr), toàn bộ thuộc Shidai và chỉ đến từ 3 đơn. Rủi ro tập trung — nếu tuần tới không có đơn Sỉ lớn, doanh số có thể giảm sâu."
+      },
+      {
+        "type": "good",
+        "title": "Chất lượng lead cải thiện rõ",
+        "detail": "Data Tiềm Năng tăng gấp đôi (4 → 8 lead), CP/Tiềm Năng giảm 44,9% (3,55tr → 1,95tr/lead). Phần đầu phễu marketing đang hiệu quả hơn hẳn."
+      },
+      {
+        "type": "good",
+        "title": "Số đơn chốt & tỷ lệ chốt tăng mạnh",
+        "detail": "Số đơn chốt tăng từ 3 lên 11 đơn (+266,7%), tỷ lệ chốt tăng từ 0,62% lên 1,87% (+1,25 điểm %) — nhưng đi kèm DS TB/đơn giảm mạnh -75,6% (84,06tr → 20,47tr), nên xem lại cơ cấu đơn đang chốt."
+      }
+    ],
+    "narrative": "Tuần 31/07–06/08/2026 ghi nhận tổng doanh số 225.183.000đ, giảm 10,7% so với tuần trước (252.174.000đ), dù chi phí quảng cáo tăng 10,3% (15,64tr) và tổng lượt mess tăng mạnh 21,5% (588 mess). Kết quả là ADS/DS xấu đi, tăng từ 5,62% lên 6,94% (+1,32 điểm %) — chi phí bỏ ra cho mỗi đồng doanh thu đang tăng lên.\n\nTuy nhiên phần đầu phễu marketing lại đang cải thiện rất rõ: Data Tiềm Năng tăng gấp đôi (4 → 8 lead), trong khi CP/Tiềm Năng giảm mạnh 44,9% (từ 3,55tr xuống còn 1,95tr/lead). Data Đạt cũng nhích nhẹ +5,7%. Chất lượng lead đang tốt lên — vấn đề nằm ở khâu sau, chuyển đổi thành doanh số giá trị cao.\n\nỞ khâu chốt đơn, số đơn chốt tăng vọt từ 3 lên 11 đơn (+266,7%) và tỷ lệ chốt tăng từ 0,62% lên 1,87% (+1,25 điểm %) — về số lượng đây là tín hiệu tích cực. Nhưng giá trị trung bình mỗi đơn giảm rất mạnh, từ 84.058.000đ xuống còn 20.471.000đ (-75,6%), cho thấy tuần này chốt được nhiều đơn nhỏ hơn thay vì ít đơn giá trị lớn như tuần trước.\n\nĐáng chú ý nhất là cơ cấu nguồn doanh số đảo chiều hoàn toàn: tuần trước 100% doanh số đến từ Lẻ (252,2tr, riêng Chánh Tâm chiếm 221,8tr), nhưng tuần này Lẻ chỉ còn 9,55tr (3,8% tổng doanh số) — Chánh Tâm rơi từ 221,8tr xuống chỉ còn 7,4tr (-96,7%). Ngược lại, doanh số Sỉ tăng từ 0 lên 215,6tr, chiếm tới 95,8% tổng doanh số tuần này, toàn bộ đến từ 3 đơn thuộc Shidai.\n\nVới số đơn/tuần còn khá nhỏ (3-11 đơn), doanh số và DS TB/đơn rất nhạy với 1-2 đơn giá trị lớn (outlier) — nhiều khả năng khoản 221,8tr của Chánh Tâm tuần trước và 215,6tr của Sỉ Shidai tuần này đều là các đơn đột biến, chưa hẳn phản ánh xu hướng bền vững. Khuyến nghị theo dõi thêm 2-3 tuần tới để xác nhận doanh số Lẻ có phục hồi hay không và mức độ phụ thuộc vào Sỉ/Shidai có tiếp tục tăng hay không, tránh đưa ra quyết định phân bổ ngân sách chỉ dựa trên 1 tuần dữ liệu."
+  }
+]

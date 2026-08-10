@@ -266,6 +266,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="app-body">
   <div class="sidebar" id="sidebar">
     <div class="sb-strip"></div>
+    <div class="sb-section" id="sec-danhgia-label">Đánh Giá</div>
+    <nav id="sec-danhgia">
+      <div class="nav-item" onclick="switchPage('danhgia')" id="nav-danhgia"><span class="nav-icon">🗓️</span><span class="nav-label">Báo Cáo Đánh Giá</span></div>
+    </nav>
     <div class="sb-section" id="sec-marketing-label">Marketing</div>
     <nav id="sec-marketing">
       <div class="nav-item active" onclick="switchPage('overview')" id="nav-overview"><span class="nav-icon">📊</span><span class="nav-label">Tổng Quan</span></div>
@@ -289,6 +293,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   </div>
 
   <div class="main-content" id="mainContent">
+    <div class="tab-page" id="page-danhgia">
+      <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải báo cáo tuần...</div>
+    </div>
     <div class="tab-page active" id="page-overview">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
@@ -371,7 +378,7 @@ function toggleSidebar(){
 })();
 
 // ── Auth: khoá dashboard + phân quyền (client-side) ──
-const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'}};
+const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'},review:{pass:'review@2026',role:'review'}};
 const AUTH_ALLOWED_IPS=[]; // thêm IP máy bạn vào đây (vd '113.161.x.x') để vào thẳng khỏi đăng nhập
 function togglePass(){const p=document.getElementById('loginPass'),e=document.getElementById('loginEye');if(!p)return;if(p.type==='password'){p.type='text';e.textContent='🙈';e.style.color='#4361ee';}else{p.type='password';e.textContent='👁';e.style.color='#94a3b8';}}
 function doLogin(){
@@ -381,8 +388,10 @@ function doLogin(){
   if(acc&&acc.pass===p){localStorage.setItem('dashRole',acc.role);localStorage.setItem('dashUser',u);document.getElementById('loginGate').style.display='none';applyRole();}
   else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
 }
-// Phân quyền: role => danh sách trang được xem (null = xem hết)
-const ROLE_PAGES={admin:null,'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','qc-doisoat','qc-invoice','qc-compare']};
+// Phân quyền: role => danh sách trang được xem (null = xem hết).
+// admin liệt kê tường minh (KHÔNG null) để loại trừ trang 'danhgia' — trang đánh giá tuần chỉ dành riêng cho role 'review'.
+// Thêm trang mới cho admin thì nhớ bổ sung id vào mảng dưới đây.
+const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','qc-doisoat','qc-invoice','qc-compare'],review:null};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
@@ -392,12 +401,13 @@ function applyRole(){
   });
   const grp=document.getElementById('nav-si-group');
   if(grp){const ok=!allowed||allowed.indexOf('sale-si')>=0||allowed.indexOf('sale-si-data')>=0;grp.style.display=ok?'':'none';}
-  [['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
+  [['sec-danhgia-label','sec-danhgia'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
     const n=document.getElementById(nav);if(!n)return;
     const vis=[...n.querySelectorAll('.nav-item')].some(it=>it.style.display!=='none');
     const l=document.getElementById(lab);if(l)l.style.display=vis?'':'none';n.style.display=vis?'':'none';
   });
   if(allowed&&allowed.length)switchPage(allowed[0]);
+  else if(role==='review')switchPage('danhgia');
 }
 function logout(){localStorage.removeItem('dashRole');localStorage.removeItem('dashUser');document.getElementById('loginGate').style.display='flex';}
 function initAuth(){
@@ -411,10 +421,11 @@ function initAuth(){
 }
 
 function switchPage(p){
-  ['overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
+  ['danhgia','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
+  if(p==='danhgia')renderDanhGia();
   // Nhóm Báo Cáo Sỉ: sáng header + mở dropdown khi đang ở 1 trang con
   const grp=document.getElementById('nav-si-group');
   if(grp)grp.classList.toggle('active',p==='sale-si'||p==='sale-si-data');
@@ -3381,6 +3392,112 @@ function qcCmpGBadge(g,lowerBetter){if(g===null)return'<span style="color:var(--
   if(g===Infinity)return`<span style="color:${lowerBetter?'var(--red)':'var(--green)'};font-size:10px;font-weight:800">▲ mới</span>`;
   const up=g>=0,good=lowerBetter?!up:up;
   return`<span style="color:${good?'var(--green)':'var(--red)'};font-size:10px;font-weight:800">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;}
+
+// ===== Báo Cáo Đánh Giá — nhận định tuần (Thứ 6 → Thứ 5), tự động tạo mỗi sáng Thứ 6 =====
+// Data lấy từ weekly-reviews.json (do routine cloud tự chạy hàng tuần ghi vào), page chỉ đọc & trình bày.
+const DG_METRICS=[
+  {key:'totalSpend',label:'Tổng Chi Phí',icon:'💰',type:'vnd'},
+  {key:'totalMess',label:'Tổng Mess',icon:'💬',type:'num'},
+  {key:'costPerMess',label:'CP / Mess',icon:'📌',type:'vnd',lowerBetter:true},
+  {key:'nDat',label:'Data Đạt',icon:'✅',type:'num'},
+  {key:'nTiem',label:'Data Tiềm Năng',icon:'🧑‍🤝‍🧑',type:'num'},
+  {key:'costPerTiem',label:'CP / Tiềm Năng',icon:'🧲',type:'vnd',lowerBetter:true},
+  {key:'adsDs',label:'ADS/DS',icon:'📊',type:'pct',lowerBetter:true},
+  {key:'combRevenue',label:'Doanh Số',icon:'💵',type:'vnd'},
+  {key:'combOrders',label:'Số Đơn Chốt',icon:'🛍️',type:'num'},
+  {key:'dsPerOrder',label:'DS TB / Đơn',icon:'📦',type:'vnd'},
+  {key:'closeRate',label:'Tỷ Lệ Chốt',icon:'🎯',type:'pct'},
+];
+function dgFmt(v,type){if(v==null)return'—';if(type==='vnd')return vnd(v);if(type==='pct')return pct(v);return num(v);}
+function dgBadge(cur,prev,type,lowerBetter){
+  const g=type==='pct'?qcCmpDiff(prev,cur):qcCmpGrowth(prev,cur);
+  if(g===null)return'<span style="color:var(--muted);font-size:10px">—</span>';
+  if(g===Infinity)return`<span style="color:${lowerBetter?'var(--red)':'var(--green)'};font-size:10px;font-weight:800">▲ mới</span>`;
+  const up=g>=0,good=lowerBetter?!up:up;
+  return`<span style="color:${good?'var(--green)':'var(--red)'};font-size:10px;font-weight:800">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}${type==='pct'?' đ':'%'}</span>`;
+}
+function dgFmtGenTime(iso){const d=iso?new Date(iso):null;if(!d||isNaN(d))return'';return d.toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function dgWeekCard(w,idx){
+  const m=w.metrics||{},p=w.prevMetrics||{};
+  const brandRows=['CT','HT','Shidai','TTV'].map(k=>{
+    const c=(m.byBrand||{})[k]||{label:k,total:0},pr=(p.byBrand||{})[k]||{label:k,total:0};
+    return`<tr><td>${c.label}</td><td>${vnd(c.total)}</td><td>${vnd(pr.total)}</td><td>${dgBadge(c.total,pr.total,'vnd')}</td></tr>`;
+  }).join('');
+  return`
+  <div class="tbl-card" style="margin-bottom:18px${idx===0?';border-color:var(--accent)':''}">
+    <div class="tbl-head" style="flex-wrap:wrap;gap:8px 14px">
+      <div style="flex:1 1 auto">
+        <div class="tbl-title">🗓️ Tuần ${w.weekLabel}</div>
+        <div style="font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px">So với tuần ${w.prevWeekLabel}${w.generatedAt?' · tạo lúc '+dgFmtGenTime(w.generatedAt):''}</div>
+      </div>
+      ${idx===0?'<div class="tbl-count">Mới nhất</div>':''}
+    </div>
+    <div style="padding:16px 18px 20px">
+      ${w.summary?`<div style="background:var(--accent-l);border-left:4px solid var(--accent);border-radius:10px;padding:13px 16px;margin-bottom:16px;font-size:13px;line-height:1.65;color:var(--text);font-weight:600">${w.summary}</div>`:''}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:18px">
+        ${DG_METRICS.map(cfg=>{
+          const cur=m[cfg.key],prev=p[cfg.key];
+          return`<div style="background:var(--bg2);border-radius:12px;padding:12px 14px">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap">${cfg.icon} ${cfg.label}</div>
+            <div style="font-size:17px;font-weight:800;color:var(--text);margin:4px 0 3px">${dgFmt(cur,cfg.type)}</div>
+            <div style="display:flex;align-items:center;gap:5px">${dgBadge(cur,prev,cfg.type,cfg.lowerBetter)}<span style="color:var(--muted);font-size:10px">so ${dgFmt(prev,cfg.type)}</span></div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="sec-label" style="margin-top:2px">Doanh Số Theo Nguồn & Thương Hiệu</div>
+      <div class="tbl-scroll" style="margin-bottom:${w.highlights&&w.highlights.length?'18px':'4px'}">
+        <table class="grp-table">
+          <thead><tr><th>Nguồn / Brand</th><th>Tuần này</th><th>Tuần trước</th><th>Tăng trưởng</th></tr></thead>
+          <tbody>
+            <tr><td>🌐 Lẻ (Sale Online)</td><td>${vnd(m.leRevenue||0)}</td><td>${vnd(p.leRevenue||0)}</td><td>${dgBadge(m.leRevenue,p.leRevenue,'vnd')}</td></tr>
+            <tr><td>🏪 Sỉ (nguồn Online)</td><td>${vnd(m.siRevenue||0)}</td><td>${vnd(p.siRevenue||0)}</td><td>${dgBadge(m.siRevenue,p.siRevenue,'vnd')}</td></tr>
+            ${brandRows}
+          </tbody>
+        </table>
+      </div>
+      ${w.highlights&&w.highlights.length?`
+      <div class="sec-label">Vấn Đề & Điểm Cần Chú Ý</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+        ${w.highlights.map(h=>{
+          const c=h.type==='good'?'var(--green)':h.type==='bad'?'var(--red)':'#f59e0b';
+          const ic=h.type==='good'?'✅':h.type==='bad'?'⚠️':'🔎';
+          return`<div style="border-left:4px solid ${c};background:var(--bg2);border-radius:10px;padding:11px 14px">
+            <div style="font-size:12.5px;font-weight:800;color:var(--text)">${ic} ${h.title}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.55">${h.detail}</div>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+      ${w.narrative?`<div class="sec-label">Nhận Định Chi Tiết</div>
+      <div style="font-size:13px;line-height:1.8;color:var(--text2);white-space:pre-line">${w.narrative}</div>`:''}
+    </div>
+  </div>`;
+}
+async function renderDanhGia(){
+  const el=document.getElementById('page-danhgia');
+  if(!el)return;
+  let data=[];
+  try{
+    const res=await fetch('weekly-reviews.json?t='+Date.now());
+    if(res.ok)data=await res.json();
+  }catch(e){data=[];}
+  if(!Array.isArray(data))data=[];
+  data=[...data].sort((a,b)=>(b.weekStart||'').localeCompare(a.weekStart||''));
+  if(!data.length){
+    el.innerHTML=`
+      <div class="page-title">Báo Cáo Đánh Giá</div>
+      <div class="page-sub">Tổng hợp & phân tích chỉ số MKT + Sale theo tuần (Thứ 6 → Thứ 5)</div>
+      <div style="padding:80px 20px;text-align:center;color:var(--muted)">
+        <div style="font-size:48px;margin-bottom:12px">🗓️</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text2)">Chưa có báo cáo tuần nào</div>
+        <div style="font-size:13px;margin-top:6px">Báo cáo đầu tiên sẽ tự động tạo vào 8h sáng Thứ 6 tới (giờ Việt Nam).</div>
+      </div>`;
+    return;
+  }
+  el.innerHTML=`
+    <div class="page-title">Báo Cáo Đánh Giá</div>
+    <div class="page-sub">Tổng hợp & phân tích chỉ số MKT + Sale theo tuần (Thứ 6 → Thứ 5) · tự động cập nhật mỗi sáng Thứ 6 · ${data.length} báo cáo</div>
+    ${data.map((w,i)=>dgWeekCard(w,i)).join('')}`;
+}
 function renderQcCompare(){
   const el=document.getElementById('page-qc-compare');
   if(!el)return;
