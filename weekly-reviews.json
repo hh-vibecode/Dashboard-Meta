@@ -6,36 +6,29 @@
     "prevWeekLabel": "24/07 – 30/07/2026",
     "prevWeekStart": "2026-07-24",
     "prevWeekEnd": "2026-07-30",
-    "generatedAt": "2026-08-10T07:31:43Z",
+    "generatedAt": "2026-08-10T08:02:31Z",
     "metrics": {
       "totalSpend": 15637830,
       "totalMess": 588,
       "costPerMess": 26594.948979591838,
       "nDat": 112,
       "nTiem": 8,
-      "nTiemLe": 8,
-      "nTiemSi": 0,
       "costPerDat": 139623.48214285713,
       "costPerTiem": 1954728.75,
-      "adsDs": 6.944498474574014,
-      "combRevenue": 225183000,
-      "combOrders": 11,
-      "dsPerOrder": 20471181.818181816,
-      "dsPerOrderLe": 1193750,
-      "dsPerOrderSi": 71877666.66666667,
-      "closeRate": 1.870748299319728,
-      "closeRateLe": 1.3605442176870748,
-      "closeRateSi": 0.5102040816326531,
-      "leRevenue": 9550000,
-      "siRevenue": 215633000,
-      "leOrders": 8,
-      "siOrders": 3,
-      "byBrand": {
-        "CT": {"label": "Chánh Tâm", "le": 7400000, "si": 0, "total": 7400000},
-        "HT": {"label": "Hiền Thuỷ", "le": 0, "si": 0, "total": 0},
-        "Shidai": {"label": "Shidai", "le": 0, "si": 215633000, "total": 215633000},
-        "TTV": {"label": "Tự Tại Viên", "le": 2150000, "si": 0, "total": 2150000}
-      }
+      "datRate": 19.047619047619047,
+      "tiemRate": 1.3605442176870748,
+      "onlLeadsCreated": 7,
+      "onlErrCount": 0,
+      "onlErrRate": 0,
+      "onlLost": 0,
+      "onlLostRate": 0,
+      "topLostReasons": [],
+      "siLeadsCreated": 16,
+      "siErrCount": 0,
+      "siErrRate": 0,
+      "siOnlineCreated": 16,
+      "siNotCared": 0,
+      "siCaredRate": 100
     },
     "prevMetrics": {
       "totalSpend": 14181364,
@@ -43,58 +36,56 @@
       "costPerMess": 29300.338842975205,
       "nDat": 106,
       "nTiem": 4,
-      "nTiemLe": 4,
-      "nTiemSi": 0,
       "costPerDat": 133786.45283018867,
       "costPerTiem": 3545341,
-      "adsDs": 5.62364240564055,
-      "combRevenue": 252174000,
-      "combOrders": 3,
-      "dsPerOrder": 84058000,
-      "dsPerOrderLe": 84058000,
-      "dsPerOrderSi": null,
-      "closeRate": 0.6198347107438017,
-      "closeRateLe": 0.6198347107438017,
-      "closeRateSi": 0,
-      "leRevenue": 252174000,
-      "siRevenue": 0,
-      "leOrders": 3,
-      "siOrders": 0,
-      "byBrand": {
-        "CT": {"label": "Chánh Tâm", "le": 221832000, "si": 0, "total": 221832000},
-        "HT": {"label": "Hiền Thuỷ", "le": 18792000, "si": 0, "total": 18792000},
-        "Shidai": {"label": "Shidai", "le": 11550000, "si": 0, "total": 11550000},
-        "TTV": {"label": "Tự Tại Viên", "le": 0, "si": 0, "total": 0}
-      }
+      "datRate": 21.90082644628099,
+      "tiemRate": 0.8264462809917356,
+      "onlLeadsCreated": 5,
+      "onlErrCount": 0,
+      "onlErrRate": 0,
+      "onlLost": 0,
+      "onlLostRate": 0,
+      "topLostReasons": [],
+      "siLeadsCreated": 6,
+      "siErrCount": 0,
+      "siErrRate": 0,
+      "siOnlineCreated": 6,
+      "siNotCared": 6,
+      "siCaredRate": 0
     },
-    "summary": "Doanh số tuần giảm nhẹ 10,7% (225,2tr) dù chi phí ads và mess đều tăng — ADS/DS xấu đi. Điểm sáng: chất lượng lead & tỷ lệ chốt cải thiện rõ, nhưng doanh số đang phụ thuộc gần hết vào 1 nhóm đơn Sỉ Shidai — cần theo dõi tính bền vững.",
+    "summary": "Chất lượng mess ổn định, CP/Mess giảm 9,2% dù mess tăng 21,5%. Điểm đáng chú ý nhất: tỷ lệ chăm sóc data Sỉ đảo chiều từ 0% lên 100%, nhưng cỡ mẫu còn nhỏ (6 → 16 lead/tuần) nên cần xác minh thêm.",
     "highlights": [
       {
         "type": "bad",
-        "title": "ADS/DS xấu đi dù chi phí ads tăng",
-        "detail": "Chi phí quảng cáo +10,3% (15,64tr) và tổng mess +21,5% (588), nhưng doanh số lại giảm -10,7% → ADS/DS tăng từ 5,62% lên 6,94% (+1,32 điểm %). Chi phí bỏ ra cho mỗi đồng doanh thu đang tăng, cần theo dõi tuần tới."
-      },
-      {
-        "type": "warn",
-        "title": "Doanh số Lẻ sụt mạnh, Chánh Tâm gần như mất doanh số",
-        "detail": "Lẻ chỉ còn 9,55tr (tuần trước 252,2tr). Riêng Chánh Tâm rơi từ 221,8tr xuống 7,4tr (-96,7%). Khả năng cao tuần trước có 1 đơn giá trị đột biến (outlier) — cần xác minh thay vì kết luận vội Chánh Tâm đang suy yếu."
-      },
-      {
-        "type": "warn",
-        "title": "Doanh số phụ thuộc gần hết vào Sỉ/Shidai",
-        "detail": "Sỉ chiếm 95,8% tổng doanh số tuần này (215,6tr/225,2tr), toàn bộ thuộc Shidai và chỉ đến từ 3 đơn. Rủi ro tập trung — nếu tuần tới không có đơn Sỉ lớn, doanh số có thể giảm sâu."
+        "title": "Sale Sỉ tuần trước gần như bỏ trống chăm sóc data mới",
+        "detail": "6 lead Sỉ tạo trong tuần 24/07–30/07, tính đến lúc chạy báo cáo (đã hơn 10 ngày — đủ thời gian xử lý) vẫn 0/6 (0%) có ghi nhận chăm sóc trong CRM Sỉ. Cần xác nhận với team Sỉ đây là bỏ sót thật hay do khớp dữ liệu (Lead ID/SĐT) giữa Master Sỉ và CRM Sỉ chưa khớp hết."
       },
       {
         "type": "good",
-        "title": "Chất lượng lead cải thiện rõ",
-        "detail": "Data Tiềm Năng tăng gấp đôi (4 → 8 lead), CP/Tiềm Năng giảm 44,9% (3,55tr → 1,95tr/lead). Phần đầu phễu marketing đang hiệu quả hơn hẳn."
+        "title": "Tuần này Sale Sỉ chăm sóc data rất nhanh",
+        "detail": "16/16 lead Sỉ tạo trong tuần 31/07–06/08 đã được chăm sóc (100%) dù mới tạo gần đây — đảo ngược hoàn toàn so với tuần trước. Cỡ mẫu còn nhỏ, cần theo dõi thêm 2-3 tuần để xác nhận đây là cải thiện bền vững."
       },
       {
         "type": "good",
-        "title": "Số đơn chốt & tỷ lệ chốt tăng mạnh",
-        "detail": "Số đơn chốt tăng từ 3 lên 11 đơn (+266,7%), tỷ lệ chốt tăng từ 0,62% lên 1,87% (+1,25 điểm %) — nhưng đi kèm DS TB/đơn giảm mạnh -75,6% (84,06tr → 20,47tr), nên xem lại cơ cấu đơn đang chốt."
+        "title": "CP/Mess giảm dù mess tăng mạnh",
+        "detail": "Tổng mess +21,5% (484 → 588) nhưng CP/Mess giảm -9,2% (29.300đ → 26.595đ) — hiệu suất chi tiêu để tạo 1 cuộc trò chuyện đang tốt lên."
+      },
+      {
+        "type": "warn",
+        "title": "Tỷ lệ Mess → Data Đạt giảm nhẹ",
+        "detail": "21,9% → 19,05% (-2,85 điểm %) — mess tăng nhanh hơn tốc độ chuyển thành data đạt, nên xem lại chất lượng mess mới có bị loãng không."
+      },
+      {
+        "type": "good",
+        "title": "Chất lượng data tiềm năng cải thiện rõ",
+        "detail": "Data Tiềm Năng tăng gấp đôi (4 → 8), CP/Tiềm Năng giảm mạnh 44,9% (3,55tr → 1,95tr/lead)."
+      },
+      {
+        "type": "good",
+        "title": "Sale Online không có lỗi nhập liệu",
+        "detail": "0% lead lỗi thiếu trường bắt buộc ở cả 2 tuần, chưa ghi nhận lead nào bị mất — dữ liệu Sale Online đang được nhập sạch, ổn định."
       }
     ],
-    "narrative": "Tuần 31/07–06/08/2026 ghi nhận tổng doanh số 225.183.000đ, giảm 10,7% so với tuần trước (252.174.000đ), dù chi phí quảng cáo tăng 10,3% (15,64tr) và tổng lượt mess tăng mạnh 21,5% (588 mess). Kết quả là ADS/DS xấu đi, tăng từ 5,62% lên 6,94% (+1,32 điểm %) — chi phí bỏ ra cho mỗi đồng doanh thu đang tăng lên.\n\nTuy nhiên phần đầu phễu marketing lại đang cải thiện rất rõ: Data Tiềm Năng tăng gấp đôi (4 → 8 lead), trong khi CP/Tiềm Năng giảm mạnh 44,9% (từ 3,55tr xuống còn 1,95tr/lead). Data Đạt cũng nhích nhẹ +5,7%. Chất lượng lead đang tốt lên — vấn đề nằm ở khâu sau, chuyển đổi thành doanh số giá trị cao.\n\nỞ khâu chốt đơn, số đơn chốt tăng vọt từ 3 lên 11 đơn (+266,7%) và tỷ lệ chốt tăng từ 0,62% lên 1,87% (+1,25 điểm %) — về số lượng đây là tín hiệu tích cực. Nhưng giá trị trung bình mỗi đơn giảm rất mạnh, từ 84.058.000đ xuống còn 20.471.000đ (-75,6%), cho thấy tuần này chốt được nhiều đơn nhỏ hơn thay vì ít đơn giá trị lớn như tuần trước.\n\nĐáng chú ý nhất là cơ cấu nguồn doanh số đảo chiều hoàn toàn: tuần trước 100% doanh số đến từ Lẻ (252,2tr, riêng Chánh Tâm chiếm 221,8tr), nhưng tuần này Lẻ chỉ còn 9,55tr (3,8% tổng doanh số) — Chánh Tâm rơi từ 221,8tr xuống chỉ còn 7,4tr (-96,7%). Ngược lại, doanh số Sỉ tăng từ 0 lên 215,6tr, chiếm tới 95,8% tổng doanh số tuần này, toàn bộ đến từ 3 đơn thuộc Shidai.\n\nVới số đơn/tuần còn khá nhỏ (3-11 đơn), doanh số và DS TB/đơn rất nhạy với 1-2 đơn giá trị lớn (outlier) — nhiều khả năng khoản 221,8tr của Chánh Tâm tuần trước và 215,6tr của Sỉ Shidai tuần này đều là các đơn đột biến, chưa hẳn phản ánh xu hướng bền vững. Khuyến nghị theo dõi thêm 2-3 tuần tới để xác nhận doanh số Lẻ có phục hồi hay không và mức độ phụ thuộc vào Sỉ/Shidai có tiếp tục tăng hay không, tránh đưa ra quyết định phân bổ ngân sách chỉ dựa trên 1 tuần dữ liệu."
+    "narrative": "Về hiệu suất tạo mess: tuần 31/07–06/08/2026 chi 15.637.830đ cho 588 mess, CP/Mess ở mức 26.595đ — giảm 9,2% so với tuần trước (29.300đ) dù chi phí tăng 10,3% và số mess tăng mạnh 21,5%. Đây là tín hiệu tích cực: mỗi đồng chi cho quảng cáo đang tạo ra nhiều cuộc trò chuyện hơn.\n\nTuy nhiên tỷ lệ mess chuyển thành Data Đạt giảm nhẹ, từ 21,9% xuống 19,05% (-2,85 điểm %) — mess tăng nhanh hơn tốc độ ra data đạt, nên CP/Data Đạt nhích lên nhẹ (133.786đ → 139.623đ, +4,4%). Ngược lại, tỷ lệ mess chuyển thành Data Tiềm Năng lại cải thiện rõ, từ 0,83% lên 1,36% (+0,54 điểm %), kéo CP/Tiềm Năng giảm mạnh 44,9% (3.545.341đ → 1.954.729đ/lead). Tổng hợp lại: mess vào nhiều hơn, chuyển đổi sang data đạt hơi loãng ra nhưng chất lượng data tiềm năng (lead có khả năng mua thật) lại tốt lên — đáng xem kỹ mẫu tin nhắn/kịch bản trả lời có đang ưu tiên đúng đối tượng không.\n\nVề xử lý dữ liệu Sale Online (Lẻ): 7 lead mới tạo trong tuần (tuần trước 5), không có lead nào lỗi thiếu trường bắt buộc và chưa ghi nhận lead nào bị đánh dấu mất — dữ liệu đang được nhập sạch, ổn định.\n\nVề xử lý dữ liệu Sale Sỉ: đây là điểm đáng chú ý nhất tuần này. 6 lead Sỉ tạo trong tuần 24/07–30/07 thì tính đến thời điểm báo cáo (đã hơn 10 ngày) vẫn 0/6 (0%) được ghi nhận chăm sóc trong CRM Sỉ — gần như toàn bộ lead tuần đó bị bỏ trống dù đã có đủ thời gian xử lý. Ngược lại, 16 lead Sỉ tạo trong tuần 31/07–06/08 thì 16/16 (100%) đã được chăm sóc dù mới tạo gần đây — một sự đảo chiều rất lớn. Không có lỗi thiếu trường bắt buộc ở cả 2 tuần.\n\nKhuyến nghị: xác nhận với team Sỉ vì sao 6 lead tuần 24/07-30/07 chưa được chạm tới — có thể là lead bị bỏ sót thật hoặc do cách khớp dữ liệu (Lead ID/SĐT) giữa Master Sỉ và CRM Sỉ chưa khớp hết. Đồng thời theo dõi thêm 2-3 tuần tới để xác nhận tỷ lệ chăm sóc 100% của tuần này là cải thiện bền vững, không phải do cỡ mẫu nhỏ (16 lead) hoặc do dồn xử lý 1 lần."
   }
 ]

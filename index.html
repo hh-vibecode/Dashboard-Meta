@@ -944,6 +944,82 @@ function mktMetricsForRange(fromStr,toStr,brSel){
   };
 }
 
+// Chỉ số QC (chi phí/chất lượng mess + xử lý dữ liệu Sale Sỉ & Sale Online) cho 1 khoảng ngày bất kỳ —
+// dùng cho Báo Cáo Đánh Giá tuần. KHÔNG đánh giá doanh số/ADS-DS (đã có ở QC So Sánh Tháng) — trang này
+// là kiểm soát chất lượng: mess có ra data tốt không, sales có xử lý/chăm sóc data sạch & kịp thời không.
+function dgQualityMetricsForRange(fromStr,toStr,brSel){
+  brSel=brSel||[];
+  const fromD=fromStr?localDate(fromStr):null,toD=toStr?localDate(toStr,true):null;
+  const inR=ds=>{const d=parseDate(ds);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
+  const U=s=>(s||'').toString().toUpperCase();
+  const normName=s=>(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/\s+/g,' ').trim();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const normKey=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const bl=v=>!(v||'').toString().trim();
+  const adCampMap=buildAdCampMap();
+  const brandText=s=>{const n=(s||'').toString();
+    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
+    if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
+    if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
+    if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';return null;};
+  const adBrand=a=>{a=(a||'').toString().trim();return a&&adCampMap[a]?brandText(adCampMap[a]):null;};
+  const brandSaonl=r=>brandText(r[COL_SAONL.CHANNEL])||adBrand(r[COL_SAONL.AD_ID]);
+  const brandSi=r=>'Shidai';
+  const brOk=b=>brSel.length===0||brSel.includes(b);
+
+  // Chi phí & chất lượng mess — tái dùng đúng công thức mktMetricsForRange (không viết lại)
+  const mk=mktMetricsForRange(fromStr,toStr,brSel);
+
+  // Xử lý dữ liệu Sale Online (Lẻ): lead TẠO trong kỳ — chỉ tính LỖI NHẬP LIỆU thật (thiếu trường bắt buộc / chốt
+  // mà thiếu doanh thu-ngày chốt), KHÔNG tính "chưa phân loại trạng thái" vì lead mới tạo trong tuần cần vài ngày
+  // sales mới xử lý xong — tính luôn sẽ luôn ra gần 100% lỗi và vô nghĩa khi so sánh tuần.
+  const onlWeek=saleOnlRows.filter(r=>inR(r[COL_SAONL.DATE])&&brOk(brandSaonl(r)));
+  const onlLeadsCreated=onlWeek.length;
+  let onlErrCount=0;
+  onlWeek.forEach(r=>{
+    let bad=false;
+    if(bl(r[COL_SAONL.SOURCE])||(bl(r[COL_SAONL.NAME])&&bl(r[COL_SAONL.PHONE])))bad=true;
+    if(/^chốt/i.test(r[COL_SAONL.STATUS]||'')&&(vndNum(r[COL_SAONL.REVENUE])<=0||bl(r[COL_SAONL.DATE_CLOSE])))bad=true;
+    if(bad)onlErrCount++;
+  });
+  const onlErrRate=onlLeadsCreated>0?onlErrCount/onlLeadsCreated*100:null;
+  const onlLostRows=onlWeek.filter(r=>/mất/i.test(r[COL_SAONL.STATUS]||''));
+  const onlLost=onlLostRows.length;
+  const onlLostRate=onlLeadsCreated>0?onlLost/onlLeadsCreated*100:null;
+  const lostByReason={};
+  onlLostRows.forEach(r=>{const g=(r[COL_SAONL.LOST_GROUP]||r[COL_SAONL.LOST_REASON]||'Khác').trim()||'Khác';lostByReason[g]=(lostByReason[g]||0)+1;});
+  const topLostReasons=Object.entries(lostByReason).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([reason,count])=>({reason,count}));
+
+  // Xử lý dữ liệu Sale Sỉ: lead TẠO trong kỳ — chỉ tính lỗi nhập liệu thật (thiếu trường bắt buộc), lý do bỏ
+  // check "chưa phân loại trạng thái" giống Sale Online ở trên. Tỷ lệ chăm sóc (siCaredRate) mới là chỉ số
+  // đo tốc độ xử lý thật sự.
+  const siWeek=saleSiRows.filter(r=>inR(r[COL_SI.DATE])&&brOk(brandSi(r)));
+  const siLeadsCreated=siWeek.length;
+  let siErrCount=0;
+  siWeek.forEach(r=>{
+    let bad=false;
+    if(bl(r[COL_SI.SOURCE])||(bl(r[COL_SI.REP])&&bl(r[COL_SI.STORE]))||bl(r[COL_SI.PHONE]))bad=true;
+    if(bad)siErrCount++;
+  });
+  const siErrRate=siLeadsCreated>0?siErrCount/siLeadsCreated*100:null;
+  const caredKeys=new Set((saleSiCrmRows||[]).map(r=>normKey(r[COL_SICRM.LEAD_ID])).filter(Boolean));
+  const caredPhones=new Set((saleSiCrmRows||[]).map(r=>last9(r[COL_SICRM.PHONE])).filter(Boolean));
+  const siCared=r=>caredKeys.has(normKey(r[COL_SI.MA_KH]))||caredKeys.has(normKey(r[COL_SI.LEAD_ID]))||(last9(r[COL_SI.PHONE])&&caredPhones.has(last9(r[COL_SI.PHONE])));
+  const siOnlineWeek=siWeek.filter(r=>U(r[COL_SI.SOURCE]).includes('ONLINE'));
+  const siNotCared=siOnlineWeek.filter(r=>!siCared(r)).length;
+  const siCaredRate=siOnlineWeek.length>0?(siOnlineWeek.length-siNotCared)/siOnlineWeek.length*100:null;
+
+  return{
+    totalSpend:mk.totalSpend,totalMess:mk.totalMess,costPerMess:mk.costPerMess,
+    nDat:mk.nDat,nTiem:mk.nTiem,costPerDat:mk.costPerDat,costPerTiem:mk.costPerTiem,
+    datRate:mk.totalMess>0?mk.nDat/mk.totalMess*100:null,
+    tiemRate:mk.totalMess>0?mk.nTiem/mk.totalMess*100:null,
+    onlLeadsCreated,onlErrCount,onlErrRate,onlLost,onlLostRate,topLostReasons,
+    siLeadsCreated,siErrCount,siErrRate,
+    siOnlineCreated:siOnlineWeek.length,siNotCared,siCaredRate,
+  };
+}
+
 function toCsv(u){
   u=u.replace('/pubhtml','/pub').replace('output=html','output=csv');
   if(!u.includes('output=csv'))u+=(u.includes('?')?'&':'?')+'output=csv';
@@ -3395,20 +3471,30 @@ function qcCmpGBadge(g,lowerBetter){if(g===null)return'<span style="color:var(--
 
 // ===== Báo Cáo Đánh Giá — nhận định tuần (Thứ 6 → Thứ 5), tự động tạo mỗi sáng Thứ 6 =====
 // Data lấy từ weekly-reviews.json (do routine cloud tự chạy hàng tuần ghi vào), page chỉ đọc & trình bày.
-const DG_METRICS=[
+// Trang này là kiểm soát CHẤT LƯỢNG — chi phí/chất lượng mess + xử lý dữ liệu Sale Sỉ & Sale Online.
+// Doanh số/ADS-DS KHÔNG đánh giá ở đây (đã có ở QC So Sánh Tháng).
+const DG_MESS_METRICS=[
   {key:'totalSpend',label:'Tổng Chi Phí',icon:'💰',type:'vnd'},
   {key:'totalMess',label:'Tổng Mess',icon:'💬',type:'num'},
   {key:'costPerMess',label:'CP / Mess',icon:'📌',type:'vnd',lowerBetter:true},
   {key:'nDat',label:'Data Đạt',icon:'✅',type:'num'},
+  {key:'datRate',label:'Tỷ Lệ Mess → Đạt',icon:'📈',type:'pct'},
+  {key:'costPerDat',label:'CP / Data Đạt',icon:'🎯',type:'vnd',lowerBetter:true},
   {key:'nTiem',label:'Data Tiềm Năng',icon:'🧑‍🤝‍🧑',type:'num'},
+  {key:'tiemRate',label:'Tỷ Lệ Mess → Tiềm Năng',icon:'📈',type:'pct'},
   {key:'costPerTiem',label:'CP / Tiềm Năng',icon:'🧲',type:'vnd',lowerBetter:true},
-  {key:'adsDs',label:'ADS/DS',icon:'📊',type:'pct',lowerBetter:true},
-  {key:'combRevenue',label:'Doanh Số',icon:'💵',type:'vnd'},
-  {key:'combOrders',label:'Số Đơn Chốt',icon:'🛍️',type:'num'},
-  {key:'dsPerOrder',label:'DS TB / Đơn',icon:'📦',type:'vnd'},
-  {key:'closeRate',label:'Tỷ Lệ Chốt',icon:'🎯',type:'pct'},
 ];
-function dgFmt(v,type){if(v==null)return'—';if(type==='vnd')return vnd(v);if(type==='pct')return pct(v);return num(v);}
+const DG_ONL_METRICS=[
+  {key:'onlLeadsCreated',label:'Lead Tạo Mới',icon:'🆕',type:'num'},
+  {key:'onlErrRate',label:'Tỷ Lệ Lead Lỗi Data',icon:'⚠️',type:'pct',lowerBetter:true},
+  {key:'onlLostRate',label:'Tỷ Lệ Mất Lead',icon:'❌',type:'pct',lowerBetter:true},
+];
+const DG_SI_METRICS=[
+  {key:'siLeadsCreated',label:'Lead Tạo Mới',icon:'🆕',type:'num'},
+  {key:'siErrRate',label:'Tỷ Lệ Lead Lỗi Data',icon:'⚠️',type:'pct',lowerBetter:true},
+  {key:'siCaredRate',label:'Tỷ Lệ Đã Chăm Sóc',icon:'🤝',type:'pct'},
+];
+function dgFmt(v,type){if(v==null)return'—';if(type==='vnd')return vnd(v);if(type==='pct')return v.toFixed(1)+'%';return num(v);}
 function dgBadge(cur,prev,type,lowerBetter){
   const g=type==='pct'?qcCmpDiff(prev,cur):qcCmpGrowth(prev,cur);
   if(g===null)return'<span style="color:var(--muted);font-size:10px">—</span>';
@@ -3417,12 +3503,21 @@ function dgBadge(cur,prev,type,lowerBetter){
   return`<span style="color:${good?'var(--green)':'var(--red)'};font-size:10px;font-weight:800">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}${type==='pct'?' đ':'%'}</span>`;
 }
 function dgFmtGenTime(iso){const d=iso?new Date(iso):null;if(!d||isNaN(d))return'';return d.toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function dgMetricGrid(cfgList,m,p){
+  return`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px">
+    ${cfgList.map(cfg=>{
+      const cur=m[cfg.key],prev=p[cfg.key];
+      return`<div style="background:var(--bg2);border-radius:12px;padding:12px 14px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap">${cfg.icon} ${cfg.label}</div>
+        <div style="font-size:17px;font-weight:800;color:var(--text);margin:4px 0 3px">${dgFmt(cur,cfg.type)}</div>
+        <div style="display:flex;align-items:center;gap:5px">${dgBadge(cur,prev,cfg.type,cfg.lowerBetter)}<span style="color:var(--muted);font-size:10px">so ${dgFmt(prev,cfg.type)}</span></div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 function dgWeekCard(w,idx){
   const m=w.metrics||{},p=w.prevMetrics||{};
-  const brandRows=['CT','HT','Shidai','TTV'].map(k=>{
-    const c=(m.byBrand||{})[k]||{label:k,total:0},pr=(p.byBrand||{})[k]||{label:k,total:0};
-    return`<tr><td>${c.label}</td><td>${vnd(c.total)}</td><td>${vnd(pr.total)}</td><td>${dgBadge(c.total,pr.total,'vnd')}</td></tr>`;
-  }).join('');
+  const lostList=(m.topLostReasons||[]).map(x=>`${x.reason} (${x.count})`).join(' · ')||'—';
   return`
   <div class="tbl-card" style="margin-bottom:18px${idx===0?';border-color:var(--accent)':''}">
     <div class="tbl-head" style="flex-wrap:wrap;gap:8px 14px">
@@ -3434,27 +3529,13 @@ function dgWeekCard(w,idx){
     </div>
     <div style="padding:16px 18px 20px">
       ${w.summary?`<div style="background:var(--accent-l);border-left:4px solid var(--accent);border-radius:10px;padding:13px 16px;margin-bottom:16px;font-size:13px;line-height:1.65;color:var(--text);font-weight:600">${w.summary}</div>`:''}
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:18px">
-        ${DG_METRICS.map(cfg=>{
-          const cur=m[cfg.key],prev=p[cfg.key];
-          return`<div style="background:var(--bg2);border-radius:12px;padding:12px 14px">
-            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;white-space:nowrap">${cfg.icon} ${cfg.label}</div>
-            <div style="font-size:17px;font-weight:800;color:var(--text);margin:4px 0 3px">${dgFmt(cur,cfg.type)}</div>
-            <div style="display:flex;align-items:center;gap:5px">${dgBadge(cur,prev,cfg.type,cfg.lowerBetter)}<span style="color:var(--muted);font-size:10px">so ${dgFmt(prev,cfg.type)}</span></div>
-          </div>`;
-        }).join('')}
-      </div>
-      <div class="sec-label" style="margin-top:2px">Doanh Số Theo Nguồn & Thương Hiệu</div>
-      <div class="tbl-scroll" style="margin-bottom:${w.highlights&&w.highlights.length?'18px':'4px'}">
-        <table class="grp-table">
-          <thead><tr><th>Nguồn / Brand</th><th>Tuần này</th><th>Tuần trước</th><th>Tăng trưởng</th></tr></thead>
-          <tbody>
-            <tr><td>🌐 Lẻ (Sale Online)</td><td>${vnd(m.leRevenue||0)}</td><td>${vnd(p.leRevenue||0)}</td><td>${dgBadge(m.leRevenue,p.leRevenue,'vnd')}</td></tr>
-            <tr><td>🏪 Sỉ (nguồn Online)</td><td>${vnd(m.siRevenue||0)}</td><td>${vnd(p.siRevenue||0)}</td><td>${dgBadge(m.siRevenue,p.siRevenue,'vnd')}</td></tr>
-            ${brandRows}
-          </tbody>
-        </table>
-      </div>
+      <div class="sec-label" style="margin-top:2px">Chi Phí & Chất Lượng Mess</div>
+      <div style="margin-bottom:18px">${dgMetricGrid(DG_MESS_METRICS,m,p)}</div>
+      <div class="sec-label">Xử Lý Dữ Liệu — Sale Online (Lẻ)</div>
+      <div style="margin-bottom:6px">${dgMetricGrid(DG_ONL_METRICS,m,p)}</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:18px">Lý do mất lead nhiều nhất: ${lostList}</div>
+      <div class="sec-label">Xử Lý Dữ Liệu — Sale Sỉ</div>
+      <div style="margin-bottom:${w.highlights&&w.highlights.length?'18px':'4px'}">${dgMetricGrid(DG_SI_METRICS,m,p)}</div>
       ${w.highlights&&w.highlights.length?`
       <div class="sec-label">Vấn Đề & Điểm Cần Chú Ý</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
@@ -3485,7 +3566,7 @@ async function renderDanhGia(){
   if(!data.length){
     el.innerHTML=`
       <div class="page-title">Báo Cáo Đánh Giá</div>
-      <div class="page-sub">Tổng hợp & phân tích chỉ số MKT + Sale theo tuần (Thứ 6 → Thứ 5)</div>
+      <div class="page-sub">Kiểm soát chất lượng: chi phí & chất lượng mess, xử lý dữ liệu Sale Sỉ + Sale Online — theo tuần (Thứ 6 → Thứ 5)</div>
       <div style="padding:80px 20px;text-align:center;color:var(--muted)">
         <div style="font-size:48px;margin-bottom:12px">🗓️</div>
         <div style="font-size:15px;font-weight:700;color:var(--text2)">Chưa có báo cáo tuần nào</div>
@@ -3495,7 +3576,7 @@ async function renderDanhGia(){
   }
   el.innerHTML=`
     <div class="page-title">Báo Cáo Đánh Giá</div>
-    <div class="page-sub">Tổng hợp & phân tích chỉ số MKT + Sale theo tuần (Thứ 6 → Thứ 5) · tự động cập nhật mỗi sáng Thứ 6 · ${data.length} báo cáo</div>
+    <div class="page-sub">Kiểm soát chất lượng: chi phí & chất lượng mess, xử lý dữ liệu Sale Sỉ + Sale Online — theo tuần (Thứ 6 → Thứ 5) · tự động cập nhật mỗi sáng Thứ 6 · ${data.length} báo cáo</div>
     ${data.map((w,i)=>dgWeekCard(w,i)).join('')}`;
 }
 function renderQcCompare(){
