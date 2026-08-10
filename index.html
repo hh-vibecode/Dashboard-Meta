@@ -838,15 +838,9 @@ function calcSiOnlineStats(from,to,brSel){
   const srcByKey={},nameByKey={},phoneByKey={},storeByKey={};
   saleSiRows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim(),st=(r[COL_SI.STORE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;if(!storeByKey[k]&&st)storeByKey[k]=st;});});
   const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
-  const adCampMap=buildAdCampMap();
-  const brandText=s=>{const n=(s||'').toString();
-    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
-    if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
-    if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
-    if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';
-    return null;};
-  const adBrand=a=>{a=(a||'').toString().trim();return a&&adCampMap[a]?brandText(adCampMap[a]):null;};
-  const brandSi=r=>brandText(r[COL_SICRM.CHANNEL])||adBrand(r[COL_SICRM.AD_ID]);
+  // Toàn bộ Sỉ là 1 mảng kinh doanh của Shidai — không tách theo text kênh/ads id nữa,
+  // 100% doanh số Sỉ tính về Shidai (trước đây suy theo text/ads khiến 1 phần rơi oan sang CT/HT/TTV)
+  const brandSi=r=>'Shidai';
   let revenue=0;const list=[];
   saleSiCrmRows.forEach(r=>{
     const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);
@@ -2603,7 +2597,7 @@ function renderQcDoiSoat(){
   const adBrand=a=>{a=(a||'').toString().trim();return a&&adCampMap[a]?brandText(adCampMap[a]):null;};
   const brandOnl=r=>adBrand(r[COL_ONL.AD_ID])||brandText(r[COL_ONL.SOURCE]);
   const brandSaonl=r=>brandText(r[COL_SAONL.CHANNEL])||adBrand(r[COL_SAONL.AD_ID]);
-  const brandSi=r=>brandText(r[COL_SI.CHANNEL])||adBrand(r[COL_SI.AD_ID]);
+  const brandSi=r=>'Shidai'; // toàn bộ Sỉ là của Shidai, không suy theo text/ads nữa
   const okB=(fn,r)=>brOk(fn(r));
 
   // ===== MKT — chi phí & mess =====
@@ -3086,7 +3080,7 @@ function renderQcInvoice(){
   const makhByKey={},nameByKeySi={},phoneByKeySi={},storeByKeySi={};
   saleSiRows.forEach(r=>{const mk=nrmMa(r[COL_SI.MA_KH]),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),ph9=last9(r[COL_SI.PHONE]),st=(r[COL_SI.STORE]||'').trim();
     [nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph9?'PH:'+ph9:''].forEach(k=>{if(!k)return;if(!makhByKey[k]&&mk)makhByKey[k]=mk;if(!nameByKeySi[k]&&nm&&nm!=='—')nameByKeySi[k]=nm;if(!phoneByKeySi[k]&&r[COL_SI.PHONE])phoneByKeySi[k]=r[COL_SI.PHONE];if(!storeByKeySi[k]&&st)storeByKeySi[k]=st;});});
-  const brandSiRow=r=>{const a=(r[COL_SICRM.AD_ID]||'').trim();return brandTextSa(r[COL_SICRM.CHANNEL])||(a&&adCampMap[a]?brandTextSa(adCampMap[a]):null);};
+  const brandSiRow=r=>'Shidai'; // toàn bộ Sỉ là của Shidai, không suy theo text/ads nữa
   let siClosed=(saleSiCrmRows||[]).filter(r=>vndNum(r[COL_SICRM.CLOSE_VALUE])>0&&inR(parseDate(r[COL_SICRM.CLOSE_DATE])));
   if(brSel.length)siClosed=siClosed.filter(r=>brSel.includes(brandSiRow(r)));
   const siRecList=siClosed.map(r=>{
