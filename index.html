@@ -1155,10 +1155,10 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     si:{title:'Doanh số Sỉ — nguồn Online, đã chốt',cols:['Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Nguồn','Ads ID','Giá trị'],rows:siOn.list},
     chot:{title:'Đơn đã chốt — Sỉ + Lẻ',cols:['Nguồn','Ngày chốt','Lead ID/Mã KH','Tên','SĐT','Kênh/Nguồn','Ads ID','Giá trị'],rows:chotList},
   };
-  // ADS/DS theo brand: chi phí ads / doanh số
+  // ADS/DS theo brand: chi phí ads / doanh số. Sỉ 100% là Shidai → cộng vào DS Shidai
   const adsDsBrand=[
     {key:'HT',label:'Hiền Thuỷ',color:'#f59e0b',spend:htSpend,rev:saleStats?saleStats.byBrand.HT.revenue:0},
-    {key:'Shidai',label:'Shidai',color:'#8b5cf6',spend:sdSpend,rev:saleStats?saleStats.byBrand.Shidai.revenue:0},
+    {key:'Shidai',label:'Shidai',color:'#8b5cf6',spend:sdSpend,rev:(saleStats?saleStats.byBrand.Shidai.revenue:0)+siOn.revenue},
     {key:'CT',label:'Chánh Tâm',color:'#3b82f6',spend:ctSpend,rev:saleStats?saleStats.byBrand.CT.revenue:0},
     {key:'TTV',label:'Tự Tại Viên',color:'#0abf7a',spend:ttvSpend,rev:saleStats?saleStats.byBrand.TTV.revenue:0}
   ];
@@ -1197,8 +1197,8 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
         <div class="chart-wrap"><canvas id="cBrand"></canvas></div>
       </div>
       <div class="chart-card">
-        <div class="chart-head"><div class="chart-title">Doanh Số Theo Brand</div><span class="chart-sub">${saleStats&&saleStats.totalRevenue>0?vnd(saleStats.totalRevenue)+' tổng':'từ CRM đã chốt'}</span></div>
-        ${saleStats&&Object.values(saleStats.byBrand).some(b=>b.revenue>0)
+        <div class="chart-head"><div class="chart-title">Doanh Số Theo Brand</div><span class="chart-sub">${saleStats&&(saleStats.totalRevenue+siOn.revenue)>0?vnd(saleStats.totalRevenue+siOn.revenue)+' tổng':'từ CRM đã chốt'}</span></div>
+        ${saleStats&&(Object.values(saleStats.byBrand).some(b=>b.revenue>0)||siOn.revenue>0)
           ?'<div class="chart-wrap"><canvas id="cBrandRev"></canvas></div>'
           :'<div class="chart-empty"><div class="icon">💰</div><p>Chưa có dữ liệu doanh số</p></div>'}
       </div>
@@ -1242,7 +1242,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
     if(allProds.includes(cur))pf.value=cur;
   }
   buildBrandChart(htSpend,sdSpend,ctSpend,ttvSpend,total);
-  buildBrandRevChart(saleStats);
+  buildBrandRevChart(saleStats,siOn.revenue);
   buildWaveChart(rows,saleFiltered);
   buildProdRevChart(saleStats);
   buildPlatRevChart(platRev);
@@ -3932,14 +3932,16 @@ function buildBrandChart(htSpend,sdSpend,ctSpend,ttvSpend,total){
   });
 }
 
-function buildBrandRevChart(saleStats){
+function buildBrandRevChart(saleStats,siRevenue){
   const ctx=document.getElementById('cBrandRev');if(!ctx)return;
   if(!saleStats)return;
+  siRevenue=siRevenue||0;
   const labels=[],data=[],bgC=[],bdC=[];
-  const totalRev=Object.values(saleStats.byBrand).reduce((s,b)=>s+b.revenue,0);
+  const shidaiRev=saleStats.byBrand.Shidai.revenue+siRevenue;
+  const totalRev=Object.values(saleStats.byBrand).reduce((s,b)=>s+b.revenue,0)+siRevenue;
   if(!totalRev)return;
   if(saleStats.byBrand.HT.revenue>0){labels.push('Hiền Thuỷ');data.push(saleStats.byBrand.HT.revenue);bgC.push('rgba(249,115,22,.85)');bdC.push('#f97316');}
-  if(saleStats.byBrand.Shidai.revenue>0){labels.push('Shidai');data.push(saleStats.byBrand.Shidai.revenue);bgC.push('rgba(8,145,178,.85)');bdC.push('#0891b2');}
+  if(shidaiRev>0){labels.push('Shidai');data.push(shidaiRev);bgC.push('rgba(8,145,178,.85)');bdC.push('#0891b2');}
   if(saleStats.byBrand.CT.revenue>0){labels.push('Chánh Tâm');data.push(saleStats.byBrand.CT.revenue);bgC.push('rgba(124,58,237,.85)');bdC.push('#7c3aed');}
   if(saleStats.byBrand.TTV.revenue>0){labels.push('Tự Tại Viên');data.push(saleStats.byBrand.TTV.revenue);bgC.push('rgba(10,191,122,.85)');bdC.push('#0abf7a');}
   if(chartBrandRev){chartBrandRev.destroy();chartBrandRev=null;}
