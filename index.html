@@ -442,8 +442,10 @@ async function loadData(){
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
   const sicrmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=138010004&single=true&output=csv';
   const saonlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=2107421092&single=true&output=csv';
-  const kiotRaw1='https://docs.google.com/spreadsheets/d/e/2PACX-1vS5Xgh9aAzJgjgGW52T1yBGgENyXhNfz9MADJO3ta_-RYwVDp11Z94WnE91cqZXKA/pub?gid=1842706479&single=true&output=csv';
-  const kiotRaw2='https://docs.google.com/spreadsheets/d/e/2PACX-1vSjM5w_NcjqmgWIfHm7QtJjyBdsrRzZMEKOyASyKiNyP2gsgWI78IMKs5S0IDPymw/pub?gid=1970190033&single=true&output=csv';
+  // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này (đỡ phải đổi nhiều link).
+  // Thêm tháng mới: lấy gid tab mới rồi thêm 1 dòng kiotRawN bên dưới + thêm vào mảng kiotRawUrls.
+  const kiotRaw1='https://docs.google.com/spreadsheets/d/e/2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw/pub?gid=1181725551&single=true&output=csv'; // T6
+  const kiotRaw2='https://docs.google.com/spreadsheets/d/e/2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw/pub?gid=1911837309&single=true&output=csv'; // T7
   if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
