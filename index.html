@@ -1852,6 +1852,11 @@ function renderSaleSiData(){
   const careOf=r=>siCareRecords(r,histMap);
   const chip=(txt,bg,fg)=>`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;
   const srcChip=s=>{const t=(s||'').trim().toLowerCase();if(t==='online')return chip('Online','#dbeafe','#2563eb');if(t==='offline')return chip('Offline','#fef3c7','#b45309');return s?chip(s,'#e5e7eb','#6b7280'):'<span style="color:var(--muted)">—</span>';};
+  // Khách nguồn Online: cột Kênh mới là page thật (vd "Facebook Shidai") — cột Fanpage/Website trong Master gần như luôn trống với khách online.
+  // Khách Offline: dùng cột Fanpage/Website nếu có (link profile khách tự cung cấp), không có thì '—'.
+  const pageOf=r=>{const src=(r[COL_SI.SOURCE]||'').trim().toLowerCase();
+    if(src==='online'){const ch=(r[COL_SI.CHANNEL]||'').trim();return ch||'—';}
+    return(r[COL_SI.FANPAGE]||'').trim()||'—';};
   // Đồng bộ màu 4 trạng thái chuẩn (cột Phân loại KH) với Báo Cáo Sỉ Tổng Quan: Đã ra đơn=xanh lá · Tiềm năng=tím · Không tiềm năng=xanh cyan · Mất kết nối=đỏ
   const statusChip=s=>{const v=(s||'').trim();if(!v)return'<span style="color:var(--muted)">—</span>';const t=v.toLowerCase();
     if(t.includes('đã ra đơn'))return chip(v,'#dcfce7','#16a34a');
@@ -1866,6 +1871,7 @@ function renderSaleSiData(){
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SI.DATE]||'—'}</td>
       <td style="padding:9px 12px;max-width:260px"><div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${siPersonName(r[COL_SI.REP],r[COL_SI.STORE]).replace(/"/g,'')}">${siPersonName(r[COL_SI.REP],r[COL_SI.STORE])}</div>${(r[COL_SI.STORE]||'').trim()&&(r[COL_SI.STORE]||'').trim().toUpperCase()!==siPersonName(r[COL_SI.REP],r[COL_SI.STORE]).toUpperCase()?`<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🏪 ${(r[COL_SI.STORE]||'').trim()}</div>`:''}</td>
       <td style="padding:9px 12px">${srcChip(r[COL_SI.SOURCE])}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${pageOf(r).replace(/"/g,'&quot;')}">${pageOf(r)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
@@ -1908,9 +1914,9 @@ function renderSaleSiData(){
       </div>
     </div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1080px;table-layout:fixed">
-      <colgroup>${['8%','18%','7%','6%','8%','7%','24%','13%','9%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <colgroup>${['7%','15%','6%','11%','6%','7%','6%','19%','12%','9%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['DOANH THU TIỀM NĂNG','right','#7c3aed'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['PAGE','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['DOANH THU TIỀM NĂNG','right','#7c3aed'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
   if(window._siSearchFocus){window._siSearchFocus=false;const sb=document.getElementById('siSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
