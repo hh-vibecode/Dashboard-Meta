@@ -1874,7 +1874,6 @@ function renderSaleSiData(){
       <td style="padding:9px 12px">${srcChip(r[COL_SI.SOURCE])}</td>
       <td style="padding:9px 12px">${productOf(r)==='Nến Bơ'?chip('Nến Bơ','#fef3c7','#b45309'):chip('Đồ Thờ','#e0e7ff','#4338ca')}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--text2);white-space:normal;word-break:break-word;line-height:1.35">${(r[COL_SI.CITY]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
-      <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
       <td style="padding:9px 12px;font-size:11px;color:var(--text2);line-height:1.45;white-space:normal;word-break:break-word">${ci.content||'<span style="color:var(--muted)">—</span>'}</td>
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
@@ -1921,9 +1920,9 @@ function renderSaleSiData(){
       </div>
     </div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1440px;table-layout:fixed">
-      <colgroup>${['5%','20%','5%','7%','8%','5%','6%','22%','5%','12%','5%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <colgroup>${['5%','22%','5%','7%','9%','7%','24%','5%','11%','5%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SẢN PHẨM','left'],['VỊ TRÍ','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['NỘI DUNG CS GẦN NHẤT','left'],['CHƯA LH','center','#dc2626'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SẢN PHẨM','left'],['VỊ TRÍ','left'],['CS CUỐI','left'],['NỘI DUNG CS GẦN NHẤT','left'],['CHƯA LH','center','#dc2626'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
   if(window._siSearchFocus){window._siSearchFocus=false;const sb=document.getElementById('siSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
