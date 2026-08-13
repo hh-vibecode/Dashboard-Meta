@@ -1368,13 +1368,13 @@ function getSiCrmMap(){
 function siContactInfo(masterRow,histMap){
   const recs=siCareRecords(masterRow,histMap);
   const today=new Date();today.setHours(0,0,0,0);
-  let last=null,lastStr='',status='',next='',reason='',result='';
-  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=(r[COL_SICRM.NEED_HELP]||'').trim();result=(r[COL_SICRM.RESULT]||'').trim();}});
+  let last=null,lastStr='',status='',next='',reason='',result='',content='';
+  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=(r[COL_SICRM.NEED_HELP]||'').trim();result=(r[COL_SICRM.RESULT]||'').trim();content=(r[COL_SICRM.CONTENT]||'').trim();}});
   const count=recs.length;
   let expected=0;for(const rec of recs){const e=vndNum(rec[COL_SICRM.EXPECTED]);if(e>0){expected=e;break;}}  // giá trị dự kiến (lượt CS gần nhất có)
   if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
-  return {days,lastStr,count,status,next,expected,reason,result};
+  return {days,lastStr,count,status,next,expected,reason,result,content};
 }
 // Gộp lịch sử CS của 1 khách từ 3 khoá (Mã KH + Lead ID + SĐT), khử trùng theo dòng, sắp mới→cũ
 function siCareRecords(masterRow,histMap){
@@ -1876,6 +1876,7 @@ function renderSaleSiData(){
       <td style="padding:9px 12px;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(r[COL_SI.CITY]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
       <td style="padding:9px 12px;text-align:center;font-size:13px;font-weight:700;color:${ci.count>0?'var(--accent)':'var(--muted)'}">${ci.count||'—'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--text2);line-height:1.4" title="${ci.content?ci.content.replace(/"/g,'&quot;'):''}">${ci.content?`<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${ci.content}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
       <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${ci.expected>0?'#7c3aed':'var(--muted)'};white-space:nowrap">${ci.expected>0?vnd(ci.expected):'—'}</td>
       <td style="padding:9px 12px">${statusChip(r[COL_SI.STATUS])}</td>
@@ -1920,10 +1921,10 @@ function renderSaleSiData(){
         </select>
       </div>
     </div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1080px;table-layout:fixed">
-      <colgroup>${['6%','14%','6%','9%','9%','6%','7%','6%','17%','11%','9%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1440px;table-layout:fixed">
+      <colgroup>${['5%','11%','5%','7%','6%','5%','6%','24%','5%','12%','9%','5%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SẢN PHẨM','left'],['VỊ TRÍ','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['CHƯA LH','center','#dc2626'],['DOANH THU TIỀM NĂNG','right','#7c3aed'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SẢN PHẨM','left'],['VỊ TRÍ','left'],['SỐ LẦN LH','center'],['CS CUỐI','left'],['NỘI DUNG CS GẦN NHẤT','left'],['CHƯA LH','center','#dc2626'],['DOANH THU TIỀM NĂNG','right','#7c3aed'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
   if(window._siSearchFocus){window._siSearchFocus=false;const sb=document.getElementById('siSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
