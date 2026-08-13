@@ -1870,7 +1870,7 @@ function renderSaleSiData(){
   const fbAvatar='<svg viewBox="0 0 40 40" width="30" height="30" style="display:block"><circle cx="20" cy="20" r="20" fill="#1f2937"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>';
   const bodyRows=enriched.map(({r,ci,rev},i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SI.DATE]||'—'}</td>
-      <td style="padding:9px 12px"><div style="font-size:13px;font-weight:700;white-space:normal;word-break:break-word;line-height:1.35">${siPersonName(r[COL_SI.REP],r[COL_SI.STORE])}</div>${(r[COL_SI.STORE]||'').trim()&&(r[COL_SI.STORE]||'').trim().toUpperCase()!==siPersonName(r[COL_SI.REP],r[COL_SI.STORE]).toUpperCase()?`<div style="font-size:11px;color:var(--muted);white-space:normal;word-break:break-word;line-height:1.35">🏪 ${(r[COL_SI.STORE]||'').trim()}</div>`:''}</td>
+      <td style="padding:9px 12px"><div style="font-size:13px;font-weight:700;white-space:normal;word-break:break-word;line-height:1.35">${siPersonName(r[COL_SI.REP],r[COL_SI.STORE])}</div>${(r[COL_SI.STORE]||'').trim()&&(r[COL_SI.STORE]||'').trim().toUpperCase()!==siPersonName(r[COL_SI.REP],r[COL_SI.STORE]).toUpperCase()?`<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(r[COL_SI.STORE]||'').trim().replace(/"/g,'&quot;')}">🏪 ${(r[COL_SI.STORE]||'').trim()}</div>`:''}</td>
       <td style="padding:9px 12px">${srcChip(r[COL_SI.SOURCE])}</td>
       <td style="padding:9px 12px">${productOf(r)==='Nến Bơ'?chip('Nến Bơ','#fef3c7','#b45309'):chip('Đồ Thờ','#e0e7ff','#4338ca')}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--text2);white-space:normal;word-break:break-word;line-height:1.35">${(r[COL_SI.CITY]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
@@ -1919,8 +1919,8 @@ function renderSaleSiData(){
         </select>
       </div>
     </div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1440px;table-layout:fixed">
-      <colgroup>${['5%','22%','5%','7%','9%','7%','24%','5%','11%','5%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+      <colgroup>${['7%','19%','5%','7%','10%','9%','19%','6%','13%','5%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['SẢN PHẨM','left'],['VỊ TRÍ','left'],['CS CUỐI','left'],['NỘI DUNG CS GẦN NHẤT','left'],['CHƯA LH','center','#dc2626'],['TRẠNG THÁI','left'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
