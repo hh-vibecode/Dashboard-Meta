@@ -1451,12 +1451,16 @@ function renderSaleSi(){
   // "Không tiềm năng" chứa sẵn chuỗi con "tiềm năng" nên phải loại trừ nó ra trước khi test "tiềm năng" đơn thuần,
   // nếu không khách Không tiềm năng sẽ bị lẫn vào nhóm Tiềm năng, chưa ra đơn (bug đã xảy ra thực tế)
   const isPhoStatus=r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(stOf(r));
+  const isNoContact=r=>/chưa liên hệ được|chua lien he duoc/.test(stOf(r));
+  const isLongCare=r=>/chăm sóc dài hạn|cham soc dai han/.test(stOf(r));
   const notYetRows=baseRows.filter(r=>!isDon(r));
   const tiemRows=notYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r))&&!isPhoStatus(r));
   const lostRows=notYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
   // "Không tiềm năng" chỉ tính khách ĐÃ được gắn trạng thái đó; khách chưa có trạng thái gì (bỏ trống/khác) tách riêng, không gộp vào Không tiềm năng
   const phoRows=notYetRows.filter(isPhoStatus);
-  const noStatusRows=notYetRows.filter(r=>!tiemRows.includes(r)&&!lostRows.includes(r)&&!phoRows.includes(r));
+  const noContactRows=notYetRows.filter(r=>isNoContact(r)&&!tiemRows.includes(r)&&!lostRows.includes(r)&&!phoRows.includes(r));
+  const longCareRows=notYetRows.filter(r=>isLongCare(r)&&!tiemRows.includes(r)&&!lostRows.includes(r)&&!phoRows.includes(r)&&!noContactRows.includes(r));
+  const noStatusRows=notYetRows.filter(r=>!tiemRows.includes(r)&&!lostRows.includes(r)&&!phoRows.includes(r)&&!noContactRows.includes(r)&&!longCareRows.includes(r));
   const tiemNoDon=tiemRows.length;
   // Doanh thu theo NGÀY CHỐT (CRM) + nguồn (sửa lỗi offline T6 = 0); tra cứu tên/SĐT từ master sỉ
   const srcByKey={},nameByKey={},phoneByKey={},storeByKey={};
@@ -1487,7 +1491,9 @@ function renderSaleSi(){
   const onlTiemRows=onlNotYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r))&&!isPhoStatus(r));
   const onlLostRows=onlNotYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
   const onlKtnRows=onlNotYetRows.filter(isPhoStatus);
-  const onlChuaPlRows=onlNotYetRows.filter(r=>!onlTiemRows.includes(r)&&!onlLostRows.includes(r)&&!onlKtnRows.includes(r));
+  const onlNoContactRows=onlNotYetRows.filter(r=>isNoContact(r)&&!onlTiemRows.includes(r)&&!onlLostRows.includes(r)&&!onlKtnRows.includes(r));
+  const onlLongCareRows=onlNotYetRows.filter(r=>isLongCare(r)&&!onlTiemRows.includes(r)&&!onlLostRows.includes(r)&&!onlKtnRows.includes(r)&&!onlNoContactRows.includes(r));
+  const onlChuaPlRows=onlNotYetRows.filter(r=>!onlTiemRows.includes(r)&&!onlLostRows.includes(r)&&!onlKtnRows.includes(r)&&!onlNoContactRows.includes(r)&&!onlLongCareRows.includes(r));
 
   window._siLists={
     total:{title:'Toàn bộ khách sỉ (theo ngày tạo trong kỳ)',cols:siCols,rows:siMap(baseRows)},
@@ -1498,6 +1504,8 @@ function renderSaleSi(){
     onlKtn:{title:'Online — Không tiềm năng',cols:siCols,rows:siMap(onlKtnRows)},
     onlLost:{title:'Online — Mất kết nối',cols:siCols,rows:siMap(onlLostRows)},
     onlChuaPl:{title:'Online — Chưa cập nhật trạng thái',cols:siCols,rows:siMap(onlChuaPlRows)},
+    onlNoContact:{title:'Online — Chưa liên hệ được',cols:siCols,rows:siMap(onlNoContactRows)},
+    onlLongCare:{title:'Online — Chăm sóc dài hạn',cols:siCols,rows:siMap(onlLongCareRows)},
     offline:{title:'Khách mới nguồn Offline (tự khai thác)',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline'))},
     srcother:{title:'Khách mới chưa rõ nguồn (không tính vào Tổng Khách Mới)',cols:siCols,rows:siMap(newRowsAll.filter(r=>{const s=(r[COL_SI.SOURCE]||'').toLowerCase().trim();return s!=='online'&&s!=='offline';}))},
     closed:{title:'Khách đã ra đơn',cols:siCols,rows:siMap(baseRows.filter(isDon))},
@@ -1506,6 +1514,8 @@ function renderSaleSi(){
       rows:tiemRows.map(r=>[r[COL_SI.DATE],r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siNameCell(siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],r[COL_SI.CITY],r[COL_SI.SALES],r[COL_SI.STATUS],ciOf(r).expected>0?vnd(ciOf(r).expected):''])},
     pho:{title:'Không tiềm năng (chưa ra đơn)',cols:siCols,rows:siMap(phoRows)},
     nost:{title:'Chưa cập nhật trạng thái (chưa ra đơn)',cols:siCols,rows:siMap(noStatusRows)},
+    noContact:{title:'Chưa liên hệ được (chưa ra đơn)',cols:siCols,rows:siMap(noContactRows)},
+    longCare:{title:'Chăm sóc dài hạn (chưa ra đơn)',cols:siCols,rows:siMap(longCareRows)},
     lost:{title:'Mất kết nối (chưa ra đơn)',cols:siCols,rows:siMap(lostRows)},
     closes:{title:'Đơn chốt theo ngày (CRM)',cols:closeCols,rows:closeList},
     closesOnl:{title:'Đơn chốt theo ngày — nguồn Online',cols:closeCols,rows:closeList.filter(x=>x[4]==='Online')},
@@ -1514,8 +1524,8 @@ function renderSaleSi(){
     expOnl:{title:'Doanh thu tiềm năng — nguồn Online',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='online')},
     expOff:{title:'Doanh thu tiềm năng — nguồn Offline',cols:['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Giá trị dự kiến'],rows:expList.filter(x=>(x[4]||'').toLowerCase()==='offline')},
   };
-  window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length,nost:noStatusRows.length};
-  window._siOnlineQ={total:onlNewRows.length,don:onlDonRows.length,tiem:onlTiemRows.length,ktn:onlKtnRows.length,lost:onlLostRows.length,chuaPl:onlChuaPlRows.length};
+  window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length,noContact:noContactRows.length,longCare:longCareRows.length,nost:noStatusRows.length};
+  window._siOnlineQ={total:onlNewRows.length,don:onlDonRows.length,tiem:onlTiemRows.length,ktn:onlKtnRows.length,lost:onlLostRows.length,noContact:onlNoContactRows.length,longCare:onlLongCareRows.length,chuaPl:onlChuaPlRows.length};
   // ── Doanh thu: top khách / theo miền / theo thành phố ──
   const custRev=rows.map(r=>({name:siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),store:(r[COL_SI.STORE]||'').trim(),city:(r[COL_SI.CITY]||'Chưa rõ').trim(),region:siRegion(r[COL_SI.CITY]),rev:toN(r[COL_SI.TOTAL_REV])})).filter(x=>x.rev>0).sort((a,b)=>b.rev-a.rev);
   const topCust=custRev.slice(0,12);
@@ -1754,7 +1764,7 @@ function renderSaleSi(){
 function siShow(key){const d=(window._siLists||{})[key];if(d)dataModal(d);}
 // "Chưa ra đơn" → mở phân loại 3 nhóm; bấm tiếp từng nhóm để xem data
 function siShowNotYet(){
-  const d=window._siNotYet||{total:0,tiem:0,pho:0,lost:0,nost:0};
+  const d=window._siNotYet||{total:0,tiem:0,pho:0,lost:0,noContact:0,longCare:0,nost:0};
   const card=(key,label,val,color,desc)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 180px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
     <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
     <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
@@ -1772,13 +1782,15 @@ function siShowNotYet(){
         ${card('tiem','Tiềm năng, chưa ra đơn',d.tiem,'#7c3aed','có giá trị dự kiến (đang đàm phán)')}
         ${card('pho','Không tiềm năng',d.pho,'#0891b2','đã gắn trạng thái Không tiềm năng')}
         ${card('lost','Mất kết nối',d.lost,'#e11d48','không nghe máy / chưa phản hồi')}
+        ${card('noContact','Chưa liên hệ được',d.noContact,'#f59e0b','đã thử liên hệ nhưng chưa gặp được khách')}
+        ${card('longCare','Chăm sóc dài hạn',d.longCare,'#0abf7a','tiềm năng dài hạn, chưa chốt trong ngắn hạn')}
         ${card('nost','Chưa cập nhật',d.nost,'#64748b','chưa gắn trạng thái ở cột Phân loại KH')}
       </div>
     </div></div>`;
 }
 // Khách mới nguồn Online → phân loại theo cột "Phân loại KH" (Master Sỉ)
 function siShowOnlineQuality(){
-  const d=window._siOnlineQ||{total:0,don:0,tiem:0,ktn:0,lost:0,chuaPl:0};
+  const d=window._siOnlineQ||{total:0,don:0,tiem:0,ktn:0,lost:0,noContact:0,longCare:0,chuaPl:0};
   const card=(key,label,val,color,desc)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 180px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
     <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
     <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
@@ -1797,6 +1809,8 @@ function siShowOnlineQuality(){
         ${card('onlTiem','Tiềm năng, chưa ra đơn',d.tiem,'#7c3aed','có giá trị dự kiến')}
         ${card('onlKtn','Không tiềm năng',d.ktn,'#0891b2','đã gắn trạng thái Không tiềm năng')}
         ${card('onlLost','Mất kết nối',d.lost,'#e11d48','không nghe máy / chưa phản hồi')}
+        ${card('onlNoContact','Chưa liên hệ được',d.noContact,'#f59e0b','đã thử liên hệ nhưng chưa gặp được khách')}
+        ${card('onlLongCare','Chăm sóc dài hạn',d.longCare,'#0abf7a','tiềm năng dài hạn, chưa chốt trong ngắn hạn')}
         ${card('onlChuaPl','Chưa cập nhật',d.chuaPl,'#64748b','chưa gắn trạng thái ở cột Phân loại KH')}
       </div>
     </div></div>`;
