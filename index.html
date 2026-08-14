@@ -3031,10 +3031,11 @@ function renderQcDoiSoat(){
     onl:onlDup.map(g=>g.map(r=>[r[COL_SAONL.MA_KH],r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],'',r[COL_SAONL.PHONE],r[COL_SAONL.DATE]]))
   };
 
-  // ===== Check lỗi trạng thái: chưa cập nhật / bỏ trống / chọn sai =====
-  // 4 trạng thái hợp lệ (cột Phân loại KH): Đã ra đơn / Tiềm năng, chưa ra đơn / Không tiềm năng / Mất kết nối (bare "Chưa ra đơn" là sai; "Tệp phổ thông" là tên cũ vẫn chấp nhận cho data lịch sử)
-  const okSi=s=>/đã ra đơn|da ra don|tiềm năng|tiem nang|mất kết n|mat ket n|không tiềm năng|khong tiem nang|phổ thông|pho thong/i.test(s||'');
-  const okOnl=s=>/chăm sóc|chốt|mất|dài hạn/i.test(s||'');   // Trạng thái CRM online
+  // ===== Check lỗi trạng thái: CHỈ tính bỏ trống là lỗi. Trước đây khớp theo 1 danh sách cố định các trạng thái
+  // hợp lệ, nhưng sales hay thêm trạng thái mới (vd "Chưa liên hệ được", "Chăm sóc dài hạn") khiến data đã gắn
+  // trạng thái thật vẫn bị báo lỗi oan — chỉ cần có gắn gì đó (không trống) là coi như hợp lệ.
+  const okSi=s=>!!(s&&s.toString().trim());
+  const okOnl=s=>!!(s&&s.toString().trim());
   const blank='<span style="color:#e11d48;font-weight:700">(trống)</span>';
   const siStatusErr=saleSiRows.filter(r=>{const s=(r[COL_SI.STATUS]||'').trim();return !okSi(s);});
   const onlStatusErr=saleOnlRows.filter(r=>{const s=(r[COL_SAONL.STATUS]||'').trim();return !okOnl(s);});
@@ -3072,7 +3073,7 @@ function renderQcDoiSoat(){
     const errs=[];
     const mf=[];if(bl(r[COL_SI.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SI.REP])&&bl(r[COL_SI.STORE]))mf.push('Tên');if(bl(r[COL_SI.PHONE]))mf.push('SĐT');
     if(mf.length)errs.push('Thiếu trường: '+mf.join(', '));
-    const st=(r[COL_SI.STATUS]||'').trim();if(!okSi(st))errs.push(st?'Trạng thái sai: “'+st+'” (ngoài 4 trạng thái)':'Trạng thái: bỏ trống');
+    const st=(r[COL_SI.STATUS]||'').trim();if(!okSi(st))errs.push('Trạng thái: bỏ trống');
     if(siDupSet.has(r))errs.push(dupWhy(r,COL_SI.PHONE,COL_SI.STORE,COL_SI.REP));
     if(errs.length)siErrRows.push([r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siNameCell(siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],'<b style="color:#e11d48">'+errs.join(' · ')+'</b>']);});
   const onlErrRows=[];
@@ -3081,7 +3082,7 @@ function renderQcDoiSoat(){
     const mf=[];if(bl(r[COL_SAONL.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SAONL.NAME])&&bl(r[COL_SAONL.PHONE]))mf.push('Tên & SĐT');
     if(/^chốt/i.test(r[COL_SAONL.STATUS]||'')){if(vndNum(r[COL_SAONL.REVENUE])<=0)mf.push('Doanh thu chốt');if(bl(r[COL_SAONL.DATE_CLOSE]))mf.push('Ngày chốt');}
     if(mf.length)errs.push('Thiếu trường: '+mf.join(', '));
-    const st=(r[COL_SAONL.STATUS]||'').trim();if(!okOnl(st))errs.push(st?'Trạng thái sai: “'+st+'”':'Trạng thái: bỏ trống');
+    const st=(r[COL_SAONL.STATUS]||'').trim();if(!okOnl(st))errs.push('Trạng thái: bỏ trống');
     if(onlDupSet.has(r))errs.push(dupWhy(r,COL_SAONL.PHONE,null,COL_SAONL.NAME));
     if(errs.length)onlErrRows.push([r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.SOURCE],'<b style="color:#e11d48">'+errs.join(' · ')+'</b>']);});
   const siErrN=siErrRows.length, onlErrN=onlErrRows.length;
@@ -3281,7 +3282,7 @@ function renderQcDoiSoat(){
         </div>
       </div>
       <div class="qc-card" style="--qa:#e11d48;margin-top:14px${(siErrN+onlErrN+dhTagErrN)>0?';cursor:pointer':''}"${(siErrN+onlErrN+dhTagErrN)>0?' onclick="qcShowErrors()"':''}>
-        <div class="qc-h" style="color:var(--text)">🛠️ Kiểm Soát Lỗi Nhập Liệu <span style="font-weight:600;color:var(--muted);text-transform:none">(trùng lặp · sai/trống trạng thái · thiếu trường ảnh hưởng số liệu)</span></div>
+        <div class="qc-h" style="color:var(--text)">🛠️ Kiểm Soát Lỗi Nhập Liệu <span style="font-weight:600;color:var(--muted);text-transform:none">(trùng lặp · bỏ trống trạng thái · thiếu trường ảnh hưởng số liệu)</span></div>
         <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
           <div style="display:flex;align-items:center;gap:11px">${ic('🏪')}<div><div style="font-size:24px;font-weight:900;color:${siErrN>0?'#e11d48':GRN}">${num(siErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Master Sỉ</div></div></div>
           <div style="display:flex;align-items:center;gap:11px">${ic('🌐')}<div><div style="font-size:24px;font-weight:900;color:${onlErrN>0?'#e11d48':GRN}">${num(onlErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Sale Online</div></div></div>
@@ -3964,7 +3965,7 @@ function qcShowStatusErr(){
   m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
     <div style="background:var(--surface);border-radius:16px;max-width:980px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
-        <div style="font-size:15px;font-weight:800;color:var(--text)">🚦 Lỗi Trạng Thái — chưa cập nhật / bỏ trống / chọn sai</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text)">🚦 Lỗi Trạng Thái — bỏ trống, chưa gắn trạng thái gì</div>
         <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
       </div>
       <div style="overflow:auto;padding:0 8px 8px">
