@@ -386,7 +386,7 @@ function toggleSidebar(){
 })();
 
 // ── Auth: khoá dashboard + phân quyền (client-side) ──
-const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'},review:{pass:'review@2026',role:'review'}};
+const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'},review:{pass:'review@2026',role:'review'},mkt:{pass:'mkt@2026',role:'mkt'}};
 const AUTH_ALLOWED_IPS=[]; // thêm IP máy bạn vào đây (vd '113.161.x.x') để vào thẳng khỏi đăng nhập
 function togglePass(){const p=document.getElementById('loginPass'),e=document.getElementById('loginEye');if(!p)return;if(p.type==='password'){p.type='text';e.textContent='🙈';e.style.color='#4361ee';}else{p.type='password';e.textContent='👁';e.style.color='#94a3b8';}}
 function doLogin(){
@@ -399,7 +399,7 @@ function doLogin(){
 // Phân quyền: role => danh sách trang được xem (null = xem hết).
 // admin liệt kê tường minh (KHÔNG null) để loại trừ trang 'danhgia' — trang đánh giá tuần chỉ dành riêng cho role 'review'.
 // Thêm trang mới cho admin thì nhớ bổ sung id vào mảng dưới đây.
-const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],review:null};
+const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],review:null};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
