@@ -1622,6 +1622,25 @@ function renderSaleSi(){
     <td style="padding:8px 14px;text-align:center;font-size:14px;font-weight:800;color:var(--accent)">${num(c.cnt)}</td>
     <td style="padding:8px 14px;text-align:right;font-weight:700">${c.pct.toFixed(1)}%</td>
   </tr>`).join('');
+  // By Page (Kênh)
+  const byPage={};
+  rows.forEach(r=>{const p=(r[COL_SI.CHANNEL]||'').trim()||'Chưa rõ';if(!byPage[p])byPage[p]={total:0,closed:0,rev:0};byPage[p].total++;if(hasStatus(r,'chốt')||toN(r[COL_SI.TOTAL_REV])>0){byPage[p].closed++;byPage[p].rev+=toN(r[COL_SI.TOTAL_REV]);}});
+  const pageRows=Object.entries(byPage).sort((a,b)=>b[1].total-a[1].total).map(([p,d])=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:9px 14px;font-weight:700;font-size:12.5px">${p}</td>
+    <td style="padding:9px 14px;text-align:center;font-weight:700">${d.total}</td>
+    <td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--green)">${d.closed}</td>
+    <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${d.rev>0?vnd(d.rev):'—'}</td>
+  </tr>`).join('');
+  // By Ads (Tên QC, đối chiếu MKT) — chỉ tính khách có Ads ID
+  const byAds={};
+  rows.forEach(r=>{const adId=(r[COL_SI.AD_ID]||'').trim();if(!adId)return;if(!byAds[adId])byAds[adId]={total:0,closed:0,rev:0};byAds[adId].total++;if(hasStatus(r,'chốt')||toN(r[COL_SI.TOTAL_REV])>0){byAds[adId].closed++;byAds[adId].rev+=toN(r[COL_SI.TOTAL_REV]);}});
+  const adsRows=Object.entries(byAds).sort((a,b)=>b[1].total-a[1].total).map(([id,d])=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:9px 14px;font-weight:700;font-size:12px">${adIdNote(id)}</td>
+    <td style="padding:9px 14px;text-align:center;font-weight:700">${d.total}</td>
+    <td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--green)">${d.closed}</td>
+    <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${d.rev>0?vnd(d.rev):'—'}</td>
+  </tr>`).join('');
+  const adsNoIdCount=rows.length-rows.filter(r=>(r[COL_SI.AD_ID]||'').trim()).length;
   // By sales
   const bySales={};
   rows.forEach(r=>{const s=(r[COL_SI.SALES]||'Chưa phân công').trim();if(!bySales[s])bySales[s]={total:0,closed:0,rev:0};bySales[s].total++;if(hasStatus(r,'chốt')||toN(r[COL_SI.TOTAL_REV])>0){bySales[s].closed++;bySales[s].rev+=toN(r[COL_SI.TOTAL_REV]);}});
@@ -1788,6 +1807,26 @@ function renderSaleSi(){
           <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">SỐ KHÁCH</th>
           <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--muted)">TỶ LỆ</th>
         </tr></thead><tbody>${siCitiesFullRows}</tbody>
+      </table></div></div>
+    </div>
+
+    <div class="sec-label">III. Nguồn Theo Page & Ads <span style="font-weight:400;font-size:11px;color:var(--muted)">(Kênh/Page = cột "Kênh" Master; Ads = đối chiếu Ads ID với Chi Tiết MKT${adsNoIdCount>0?' · '+num(adsNoIdCount)+' khách thiếu Ads ID':''})</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+      <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">PAGE / KÊNH</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">KHÁCH</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">ĐÃ CHỐT</th>
+          <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH THU</th>
+        </tr></thead><tbody>${pageRows||'<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--muted)">Không có data</td></tr>'}</tbody>
+      </table></div></div>
+      <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+          <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">ADS (TÊN QC)</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">KHÁCH</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">ĐÃ CHỐT</th>
+          <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH THU</th>
+        </tr></thead><tbody>${adsRows||'<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--muted)">Không có khách nào có Ads ID</td></tr>'}</tbody>
       </table></div></div>
     </div>
 
