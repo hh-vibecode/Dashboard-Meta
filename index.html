@@ -772,7 +772,17 @@ function buildAdCampMap(){
   return map;
 }
 
-function adIdNote(id){const v=(id||'').toString().trim();return v?v:'<b style="color:#e11d48">⚠️ Thiếu Ads ID</b>';}
+// Rút gọn Ads ID dài để hiện gọn trong bảng, hover (title) vẫn có đủ số để copy khi cần
+function shortAdId(id){id=(id||'').toString().trim();return id.length<=8?id:id.slice(0,4)+'…'+id.slice(-4);}
+// Gắn Tên QC (đối chiếu Chi Tiết MKT qua adNameMap) bên cạnh Ads ID rút gọn — dùng cho mọi báo cáo có hiện Ads ID của khách
+function adIdNote(id){
+  const v=(id||'').toString().trim();
+  if(!v)return'<b style="color:#e11d48">⚠️ Thiếu Ads ID</b>';
+  const nm=(typeof adNameMap==='function'?adNameMap()[v]:null);
+  const short=shortAdId(v);
+  if(nm)return`${nm} <span style="color:var(--muted)" title="${v}">(${short})</span>`;
+  return`<span title="${v}">${short}</span> <span style="color:var(--muted);font-size:11px">(chưa khớp MKT)</span>`;
+}
 function filterSaleRows(from,to){
   const base=saleRowsRaw.filter(r=>{
     const src=(r[COL_SALE.SOURCE]||'').trim().toLowerCase();
@@ -2073,7 +2083,7 @@ function openSiProfile(i){
           ${info('SĐT',r[COL_SI.PHONE])}
           ${info('Nguồn',r[COL_SI.SOURCE])}
           ${info('Kênh',r[COL_SI.CHANNEL])}
-          ${info('Tên QC (đối chiếu MKT)',(()=>{const adId=(r[COL_SI.AD_ID]||'').trim();if(!adId)return'';const nm=adNameMap()[adId];return nm?nm+' — '+adId:(adId?'Ads ID '+adId+' (chưa khớp MKT)':'');})())}
+          ${info('Tên QC (đối chiếu MKT)',(r[COL_SI.AD_ID]||'').trim()?adIdNote(r[COL_SI.AD_ID]):'')}
           ${info('Sales phụ trách',r[COL_SI.SALES])}
           ${info('Mô hình hợp tác',r[COL_SI.MODEL])}
           ${info('Tỉnh/TP',r[COL_SI.CITY])}
@@ -2380,7 +2390,7 @@ function buildOnlineCampTable(){
     if(hasTag(tag,'LEAD ĐẠT')||isTiem||isChot)byCamp[camp].dat++;
     if(isChot){
       byCamp[camp].chot++;
-      (chotByCamp[camp]=chotByCamp[camp]||[]).push([r[COL_ONL.DATE],r[COL_ONL.ORDER_ID]||'—',r[COL_ONL.NAME]||'—',r[COL_ONL.PHONE]||'—',adId||'—',chotReasonOf(camp,adId,rescued)]);
+      (chotByCamp[camp]=chotByCamp[camp]||[]).push([r[COL_ONL.DATE],r[COL_ONL.ORDER_ID]||'—',r[COL_ONL.NAME]||'—',r[COL_ONL.PHONE]||'—',adIdNote(adId),chotReasonOf(camp,adId,rescued)]);
     }
     if(hasTag(tag,'KH LẺ'))byCamp[camp].le++;
     if(hasTag(tag,'KH SỈ'))byCamp[camp].si++;
