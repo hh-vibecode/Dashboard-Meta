@@ -1440,6 +1440,22 @@ function productOf(r){const ch=(r[COL_SI.CHANNEL]||'').toLowerCase();const adId=
   if(ch.includes('nến bơ')||ch.includes('nen bo')||adId===NEN_BO_AD_ID)return'Nến Bơ';
   if(adId&&nenBoAdIds().has(adId))return'Nến Bơ';
   return'Đồ Thờ';}
+// Ads ID → Tên QC, đối chiếu qua Chi Tiết MKT (allRowsRaw) — lấy tên theo ngày gần nhất nếu QC từng đổi tên
+function adNameMap(){
+  if(window._adNameMapSrc!==window.allRowsRaw){
+    const m={},dm={};
+    (window.allRowsRaw||[]).forEach(r=>{
+      const id=String(r[COL.AD_ID]||'').trim();
+      if(!/^\d{8,}$/.test(id))return;
+      const nm=(COL.AD_NAME>=0?(r[COL.AD_NAME]||''):'').toString().trim();
+      if(!nm)return;
+      const d=parseDate(r[COL.DATE]);
+      if(!dm[id]||(d&&d>dm[id])){m[id]=nm;dm[id]=d;}
+    });
+    window._adNameMapObj=m;window._adNameMapSrc=window.allRowsRaw;
+  }
+  return window._adNameMapObj;
+}
 
 function renderSaleSi(){
   if(!saleSiRows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
@@ -2057,6 +2073,7 @@ function openSiProfile(i){
           ${info('SĐT',r[COL_SI.PHONE])}
           ${info('Nguồn',r[COL_SI.SOURCE])}
           ${info('Kênh',r[COL_SI.CHANNEL])}
+          ${info('Tên QC (đối chiếu MKT)',(()=>{const adId=(r[COL_SI.AD_ID]||'').trim();if(!adId)return'';const nm=adNameMap()[adId];return nm?nm+' — '+adId:(adId?'Ads ID '+adId+' (chưa khớp MKT)':'');})())}
           ${info('Sales phụ trách',r[COL_SI.SALES])}
           ${info('Mô hình hợp tác',r[COL_SI.MODEL])}
           ${info('Tỉnh/TP',r[COL_SI.CITY])}
