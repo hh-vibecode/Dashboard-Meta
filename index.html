@@ -572,8 +572,10 @@ function parseMktCsv(text){
   COL.AD_NAME    =ci(['tên quảng cáo','ad name'],-1);
   console.log('[MKT] COL detected:',JSON.stringify(COL));
   const allData=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
-  // Fill-down: date, campaign, ad-set (FB report only puts values on first row of each group)
-  let lastCamp='',lastAdSet='',lastDate='';
+  // Fill-down: date, campaign, ad-set, ad-name (FB report only puts values on first row of each group).
+  // Cấu trúc thật là 4 tầng lồng nhau: Ngày → Chiến dịch → Nhóm QC → Tên QC (dòng tổng, Mã QC="All") → từng dòng Ad ID lẻ
+  // (Ngày/Chiến dịch/Nhóm QC/Tên QC đều trống) — thiếu fill-down Tên QC khiến các dòng Ad ID lẻ luôn hiện "—".
+  let lastCamp='',lastAdSet='',lastAdName='',lastDate='';
   allData.forEach(row=>{
     // Fill-down date (skip 'all' rows — those are grand-total rows)
     const dv=(row[COL.DATE]||'').trim();
@@ -581,13 +583,19 @@ function parseMktCsv(text){
     else if(!dv)row[COL.DATE]=lastDate;
     // Fill-down campaign
     const camp=(row[COL.CAMPAIGN]||'').trim();
-    if(camp&&camp.toLowerCase()!=='all'){lastCamp=camp;lastAdSet='';}
+    if(camp&&camp.toLowerCase()!=='all'){lastCamp=camp;lastAdSet='';lastAdName='';}
     else if(!camp)row[COL.CAMPAIGN]=lastCamp;
     // Fill-down ad-set
     if(COL.ADSET_NAME>=0){
       const as=(row[COL.ADSET_NAME]||'').trim();
-      if(as&&as.toLowerCase()!=='all')lastAdSet=as;
+      if(as&&as.toLowerCase()!=='all'){lastAdSet=as;lastAdName='';}
       else if(!as)row[COL.ADSET_NAME]=lastAdSet;
+    }
+    // Fill-down ad-name
+    if(COL.AD_NAME>=0){
+      const an=(row[COL.AD_NAME]||'').trim();
+      if(an&&an.toLowerCase()!=='all')lastAdName=an;
+      else if(!an)row[COL.AD_NAME]=lastAdName;
     }
   });
   // Ổn định chiến dịch theo Ad ID: thỉnh thoảng Meta để trống ô "Tên chiến dịch" ở đúng 1 vài dòng lẻ
@@ -3919,10 +3927,14 @@ function toggleAds(safeId){
           const as=(r[COL.ADSET_NAME]||'').trim()||'—';
           const id=String(r[COL.AD_ID]||'').trim();
           const nm=COL.AD_NAME>=0?(r[COL.AD_NAME]||'').trim():'';
+          const d=parseDate(r[COL.DATE]);
           if(!bySet[as]){bySet[as]={name:as,spend:0,mess:0,ads:{}};setOrder.push(as);}
           bySet[as].spend+=toNum(r[COL.SPEND]);bySet[as].mess+=toNum(r[COL.MESSAGES]);
-          if(!bySet[as].ads[id])bySet[as].ads[id]={id,nm,spend:0,mess:0};
-          bySet[as].ads[id].spend+=toNum(r[COL.SPEND]);bySet[as].ads[id].mess+=toNum(r[COL.MESSAGES]);
+          if(!bySet[as].ads[id])bySet[as].ads[id]={id,nm:'',nmDate:null,spend:0,mess:0};
+          const ad=bySet[as].ads[id];
+          // Tên QC lấy theo ngày gần nhất có tên (đôi khi đổi tên QC giữa chừng, hoặc 1 số dòng bị bỏ trống tên)
+          if(nm&&(!ad.nmDate||(d&&d>ad.nmDate))){ad.nm=nm;ad.nmDate=d;}
+          ad.spend+=toNum(r[COL.SPEND]);ad.mess+=toNum(r[COL.MESSAGES]);
         });
         // Per-set CRM totals
         const ascrm={};
@@ -4083,8 +4095,12 @@ function toggleAdSet(ck){
   adRows.forEach(r=>{
     const id=String(r[COL.AD_ID]||'').trim();
     const name=COL.AD_NAME>=0?(r[COL.AD_NAME]||'').trim():'';
-    if(!byAd[id])byAd[id]={id,name,spend:0,mess:0};
-    byAd[id].spend+=toNum(r[COL.SPEND]);byAd[id].mess+=toNum(r[COL.MESSAGES]);
+    const d=parseDate(r[COL.DATE]);
+    if(!byAd[id])byAd[id]={id,name:'',nameDate:null,spend:0,mess:0};
+    const ad=byAd[id];
+    // Tên QC lấy theo ngày gần nhất có tên (đôi khi đổi tên QC giữa chừng, hoặc 1 số dòng bị bỏ trống tên)
+    if(name&&(!ad.nameDate||(d&&d>ad.nameDate))){ad.name=name;ad.nameDate=d;}
+    ad.spend+=toNum(r[COL.SPEND]);ad.mess+=toNum(r[COL.MESSAGES]);
   });
   const ads=Object.values(byAd).sort((a,b)=>b.spend-a.spend);
   const maxSp=Math.max(...ads.map(a=>a.spend),1);
