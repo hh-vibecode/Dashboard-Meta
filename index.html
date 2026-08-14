@@ -1418,6 +1418,28 @@ function siHasValidSrcName(r){
   if(s!=='online'&&s!=='offline')return false;
   return siPersonName(r[COL_SI.REP],r[COL_SI.STORE])!=='—';
 }
+// Sản phẩm: chỉ 2 loại — Nến Bơ / Đồ Thờ (tất cả còn lại). Nến Bơ = kênh chứa "Nến Bơ", HOẶC 1 Ads ID biết trước
+// (chạy dưới page Shidai nhưng là khách Nến Bơ), HOẶC bất kỳ Ads ID nào dưới campaign Shidai mà chính TÊN QC
+// (Chi Tiết MKT) có chứa "Nến Bơ" — Shidai chạy chung cả 2 sản phẩm nên phải soi tới tận tên QC mới tách được.
+const NEN_BO_AD_ID='120250726822480679';
+function nenBoAdIds(){
+  if(window._nenBoAdIdsSrc!==window.allRowsRaw){
+    const set=new Set();
+    (window.allRowsRaw||[]).forEach(r=>{
+      const adId=String(r[COL.AD_ID]||'').trim();
+      if(!/^\d{8,}$/.test(adId))return;
+      if(detectBrand(r[COL.CAMPAIGN])!=='Shidai')return;
+      const nm=(COL.AD_NAME>=0?(r[COL.AD_NAME]||''):'').toString().toLowerCase();
+      if(nm.includes('nến bơ')||nm.includes('nen bo'))set.add(adId);
+    });
+    window._nenBoAdIds=set;window._nenBoAdIdsSrc=window.allRowsRaw;
+  }
+  return window._nenBoAdIds;
+}
+function productOf(r){const ch=(r[COL_SI.CHANNEL]||'').toLowerCase();const adId=(r[COL_SI.AD_ID]||'').trim();
+  if(ch.includes('nến bơ')||ch.includes('nen bo')||adId===NEN_BO_AD_ID)return'Nến Bơ';
+  if(adId&&nenBoAdIds().has(adId))return'Nến Bơ';
+  return'Đồ Thờ';}
 
 function renderSaleSi(){
   if(!saleSiRows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
@@ -1426,7 +1448,8 @@ function renderSaleSi(){
   const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
   const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
-  const rows=saleSiRows.filter(siHasValidSrcName);  // chỉ tính khách có đủ Nguồn + Tên KH; lọc ngày áp cho "khách mới" + doanh thu (theo ngày chốt)
+  const prodFOv=window._siProductOv||'all';
+  const rows=saleSiRows.filter(siHasValidSrcName).filter(r=>prodFOv==='all'||productOf(r)===prodFOv);  // chỉ tính khách có đủ Nguồn + Tên KH; lọc ngày áp cho "khách mới" + doanh thu (theo ngày chốt); lọc theo sản phẩm nếu có chọn
   const toN=vndNum;
   const hasStatus=(r,kw)=>(r[COL_SI.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const isDon=r=>hasStatus(r,'đã ra đơn')||toN(r[COL_SI.TOTAL_REV])>0;
@@ -1629,7 +1652,14 @@ function renderSaleSi(){
   const siClk=(key,html)=>`<div onclick="siShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
   document.getElementById('page-sale-si').innerHTML=`
     <div class="page-title">Báo Cáo KH Sỉ</div>
-    <div class="page-sub">Phân tích khách hàng sỉ · ${total} khách hàng (đã đủ Nguồn + Tên KH) · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span>Phân tích khách hàng sỉ · ${total} khách hàng (đã đủ Nguồn + Tên KH) · 📅 ${curPeriodLabel()}</span>
+      <select onchange="setSiProductOv(this.value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+        <option value="all"${prodFOv==='all'?' selected':''}>📦 Tất cả sản phẩm</option>
+        <option value="Nến Bơ"${prodFOv==='Nến Bơ'?' selected':''}>Nến Bơ</option>
+        <option value="Đồ Thờ"${prodFOv==='Đồ Thờ'?' selected':''}>Đồ Thờ</option>
+      </select>
+    </div>
 
     <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết · doanh thu tính theo ngày chốt đơn)</span></div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
@@ -1839,11 +1869,6 @@ function renderSaleSiData(){
   // Khách cần chăm sóc: chưa CS lần nào hoặc ≥10 ngày chưa CS
   const needCare=x=>x.ci.days===null||x.ci.days>=10;
   const needCareCount=baseEnriched.filter(needCare).length;
-  // Sản phẩm: chỉ 2 loại — Nến Bơ (kênh chứa "Nến Bơ" hoặc đúng Ads ID này) / Đồ Thờ (tất cả còn lại)
-  const NEN_BO_AD_ID='120250726822480679';
-  const productOf=r=>{const ch=(r[COL_SI.CHANNEL]||'').toLowerCase();const adId=(r[COL_SI.AD_ID]||'').trim();
-    if(ch.includes('nến bơ')||ch.includes('nen bo')||adId===NEN_BO_AD_ID)return'Nến Bơ';
-    return'Đồ Thờ';};
   // Bộ lọc theo card hoạt động chăm sóc
   const F=window._siFilter||'all';
   const matchF=x=>F==='cared'?x.ci.count>0:F==='needcare'?needCare(x):F==='done'?(x.ci.status||'').toLowerCase().includes('xong'):F==='pending'?(x.ci.count>0&&!(x.ci.status||'').toLowerCase().includes('xong')):true;
@@ -2430,6 +2455,7 @@ function toggleSiCities(){const e=document.getElementById('siCitiesFull');if(e)e
 function setSiFilter(f){window._siFilter=(window._siFilter===f?'all':f);renderSaleSiData();}
 function setSiSrc(v){window._siSrc=v;renderSaleSiData();}
 function setSiProduct(v){window._siProduct=v;renderSaleSiData();}
+function setSiProductOv(v){window._siProductOv=v;renderSaleSi();}
 function setSiStt(v){window._siStt=v;renderSaleSiData();}
 function setSiCare(v){window._siCare=v;renderSaleSiData();}
 function setSiSearch(v){window._siSearch=v;window._siSearchFocus=true;renderSaleSiData();}
