@@ -282,7 +282,11 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
         <div class="nav-item" onclick="switchPage('sale-si')" id="nav-sale-si" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">📊</span><span class="nav-label">Tổng Quan</span></div>
         <div class="nav-item" onclick="switchPage('sale-si-data')" id="nav-sale-si-data" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">👤</span><span class="nav-label">CRM</span></div>
       </div>
-      <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl"><span class="nav-icon">🌐</span><span class="nav-label">Báo Cáo KH Lẻ</span></div>
+      <div class="nav-item" onclick="toggleOnlGroup()" id="nav-onl-group"><span class="nav-icon">🌐</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Báo Cáo KH Lẻ<span id="onl-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
+      <div id="onl-subnav">
+        <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">📊</span><span class="nav-label">Tổng Quan</span></div>
+        <div class="nav-item" onclick="switchPage('sale-onl-data')" id="nav-sale-onl-data" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">👤</span><span class="nav-label">Chi Tiết</span></div>
+      </div>
     </nav>
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
     <nav id="sec-qc">
@@ -312,6 +316,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>
     </div>
     <div class="tab-page" id="page-sale-onl">
+      <div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>
+    </div>
+    <div class="tab-page" id="page-sale-onl-data">
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>
     </div>
     <div class="tab-page" id="page-qc-doisoat">
@@ -392,16 +399,18 @@ function doLogin(){
 // Phân quyền: role => danh sách trang được xem (null = xem hết).
 // admin liệt kê tường minh (KHÔNG null) để loại trừ trang 'danhgia' — trang đánh giá tuần chỉ dành riêng cho role 'review'.
 // Thêm trang mới cho admin thì nhớ bổ sung id vào mảng dưới đây.
-const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','qc-doisoat','qc-invoice','qc-compare'],review:null};
+const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],review:null};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
   document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el=>{
-    const id=el.id.replace('nav-','');if(id==='si-group')return;
+    const id=el.id.replace('nav-','');if(id==='si-group'||id==='onl-group')return;
     el.style.display=(allowed&&allowed.indexOf(id)<0)?'none':'';
   });
   const grp=document.getElementById('nav-si-group');
   if(grp){const ok=!allowed||allowed.indexOf('sale-si')>=0||allowed.indexOf('sale-si-data')>=0;grp.style.display=ok?'':'none';}
+  const ogrp=document.getElementById('nav-onl-group');
+  if(ogrp){const ok=!allowed||allowed.indexOf('sale-onl')>=0||allowed.indexOf('sale-onl-data')>=0;ogrp.style.display=ok?'':'none';}
   [['sec-danhgia-label','sec-danhgia'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
     const n=document.getElementById(nav);if(!n)return;
     const vis=[...n.querySelectorAll('.nav-item')].some(it=>it.style.display!=='none');
@@ -422,7 +431,7 @@ function initAuth(){
 }
 
 function switchPage(p){
-  ['danhgia','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
+  ['danhgia','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
@@ -431,8 +440,13 @@ function switchPage(p){
   const grp=document.getElementById('nav-si-group');
   if(grp)grp.classList.toggle('active',p==='sale-si'||p==='sale-si-data');
   if(p==='sale-si'||p==='sale-si-data'){const s=document.getElementById('si-subnav'),a=document.getElementById('si-group-arrow');if(s&&s.style.display==='none'){s.style.display='';if(a)a.textContent='▼';}}
+  // Nhóm Báo Cáo KH Lẻ: tương tự
+  const ogrp=document.getElementById('nav-onl-group');
+  if(ogrp)ogrp.classList.toggle('active',p==='sale-onl'||p==='sale-onl-data');
+  if(p==='sale-onl'||p==='sale-onl-data'){const s=document.getElementById('onl-subnav'),a=document.getElementById('onl-group-arrow');if(s&&s.style.display==='none'){s.style.display='';if(a)a.textContent='▼';}}
 }
 function toggleSiGroup(){const s=document.getElementById('si-subnav'),a=document.getElementById('si-group-arrow');if(s){const open=s.style.display!=='none';s.style.display=open?'none':'';if(a)a.textContent=open?'▶':'▼';}}
+function toggleOnlGroup(){const s=document.getElementById('onl-subnav'),a=document.getElementById('onl-group-arrow');if(s){const open=s.style.display!=='none';s.style.display=open?'none':'';if(a)a.textContent=open?'▶':'▼';}}
 
 // ── Load ──
 async function loadData(){
@@ -513,6 +527,7 @@ async function loadData(){
     renderSaleSi();
     renderSaleSiData();
     renderSaleOnl();
+    renderSaleOnlData();
     renderQcDoiSoat();
     renderQcInvoice();
     renderQcCompare();
@@ -1112,7 +1127,7 @@ function clearFilter(){
   const saleFiltered=filterSaleRows('','');
   window._saleFiltered=saleFiltered;
   if(allRows.length)renderAll(allRows,saleFiltered);
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderSaleOnlData();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
 }
 function localDate(str,end=false){
   const p=str.split('-');
@@ -1135,7 +1150,7 @@ function curPeriodLabel(){
 // Đổi ngày → re-render cả MKT lẫn các báo cáo Sale
 function onDateChange(){
   if(allRows.length)applyFilter();
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderSaleOnlData();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
 }
 function applyQuickFilter(){
   const v=document.getElementById('quickFilter').value;
@@ -2316,6 +2331,135 @@ function renderSaleOnl(){
       scales:{x:{grid:{display:false},border:{display:false},ticks:{color:'var(--muted)',font:{size:10}}},
         y:{grid:{display:false},border:{display:false},ticks:{color:'var(--text)',font:{size:11,weight:'600'}}}}}});
   }
+}
+// Chip nhỏ dùng chung — nếu 1 hàm khác tự khai const chip cục bộ thì nó sẽ ghi đè, không ảnh hưởng hàm đó.
+function chip(txt,bg,fg){return`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;}
+
+// ── Báo Cáo KH Lẻ — Chi Tiết: danh sách từng khách (tương tự CRM Sỉ nhưng theo dữ liệu Sale Online) ──
+function renderSaleOnlData(){
+  const elp=document.getElementById('page-sale-onl-data');
+  if(!elp)return;
+  if(!saleOnlRows.length){elp.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  const brSel=brandArr('_saonlBrands');
+  const adCampMap=buildAdCampMap();
+  const brandText=s=>{const n=(s||'').toString();
+    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
+    if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
+    if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
+    if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';return null;};
+  const brandOf=r=>{const a=(r[COL_SAONL.AD_ID]||'').trim();const txtBr=brandText(r[COL_SAONL.CHANNEL]);
+    if(txtBr==='TTV')return'TTV';
+    if(a&&adCampMap[a])return brandText(adCampMap[a])||txtBr;
+    return txtBr;};
+  let rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
+  if(brSel.length)rows=rows.filter(r=>brSel.includes(brandOf(r)));
+  const toN=vndNum;
+
+  const srcF=window._saonlSrc||'all',sttF=window._saonlStt||'all';
+  const q=(window._saonlSearch||'').trim().toLowerCase();
+  const sttOpts=[...new Set(rows.map(r=>(r[COL_SAONL.STATUS]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  const filtered=rows.filter(r=>{
+    if(srcF!=='all'&&(r[COL_SAONL.SOURCE]||'').trim().toLowerCase()!==srcF)return false;
+    if(sttF!=='all'&&(r[COL_SAONL.STATUS]||'').trim()!==sttF)return false;
+    if(q){const hay=((r[COL_SAONL.NAME]||'')+' '+(r[COL_SAONL.PHONE]||'')+' '+(r[COL_SAONL.LEAD_ID]||'')).toLowerCase();if(!hay.includes(q))return false;}
+    return true;
+  }).sort((a,b)=>{const da=parseDate(a[COL_SAONL.DATE]),db=parseDate(b[COL_SAONL.DATE]);return(db?db:0)-(da?da:0);});
+  window._saonlProfiles=filtered;
+
+  const srcChip=s=>{const t=(s||'').trim().toLowerCase();if(t==='online')return chip('Online','#dbeafe','#2563eb');if(t==='offline')return chip('Offline','#fef3c7','#b45309');return s?chip(s,'#e5e7eb','#6b7280'):'<span style="color:var(--muted)">—</span>';};
+  const statusChip=s=>{const v=(s||'').trim();if(!v)return'<span style="color:var(--muted)">—</span>';const t=v.toLowerCase();
+    if(t.includes('chốt'))return chip(v,'#dcfce7','#16a34a');
+    if(t.includes('mất'))return chip(v,'#fee2e2','#e11d48');
+    if(t.includes('dài hạn'))return chip(v,'#ede9fe','#7c3aed');
+    if(t.includes('đang chăm sóc'))return chip(v,'#dbeafe','#2563eb');
+    return chip(v,'#e5e7eb','#6b7280');};
+
+  const bodyRows=filtered.map((r,i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SAONL.DATE]||'—'}</td>
+      <td style="padding:9px 12px"><div style="font-size:13px;font-weight:700;white-space:normal;word-break:break-word">${r[COL_SAONL.NAME]||'—'}</div><div style="font-size:11px;color:var(--muted)">${r[COL_SAONL.PHONE]||''}</div></td>
+      <td style="padding:9px 12px">${srcChip(r[COL_SAONL.SOURCE])}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--text2);white-space:normal;word-break:break-word">${r[COL_SAONL.CHANNEL]||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:9px 12px;font-size:11.5px;white-space:normal;word-break:break-word">${adIdNote(r[COL_SAONL.AD_ID])}</td>
+      <td style="padding:9px 12px">${statusChip(r[COL_SAONL.STATUS])}</td>
+      <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${toN(r[COL_SAONL.POTENTIAL])>0?'#7c3aed':'var(--muted)'};white-space:nowrap">${toN(r[COL_SAONL.POTENTIAL])>0?vnd(toN(r[COL_SAONL.POTENTIAL])):'—'}</td>
+      <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${toN(r[COL_SAONL.REVENUE])>0?'var(--green)':'var(--muted)'};white-space:nowrap">${toN(r[COL_SAONL.REVENUE])>0?vnd(toN(r[COL_SAONL.REVENUE])):'—'}</td>
+      <td style="padding:9px 12px;text-align:center"><span onclick="openSaonlProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">👤<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
+    </tr>`).join('');
+
+  elp.innerHTML=`
+    <div class="page-title">Báo Cáo KH Lẻ — Chi Tiết</div>
+    <div class="page-sub">Danh sách từng khách lẻ (Sale Online) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</div>
+    <div class="period-bar">${brandChips('_saonlBrands','renderSaleOnlData')}</div>
+    <div style="margin:14px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(filtered.length)} khách)</span></div>
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <input id="saonlSearchBox" oninput="setSaonlSearch(this.value)" value="${(window._saonlSearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên khách / SĐT…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:200px;outline:none">
+        <select onchange="setSaonlSrc(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+          <option value="all"${srcF==='all'?' selected':''}>🌐 Tất cả nguồn</option>
+          <option value="online"${srcF==='online'?' selected':''}>Online</option>
+          <option value="offline"${srcF==='offline'?' selected':''}>Offline</option>
+        </select>
+        <select onchange="setSaonlStt(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;max-width:220px">
+          <option value="all"${sttF==='all'?' selected':''}>📋 Tất cả trạng thái</option>
+          ${sttOpts.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${sttF===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+      <colgroup>${['7%','17%','6%','15%','17%','11%','10%','10%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['KÊNH','left'],['ADS ID / TÊN QC','left'],['TRẠNG THÁI','left'],['GIÁ TRỊ TN','right'],['DOANH THU','right'],['HỒ SƠ','center']].map(([c,a])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
+      </tr></thead><tbody>${bodyRows}</tbody>
+    </table></div></div>`;
+  if(window._saonlSearchFocus){window._saonlSearchFocus=false;const sb=document.getElementById('saonlSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
+}
+function setSaonlSrc(v){window._saonlSrc=v;renderSaleOnlData();}
+function setSaonlStt(v){window._saonlStt=v;renderSaleOnlData();}
+function setSaonlSearch(v){window._saonlSearch=v;window._saonlSearchFocus=true;renderSaleOnlData();}
+function closeSaonlProfile(){const m=document.getElementById('saonlProfileModal');if(m)m.style.display='none';}
+function openSaonlProfile(i){
+  const r=(window._saonlProfiles||[])[i];if(!r)return;
+  const toN=vndNum;
+  const info=(label,val,full)=>`<div style="${full?'grid-column:1/-1;':''}display:flex;flex-direction:column;gap:2px"><span style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em">${label}</span><span style="font-size:13px;font-weight:600;word-break:break-word">${(val&&String(val).trim())||'—'}</span></div>`;
+  const money=(label,val,color)=>`<div style="background:var(--bg2);border-radius:10px;padding:12px 14px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase">${label}</div><div style="font-size:17px;font-weight:800;color:${color||'var(--text)'};margin-top:2px">${val}</div></div>`;
+  const v=(r[COL_SAONL.STATUS]||'').trim(),tl=v.toLowerCase();
+  const chipf=(t,bg,fg)=>`<span style="display:inline-block;padding:3px 11px;border-radius:6px;background:${bg};color:${fg};font-size:12px;font-weight:700">${t}</span>`;
+  const sttChip=!v?'':tl.includes('chốt')?chipf(v,'#dcfce7','#16a34a'):tl.includes('mất')?chipf(v,'#fee2e2','#e11d48'):tl.includes('dài hạn')?chipf(v,'#ede9fe','#7c3aed'):tl.includes('đang chăm sóc')?chipf(v,'#dbeafe','#2563eb'):chipf(v,'#e5e7eb','#6b7280');
+  const isLost=tl.includes('mất');
+  let modal=document.getElementById('saonlProfileModal');if(!modal){modal=document.createElement('div');modal.id='saonlProfileModal';document.body.appendChild(modal);}
+  modal.innerHTML=`<div onclick="closeSaonlProfile()" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:36px 18px;overflow:auto">
+    <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:18px;max-width:820px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden">
+      <div style="background:linear-gradient(135deg,#4361ee,#7c3aed);padding:22px 26px;display:flex;align-items:center;gap:16px;color:#fff;position:relative">
+        <svg viewBox="0 0 40 40" width="56" height="56"><circle cx="20" cy="20" r="20" fill="rgba(255,255,255,.25)"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>
+        <div style="flex:1">
+          <div style="font-size:20px;font-weight:800">${r[COL_SAONL.NAME]||'Khách hàng'}</div>
+          <div style="font-size:13px;opacity:.9">${r[COL_SAONL.LEAD_ID]||''}${r[COL_SAONL.MA_KH]?' · '+r[COL_SAONL.MA_KH]:''}</div>
+        </div>
+        ${sttChip}
+        <span onclick="closeSaonlProfile()" style="cursor:pointer;font-size:22px;line-height:1;padding:4px 8px;opacity:.85">✕</span>
+      </div>
+      <div style="padding:22px 26px;max-height:72vh;overflow:auto">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Tổng quan</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+          ${money('Giá trị tiềm năng',toN(r[COL_SAONL.POTENTIAL])>0?vnd(toN(r[COL_SAONL.POTENTIAL])):'—','#7c3aed')}
+          ${money('Doanh thu',toN(r[COL_SAONL.REVENUE])>0?vnd(toN(r[COL_SAONL.REVENUE])):'—','var(--green)')}
+          ${money('Ngày chốt',r[COL_SAONL.DATE_CLOSE]||'—')}
+        </div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Thông tin khách hàng</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px 18px;margin-bottom:20px">
+          ${info('Ngày tạo',r[COL_SAONL.DATE])}
+          ${info('SĐT',r[COL_SAONL.PHONE])}
+          ${info('Nguồn',r[COL_SAONL.SOURCE])}
+          ${info('Kênh',r[COL_SAONL.CHANNEL])}
+          ${info('Sales phụ trách',r[COL_SAONL.SALES])}
+          ${info('Sản phẩm',r[COL_SAONL.PRODUCT])}
+          ${info('Ads ID / Tên QC',(r[COL_SAONL.AD_ID]||'').trim()?adIdNote(r[COL_SAONL.AD_ID]):'',true)}
+          ${isLost?info('Nhóm nguyên nhân mất',r[COL_SAONL.LOST_GROUP]):''}
+          ${isLost?info('Nguyên nhân cụ thể',r[COL_SAONL.LOST_REASON]):''}
+          ${info('Ghi chú',r[COL_SAONL.NOTE],true)}
+        </div>
+      </div>
+    </div></div>`;
 }
 
 function onlineBrand(camp){
