@@ -768,6 +768,36 @@ function parseKiotCsv(texts){
 function parseSaleSiCrmCsv(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  // Auto-detect cột theo TÊN HEADER thay vì cố định theo vị trí — sheet CRM Sỉ đã từng bị thêm/đổi thứ tự cột
+  // (thêm "Phân loại KH" ở giữa) khiến toàn bộ cột sau đó lệch vị trí, gây lỗi hiển thị sai (VD cột "Nội dung
+  // CS" ra giá trị của cột "Hình thức CS"). Định vị lại theo tên cột mỗi lần tải để không bị lệch nữa.
+  const headers=(parsed.data[0]||[]).map(h=>String(h).trim().toLowerCase());
+  // Khớp CHÍNH XÁC trước (tránh case "Ad ID" bị khớp nhầm vào "Lead ID - Mã KH" vì chứa chuỗi con "ad id"),
+  // chỉ fallback sang khớp chuỗi con khi không có cột nào khớp y hệt.
+  const ci=(kws,fb)=>{
+    for(const kw of kws){const i=headers.findIndex(h=>h===kw);if(i>=0)return i;}
+    for(const kw of kws){const i=headers.findIndex(h=>h.includes(kw));if(i>=0)return i;}
+    return fb;
+  };
+  COL_SICRM.DATE=ci(['ngày chăm sóc','ngày cs'],COL_SICRM.DATE);
+  COL_SICRM.LEAD_ID=ci(['lead id'],COL_SICRM.LEAD_ID);
+  COL_SICRM.SOURCE=ci(['nguồn khách','nguồn'],COL_SICRM.SOURCE);
+  COL_SICRM.CHANNEL=ci(['kênh'],COL_SICRM.CHANNEL);
+  COL_SICRM.AD_ID=ci(['ad id','mã quảng cáo'],COL_SICRM.AD_ID);
+  COL_SICRM.NAME=ci(['họ tên','tên khách'],COL_SICRM.NAME);
+  COL_SICRM.PHONE=ci(['sđt','số điện thoại'],COL_SICRM.PHONE);
+  COL_SICRM.SALES=ci(['sales phụ trách'],COL_SICRM.SALES);
+  COL_SICRM.FORM=ci(['hình thức chăm sóc','hình thức'],COL_SICRM.FORM);
+  COL_SICRM.CONTENT=ci(['nội dung chăm sóc','nội dung'],COL_SICRM.CONTENT);
+  COL_SICRM.RESULT=ci(['kết quả chăm sóc','kết quả'],-1);
+  COL_SICRM.EXPECTED=ci(['giá trị dự kiến'],COL_SICRM.EXPECTED);
+  COL_SICRM.NEXT_ACTION=ci(['việc cần làm tiếp theo'],COL_SICRM.NEXT_ACTION);
+  COL_SICRM.NEED_HELP=ci(['sales cần hỗ trợ'],COL_SICRM.NEED_HELP);
+  COL_SICRM.STATUS=ci(['tình trạng hỗ trợ'],COL_SICRM.STATUS);
+  COL_SICRM.NEXT_DATE=ci(['ngày hẹn tiếp theo'],COL_SICRM.NEXT_DATE);
+  COL_SICRM.CLOSE_DATE=ci(['ngày chốt đơn'],COL_SICRM.CLOSE_DATE);
+  COL_SICRM.CLOSE_VALUE=ci(['tổng giá trị chốt'],COL_SICRM.CLOSE_VALUE);
+  console.log('[SICRM] COL detected:',JSON.stringify(COL_SICRM));
   saleSiCrmRows=parsed.data.slice(1).filter(row=>row.some(c=>c!=='')).map(row=>{
     // Clean Lead ID cell which may contain tabs/newlines
     if(row[COL_SICRM.LEAD_ID]!=null)row[COL_SICRM.LEAD_ID]=row[COL_SICRM.LEAD_ID].replace(/[\t\n\r]/g,' ').trim();
