@@ -2008,7 +2008,7 @@ function renderSaleSiData(){
       <td style="padding:9px 12px">${productOf(r)==='Nến Bơ'?chip('Nến Bơ','#fef3c7','#b45309'):chip('Đồ Thờ','#e0e7ff','#4338ca')}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--text2);white-space:normal;word-break:break-word;line-height:1.35">${(r[COL_SI.CITY]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
-      <td style="padding:9px 12px;font-size:11px;color:var(--text2);line-height:1.45;white-space:normal;word-break:break-word">${ci.content||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:9px 12px;font-size:11px;color:var(--text2);line-height:1.45;white-space:pre-line;word-break:break-word">${ci.content||'<span style="color:var(--muted)">—</span>'}</td>
       <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
       <td style="padding:9px 12px">${statusChip(r[COL_SI.STATUS])}</td>
       <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${(()=>{const dl=parseDriveLink(r[COL_SI.LINK]);let u=dl?(dl.type==='file'?'https://drive.google.com/thumbnail?id='+dl.id+'&sz=w80':dl.type==='img'?dl.url:''):'';if(!u){const aR=(r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID]||r[COL_SI.PHONE]||'').toString().trim();u=aR?localStorage.getItem('siAva:'+aR.replace(/[^A-Za-z0-9._-]/g,'')):'';}return u?`<img src="${u}" referrerpolicy="no-referrer" style="width:30px;height:30px;border-radius:50%;object-fit:cover">`:fbAvatar;})()}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
@@ -2099,8 +2099,8 @@ function openSiProfile(i){
     <tbody>${recs.map(c=>`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[COL_SICRM.DATE]||'—'}</td>
       <td style="padding:7px 10px;font-size:12px;white-space:nowrap">${c[COL_SICRM.FORM]||'—'}</td>
-      <td style="padding:7px 10px;font-size:12px"><div style="min-width:240px;white-space:normal;line-height:1.45">${c[COL_SICRM.CONTENT]||'—'}</div></td>
-      <td style="padding:7px 10px;font-size:12px"><div style="min-width:160px;white-space:normal;line-height:1.45">${c[COL_SICRM.RESULT]||'—'}</div></td>
+      <td style="padding:7px 10px;font-size:12px"><div style="min-width:240px;white-space:pre-line;line-height:1.45">${c[COL_SICRM.CONTENT]||'—'}</div></td>
+      <td style="padding:7px 10px;font-size:12px"><div style="min-width:160px;white-space:pre-line;line-height:1.45">${c[COL_SICRM.RESULT]||'—'}</div></td>
       <td style="padding:7px 10px;font-size:11px;white-space:nowrap">${c[COL_SICRM.STATUS]||'—'}</td>
       <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:#ca8a04;font-weight:600">${c[COL_SICRM.NEXT_DATE]||'—'}</td>
     </tr>`).join('')}</tbody></table>`:'<div style="padding:14px;color:var(--muted);font-size:13px;text-align:center">Chưa có lịch sử chăm sóc trong CRM</div>';
