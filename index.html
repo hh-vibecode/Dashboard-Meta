@@ -355,7 +355,7 @@ const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALE
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,MA_KH:16};
 // File hoá đơn mới không có cột Chi nhánh (BRANCH) như file cũ — các cột còn lại lùi lên trước 1 vị trí
 const COL_KIOT={BRANCH:-1,INVOICE:0,DATE:1,MA_KH:2,NAME:3,PHONE:4,SALES:5,CHANNEL:6,AMOUNT:7,DISCOUNT:8};
-let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],kiotRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
+let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],kiotRows=[],saleSiRowsMT=[],saleSiCrmRowsMT=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -456,6 +456,9 @@ async function loadData(){
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
   const sicrmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=138010004&single=true&output=csv';
+  // Báo Cáo Sỉ — bản Miền Trung (đội riêng, cùng form/cùng thứ tự cột với bản Bắc+Nam ở trên) — chuyển đổi qua nút trên trang Báo Cáo KH Sỉ, không tách trang riêng
+  const siRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=2107421092&single=true&output=csv';
+  const sicrmRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=138010004&single=true&output=csv';
   const saonlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=2107421092&single=true&output=csv';
   // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này (đỡ phải đổi nhiều link).
   // Thêm tháng mới: lấy gid tab mới rồi thêm 1 dòng kiotRawN bên dưới + thêm vào mảng kiotRawUrls.
@@ -476,6 +479,8 @@ async function loadData(){
     taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
     taskIdx.kiot=tasks.length;tasks.push(fetchCsvWithProxy(kiotRaw1,7));
     taskIdx.kiot2=tasks.length;tasks.push(fetchCsvWithProxy(kiotRaw2,8));
+    taskIdx.siMT=tasks.length;tasks.push(fetchCsvWithProxy(siRawMT,9));
+    taskIdx.sicrmMT=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRawMT,10));
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
     if(mktRaw){
@@ -501,7 +506,7 @@ async function loadData(){
     }
     {
       const r=results[taskIdx.si];
-      if(r.status==='fulfilled'){setStatus('Đang parse Sale Sỉ...');parseSaleSiCsv(r.value);setStatus(`Parse xong Sale Sỉ: ${saleSiRows.length} rows`);}
+      if(r.status==='fulfilled'){setStatus('Đang parse Sale Sỉ...');saleSiRows=parseSaleSiCsv(r.value);setStatus(`Parse xong Sale Sỉ: ${saleSiRows.length} rows`);}
       else setStatus('⚠️ Sale Sỉ không tải được');
     }
     {
@@ -511,8 +516,18 @@ async function loadData(){
     }
     {
       const r=results[taskIdx.sicrm];
-      if(r.status==='fulfilled'){setStatus('Đang parse CRM Sỉ...');parseSaleSiCrmCsv(r.value);setStatus(`Parse xong CRM Sỉ: ${saleSiCrmRows.length} lượt`);}
+      if(r.status==='fulfilled'){setStatus('Đang parse CRM Sỉ...');saleSiCrmRows=parseSaleSiCrmCsv(r.value);setStatus(`Parse xong CRM Sỉ: ${saleSiCrmRows.length} lượt`);}
       else setStatus('⚠️ CRM Sỉ không tải được');
+    }
+    {
+      const r=results[taskIdx.siMT];
+      if(r.status==='fulfilled'){setStatus('Đang parse Sale Sỉ (Miền Trung)...');saleSiRowsMT=parseSaleSiCsv(r.value);setStatus(`Parse xong Sale Sỉ MT: ${saleSiRowsMT.length} rows`);}
+      else setStatus('⚠️ Sale Sỉ (Miền Trung) không tải được');
+    }
+    {
+      const r=results[taskIdx.sicrmMT];
+      if(r.status==='fulfilled'){setStatus('Đang parse CRM Sỉ (Miền Trung)...');saleSiCrmRowsMT=parseSaleSiCrmCsv(r.value);setStatus(`Parse xong CRM Sỉ MT: ${saleSiCrmRowsMT.length} lượt`);}
+      else setStatus('⚠️ CRM Sỉ (Miền Trung) không tải được');
     }
     {
       const r1=results[taskIdx.kiot],r2=results[taskIdx.kiot2];
@@ -536,7 +551,7 @@ async function loadData(){
 }
 
 async function fetchCsvWithProxy(rawUrl,idx=0){
-  const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM','KIOT1','KIOT2'];
+  const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM','KIOT1','KIOT2','SỈ-MT','SICRM-MT'];
   const lbl=labels[idx]||'';
   const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now();
   // Google Sheets published CSV hỗ trợ CORS trực tiếp → thử trực tiếp trước (nhanh + ổn định)
@@ -743,8 +758,9 @@ function parseOnlineCsv(text){
 function parseSaleSiCsv(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
-  saleSiRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
-  console.log('[SI] Rows:',saleSiRows.length);
+  const rows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
+  console.log('[SI] Rows:',rows.length);
+  return rows;
 }
 
 function parseSaleOnlCsv(text){
@@ -798,12 +814,13 @@ function parseSaleSiCrmCsv(text){
   COL_SICRM.CLOSE_DATE=ci(['ngày chốt đơn'],COL_SICRM.CLOSE_DATE);
   COL_SICRM.CLOSE_VALUE=ci(['tổng giá trị chốt'],COL_SICRM.CLOSE_VALUE);
   console.log('[SICRM] COL detected:',JSON.stringify(COL_SICRM));
-  saleSiCrmRows=parsed.data.slice(1).filter(row=>row.some(c=>c!=='')).map(row=>{
+  const rows=parsed.data.slice(1).filter(row=>row.some(c=>c!=='')).map(row=>{
     // Clean Lead ID cell which may contain tabs/newlines
     if(row[COL_SICRM.LEAD_ID]!=null)row[COL_SICRM.LEAD_ID]=row[COL_SICRM.LEAD_ID].replace(/[\t\n\r]/g,' ').trim();
     return row;
   });
-  console.log('[SICRM] Rows:',saleSiCrmRows.length);
+  console.log('[SICRM] Rows:',rows.length);
+  return rows;
 }
 
 
@@ -1521,7 +1538,10 @@ function adNameMap(){
 }
 
 function renderSaleSi(){
-  if(!saleSiRows.length){document.getElementById('page-sale-si').innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  const siDataRegion=window._siRegion||'bn';
+  const activeSiRows=siDataRegion==='mt'?saleSiRowsMT:saleSiRows;
+  const activeSiCrmRows=siDataRegion==='mt'?saleSiCrmRowsMT:saleSiCrmRows;
+  if(!activeSiRows.length){document.getElementById('page-sale-si').innerHTML=`<div style="padding:24px 24px 0">${siRegionToggle()}</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu${siDataRegion==='mt'?' (Miền Trung)':''}...</div>`;return;}
   const _f=document.getElementById('dateFrom'),_t=document.getElementById('dateTo');
   const fromD=_f&&_f.value?localDate(_f.value):null,toD=_t&&_t.value?localDate(_t.value,true):null;
   const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
@@ -1529,7 +1549,7 @@ function renderSaleSi(){
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   const prodFOv=window._siProductOv||'all';
   const brandFOv=window._siBrandOv||'all';
-  const rows=saleSiRows.filter(siHasValidSrcName).filter(r=>prodFOv==='all'||productOf(r)===prodFOv).filter(r=>brandFOv==='all'||channelBrandOf(r)===brandFOv);  // chỉ tính khách có đủ Nguồn + Tên KH; lọc ngày áp cho "khách mới" + doanh thu (theo ngày chốt); lọc theo sản phẩm/thương hiệu nếu có chọn
+  const rows=activeSiRows.filter(siHasValidSrcName).filter(r=>prodFOv==='all'||productOf(r)===prodFOv).filter(r=>brandFOv==='all'||channelBrandOf(r)===brandFOv);  // chỉ tính khách có đủ Nguồn + Tên KH; lọc ngày áp cho "khách mới" + doanh thu (theo ngày chốt); lọc theo sản phẩm/thương hiệu nếu có chọn
   const toN=vndNum;
   const hasStatus=(r,kw)=>(r[COL_SI.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const isDon=r=>hasStatus(r,'đã ra đơn')||toN(r[COL_SI.TOTAL_REV])>0;
@@ -1547,7 +1567,7 @@ function renderSaleSi(){
   const noSrcCount=newRowsAll.length-newInPeriod;
   const closed=baseRows.filter(isDon).length;
   const notYet=baseRows.filter(r=>!isDon(r)).length;
-  const crmMap=getSiCrmHistory();
+  const crmMap=getSiCrmHistory(activeSiCrmRows);
   const ciOf=r=>siContactInfo(r,crmMap);
   // "Chưa ra đơn" lấy trực tiếp theo cột Phân loại KH: Tiềm năng, chưa ra đơn / Không tiềm năng / Mất kết nối
   const stOf=r=>(r[COL_SI.STATUS]||'').toLowerCase();
@@ -1570,7 +1590,7 @@ function renderSaleSi(){
   rows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim(),st=(r[COL_SI.STORE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;if(!storeByKey[k]&&st)storeByKey[k]=st;});});
   const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
   let onlRev=0,selfRev=0;const closeList=[];
-  saleSiCrmRows.forEach(r=>{const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);if(cv<=0||!inR(cd))return;const ph=last9(r[COL_SICRM.PHONE]);const src=srcByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||'';const on=src.includes('online');if(on)onlRev+=cv;else selfRev+=cv;
+  activeSiCrmRows.forEach(r=>{const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);if(cv<=0||!inR(cd))return;const ph=last9(r[COL_SICRM.PHONE]);const src=srcByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||'';const on=src.includes('online');if(on)onlRev+=cv;else selfRev+=cv;
     const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
     const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
     const st=lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
@@ -1685,7 +1705,7 @@ function renderSaleSi(){
   </tr>`).join('');
 
   // ── CRM care log (gid=138010004) ──
-  const crm=saleSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE])));
+  const crm=activeSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE])));
   let crmSection='';
   if(crm.length){
     const totalCS=crm.length;
@@ -1734,6 +1754,7 @@ function renderSaleSi(){
     <div class="page-title">Báo Cáo KH Sỉ</div>
     <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span>Phân tích khách hàng sỉ · ${total} khách hàng (đã đủ Nguồn + Tên KH) · 📅 ${curPeriodLabel()}</span>
+      ${siRegionToggle()}
       <select onchange="setSiProductOv(this.value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
         <option value="all"${prodFOv==='all'?' selected':''}>📦 Tất cả sản phẩm</option>
         <option value="Nến Bơ"${prodFOv==='Nến Bơ'?' selected':''}>Nến Bơ</option>
@@ -1933,22 +1954,25 @@ function siShowOnlineQuality(){
 
 function renderSaleSiData(){
   const elp=document.getElementById('page-sale-si-data');
-  if(!saleSiRows.length){elp.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
+  const siDataRegion=window._siRegion||'bn';
+  const activeSiRows=siDataRegion==='mt'?saleSiRowsMT:saleSiRows;
+  const activeSiCrmRows=siDataRegion==='mt'?saleSiCrmRowsMT:saleSiCrmRows;
+  if(!activeSiRows.length){elp.innerHTML=`<div style="padding:24px 24px 0">${siRegionToggle()}</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu${siDataRegion==='mt'?' (Miền Trung)':''}...</div>`;return;}
   const nrm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   // Lọc theo NGÀY CHĂM SÓC: hiện khách có lượt CS trong kỳ; toàn bộ ngày → tất cả khách
   const fv=document.getElementById('dateFrom'),tv=document.getElementById('dateTo');
   const hasRange=(fv&&fv.value)||(tv&&tv.value);
-  const validSiRows=saleSiRows.filter(siHasValidSrcName);
+  const validSiRows=activeSiRows.filter(siHasValidSrcName);
   let rows;
   if(!hasRange){rows=validSiRows;}
   else{
     const cp=saleRangePred(r=>parseDate(r[COL_SICRM.DATE]));
     const keys=new Set();
-    saleSiCrmRows.filter(cp).forEach(r=>{const id=nrm(r[COL_SICRM.LEAD_ID]);if(id)keys.add(id);});
+    activeSiCrmRows.filter(cp).forEach(r=>{const id=nrm(r[COL_SICRM.LEAD_ID]);if(id)keys.add(id);});
     rows=validSiRows.filter(r=>keys.has(nrm(r[COL_SI.MA_KH]))||keys.has(nrm(r[COL_SI.LEAD_ID])));
   }
   const toN=vndNum;
-  const crmMap=getSiCrmHistory();
+  const crmMap=getSiCrmHistory(activeSiCrmRows);
   // Gắn thông tin CS từ CRM vào từng khách, sắp theo doanh thu tích luỹ
   const baseEnriched=rows.map(r=>({r,ci:siContactInfo(r,crmMap),rev:toN(r[COL_SI.TOTAL_REV])})).sort((a,b)=>b.rev-a.rev);
   // Khách cần chăm sóc: chưa CS lần nào hoặc ≥10 ngày chưa CS
@@ -1980,14 +2004,14 @@ function renderSaleSiData(){
   // KPI hoạt động chăm sóc
   const khTotal=baseEnriched.length;
   const khDaCS=baseEnriched.filter(x=>x.ci.count>0).length;
-  const crmInRange=hasRange?saleSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE]))):saleSiCrmRows;
+  const crmInRange=hasRange?activeSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE]))):activeSiCrmRows;
   const csTotal=crmInRange.length;
   const csDone=crmInRange.filter(r=>(r[COL_SICRM.STATUS]||'').toLowerCase().includes('xong')).length;
   const csPending=csTotal-csDone;
   const daysBadge=ci=>{if(ci.days===null)return'<span style="color:#dc2626;font-weight:800">Chưa CS</span>';
     const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
     return`<span style="color:${c};font-weight:800">${ci.days} ngày</span>`;};
-  const histMap=getSiCrmHistory();
+  const histMap=getSiCrmHistory(activeSiCrmRows);
   const careOf=r=>siCareRecords(r,histMap);
   const chip=(txt,bg,fg)=>`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;
   const srcChip=s=>{const t=(s||'').trim().toLowerCase();if(t==='online')return chip('Online','#dbeafe','#2563eb');if(t==='offline')return chip('Offline','#fef3c7','#b45309');return s?chip(s,'#e5e7eb','#6b7280'):'<span style="color:var(--muted)">—</span>';};
@@ -2015,7 +2039,10 @@ function renderSaleSiData(){
     </tr>`).join('');
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
-    <div class="page-sub">Thông tin & chăm sóc khách sỉ (Master ⨝ CRM) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span>Thông tin & chăm sóc khách sỉ (Master ⨝ CRM) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</span>
+      ${siRegionToggle()}
+    </div>
     <div class="sec-label">Hoạt Động Chăm Sóc <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm vào 1 ô để lọc danh sách bên dưới)</span></div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px">
       ${fc('all','👥','Tổng Số KH',num(khTotal),'khách riêng biệt','g-blue')}
@@ -2677,6 +2704,14 @@ function setSiFilter(f){window._siFilter=(window._siFilter===f?'all':f);renderSa
 function setSiSrc(v){window._siSrc=v;renderSaleSiData();}
 function setSiProduct(v){window._siProduct=v;renderSaleSiData();}
 function setSiProductOv(v){window._siProductOv=v;renderSaleSi();}
+// Chuyển đổi 2 nguồn data Sỉ (Bắc+Nam / Miền Trung — cùng form, khác đội) ngay trên trang Báo Cáo KH Sỉ,
+// không tách trang riêng cho đỡ rối menu. Đổi ở đây thì cả Tổng Quan lẫn CRM đều đổi theo.
+function siRegionToggle(){
+  const r=window._siRegion||'bn';
+  const btn=(v,label)=>`<button onclick="setSiRegion('${v}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${r===v?'var(--accent)':'var(--border)'};background:${r===v?'var(--accent)':'var(--surface)'};color:${r===v?'#fff':'var(--text2)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">${label}</button>`;
+  return `<div style="display:inline-flex;gap:6px">${btn('bn','🧭 Bắc + Nam')}${btn('mt','🧭 Miền Trung')}</div>`;
+}
+function setSiRegion(v){window._siRegion=v;renderSaleSi();renderSaleSiData();}
 function setSiBrand(v){window._siBrand=v;renderSaleSiData();}
 function setSiBrandOv(v){window._siBrandOv=v;renderSaleSi();}
 function setSiStt(v){window._siStt=v;renderSaleSiData();}
@@ -2684,11 +2719,12 @@ function setSiCare(v){window._siCare=v;renderSaleSiData();}
 function setSiSearch(v){window._siSearch=v;window._siSearchFocus=true;renderSaleSiData();}
 function toggleSiCust(i){const d=document.getElementById('si-detail-'+i),a=document.getElementById('si-arrow-'+i);if(d){const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}}
 // Lịch sử chăm sóc theo khách (tất cả lượt CS, sắp mới→cũ), keyed theo Mã KH/Lead ID
-function getSiCrmHistory(){
+function getSiCrmHistory(crmRows){
+  crmRows=crmRows||saleSiCrmRows;
   const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   const m={};
-  saleSiCrmRows.forEach(r=>{
+  crmRows.forEach(r=>{
     const id=norm(r[COL_SICRM.LEAD_ID]),ph=last9(r[COL_SICRM.PHONE]);
     [id,ph?'PH:'+ph:''].forEach(k=>{if(k)(m[k]=m[k]||[]).push(r);});
   });
