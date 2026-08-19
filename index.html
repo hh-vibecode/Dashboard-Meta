@@ -547,6 +547,7 @@ async function loadData(){
     renderQcDoiSoat();
     renderQcInvoice();
     renderQcCompare();
+    renderDanhGia();
     stopThinking();
   }catch(e){stopThinking();showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
@@ -3810,10 +3811,14 @@ function qcCmpGBadge(g,lowerBetter){if(g===null)return'<span style="color:var(--
   const up=g>=0,good=lowerBetter?!up:up;
   return`<span style="color:${good?'var(--green)':'var(--red)'};font-size:10px;font-weight:800">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;}
 
-// ===== Báo Cáo Đánh Giá — nhận định tuần (Thứ 6 → Thứ 5), tự động tạo mỗi sáng Thứ 6 =====
-// Data lấy từ weekly-reviews.json (do routine cloud tự chạy hàng tuần ghi vào), page chỉ đọc & trình bày.
-// Trang này là kiểm soát CHẤT LƯỢNG — chi phí/chất lượng mess + xử lý dữ liệu Sale Sỉ & Sale Online.
-// Doanh số/ADS-DS KHÔNG đánh giá ở đây (đã có ở QC So Sánh Tháng).
+// ===== Báo Cáo Đánh Giá — báo cáo họp tuần Sales-Marketing, 10 phần (I-X) theo mẫu yêu cầu =====
+// Tính trực tiếp từ data đã tải trong dashboard (không gọi AI, không phụ thuộc file ngoài).
+// Sỉ ở đây CHỈ tính Bắc+Nam (saleSiRows/saleSiCrmRows) — xem project_si-mien-trung, chưa gộp Miền Trung.
+function dgISO(d){return d.getFullYear()+'-'+(d.getMonth()+1).toString().padStart(2,'0')+'-'+d.getDate().toString().padStart(2,'0');}
+function dgLastThuBefore(base){const x=new Date(base);x.setHours(0,0,0,0);x.setDate(x.getDate()-1);while(x.getDay()!==4)x.setDate(x.getDate()-1);return x;}
+function dgDefaultWeek(){const today=new Date();today.setHours(0,0,0,0);const to=dgLastThuBefore(today);const from=new Date(to);from.setDate(from.getDate()-6);return{from:dgISO(from),to:dgISO(to)};}
+function dgPrevRange(fromStr,toStr){const f=localDate(fromStr),t=localDate(toStr);const days=Math.round((t-f)/86400000)+1;const pt=new Date(f);pt.setDate(pt.getDate()-1);const pf=new Date(pt);pf.setDate(pf.getDate()-(days-1));return{from:dgISO(pf),to:dgISO(pt)};}
+function dgSetRange(part,val){if(!val)return;if(part==='from')window._dgFrom=val;else window._dgTo=val;renderDanhGia();}
 const DG_MESS_METRICS=[
   {key:'totalSpend',label:'Tổng Chi Phí',icon:'💰',type:'vnd'},
   {key:'totalMess',label:'Tổng Mess',icon:'💬',type:'num'},
@@ -3856,69 +3861,406 @@ function dgMetricGrid(cfgList,m,p){
     }).join('')}
   </div>`;
 }
-function dgWeekCard(w,idx){
-  const m=w.metrics||{},p=w.prevMetrics||{};
-  const lostList=(m.topLostReasons||[]).map(x=>`${x.reason} (${x.count})`).join(' · ')||'—';
-  return`
-  <div class="tbl-card" style="margin-bottom:18px${idx===0?';border-color:var(--accent)':''}">
-    <div class="tbl-head" style="flex-wrap:wrap;gap:8px 14px">
-      <div style="flex:1 1 auto">
-        <div class="tbl-title">🗓️ Tuần ${w.weekLabel}</div>
-        <div style="font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px">So với tuần ${w.prevWeekLabel}${w.generatedAt?' · tạo lúc '+dgFmtGenTime(w.generatedAt):''}</div>
-      </div>
-      ${idx===0?'<div class="tbl-count">Mới nhất</div>':''}
-    </div>
-    <div style="padding:16px 18px 20px">
-      ${w.summary?`<div style="background:var(--accent-l);border-left:4px solid var(--accent);border-radius:10px;padding:13px 16px;margin-bottom:16px;font-size:13px;line-height:1.65;color:var(--text);font-weight:600">${w.summary}</div>`:''}
-      <div class="sec-label" style="margin-top:2px">Chi Phí & Chất Lượng Mess</div>
-      <div style="margin-bottom:18px">${dgMetricGrid(DG_MESS_METRICS,m,p)}</div>
-      <div class="sec-label">Xử Lý Dữ Liệu — Sale Online (Lẻ)</div>
-      <div style="margin-bottom:6px">${dgMetricGrid(DG_ONL_METRICS,m,p)}</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:18px">Lý do mất lead nhiều nhất: ${lostList}</div>
-      <div class="sec-label">Xử Lý Dữ Liệu — Sale Sỉ</div>
-      <div style="margin-bottom:${w.highlights&&w.highlights.length?'18px':'4px'}">${dgMetricGrid(DG_SI_METRICS,m,p)}</div>
-      ${w.highlights&&w.highlights.length?`
-      <div class="sec-label">Vấn Đề & Điểm Cần Chú Ý</div>
-      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-        ${w.highlights.map(h=>{
-          const c=h.type==='good'?'var(--green)':h.type==='bad'?'var(--red)':'#f59e0b';
-          const ic=h.type==='good'?'✅':h.type==='bad'?'⚠️':'🔎';
-          return`<div style="border-left:4px solid ${c};background:var(--bg2);border-radius:10px;padding:11px 14px">
-            <div style="font-size:12.5px;font-weight:800;color:var(--text)">${ic} ${h.title}</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.55">${h.detail}</div>
-          </div>`;
-        }).join('')}
-      </div>`:''}
-      ${w.narrative?`<div class="sec-label">Nhận Định Chi Tiết</div>
-      <div style="font-size:13px;line-height:1.8;color:var(--text2);white-space:pre-line">${w.narrative}</div>`:''}
-    </div>
+function dgSecWrap(num,title,sub,body){
+  return`<div class="tbl-card" style="margin-bottom:18px">
+    <div class="tbl-head"><div class="tbl-title">${num}. ${title}</div></div>
+    <div style="padding:16px 18px 20px">${sub?`<div style="font-size:11.5px;color:var(--muted);margin-bottom:14px">${sub}</div>`:''}${body}</div>
   </div>`;
 }
-async function renderDanhGia(){
+function dgTbl(headers,rowsHtml,minWidth){
+  return`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse${minWidth?`;min-width:${minWidth}px`:''}">
+    <thead><tr style="border-bottom:1.5px solid var(--border)">${headers.map(h=>`<th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table></div>`;
+}
+function dgEmpty(msg){return`<div style="padding:14px;color:var(--muted);font-size:12.5px;text-align:center;background:var(--bg2);border-radius:10px">${msg}</div>`;}
+
+// ── Gom dữ liệu tuần: MKT/Sale (mktMetricsForRange), chất lượng mess+xử lý data (dgQualityMetricsForRange) ──
+function dgWeekData(fromStr,toStr){
+  const prev=dgPrevRange(fromStr,toStr);
+  const monthFrom=fromStr.slice(0,8)+'01';
+  return{
+    fromStr,toStr,prev,monthFrom,
+    mCur:mktMetricsForRange(fromStr,toStr,[]),mPrev:mktMetricsForRange(prev.from,prev.to,[]),mMonth:mktMetricsForRange(monthFrom,toStr,[]),
+    qCur:dgQualityMetricsForRange(fromStr,toStr,[]),qPrev:dgQualityMetricsForRange(prev.from,prev.to,[]),
+  };
+}
+function dgLeadHandling(fromStr,toStr){
+  const fromD=fromStr?localDate(fromStr):null,toD=toStr?localDate(toStr,true):null;
+  const inR=ds=>{const d=parseDate(ds);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
+  const hasStt=s=>!!(s&&s.toString().trim());
+  const onlWeek=(saleOnlRows||[]).filter(r=>inR(r[COL_SAONL.DATE]));
+  const siWeek=(saleSiRows||[]).filter(r=>inR(r[COL_SI.DATE]));
+  const onlHandled=onlWeek.filter(r=>hasStt(r[COL_SAONL.STATUS])).length;
+  const siHandled=siWeek.filter(r=>hasStt(r[COL_SI.STATUS])).length;
+  const totalLead=onlWeek.length+siWeek.length,handled=onlHandled+siHandled;
+  return{totalLead,handled,notHandled:totalLead-handled,onlWeek,siWeek};
+}
+
+// ── Phần II: Kết quả kinh doanh ──
+function dgBizSection(d){
+  const lh=dgLeadHandling(d.fromStr,d.toStr),lhPrev=dgLeadHandling(d.prev.from,d.prev.to);
+  const cur=d.mCur,prev=d.mPrev;
+  const convCur=lh.totalLead>0?cur.combOrders/lh.totalLead*100:null,convPrev=lhPrev.totalLead>0?prev.combOrders/lhPrev.totalLead*100:null;
+  const rows=[
+    ['💰 Doanh thu','vnd',cur.combRevenue,prev.combRevenue,false],
+    ['🧾 Số đơn','num',cur.combOrders,prev.combOrders,false],
+    ['💳 Giá trị đơn TB','vnd',cur.dsPerOrder,prev.dsPerOrder,false],
+    ['🆕 Tổng lead','num',lh.totalLead,lhPrev.totalLead,false],
+    ['✅ Lead đã xử lý','num',lh.handled,lhPrev.handled,false],
+    ['🕓 Lead chưa xử lý','num',lh.notHandled,lhPrev.notHandled,true],
+    ['🔁 Tỷ lệ Lead → Đơn','pct',convCur,convPrev,false],
+  ];
+  const bodyRows=rows.map(([label,type,c,p,lb])=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:9px 14px;font-weight:700;font-size:12.5px;white-space:nowrap">${label}</td>
+    <td style="padding:9px 14px;text-align:right;font-weight:800;font-size:13px;white-space:nowrap">${dgFmt(c,type)}</td>
+    <td style="padding:9px 14px;text-align:right;color:var(--muted);font-size:12px;white-space:nowrap">${dgFmt(p,type)}</td>
+    <td style="padding:9px 14px;text-align:right">${dgBadge(c,p,type,lb)}</td>
+  </tr>`).join('');
+  const table=dgTbl(['CHỈ SỐ','TUẦN NÀY','TUẦN TRƯỚC','CHÊNH LỆCH'],bodyRows,520);
+  const brandKeys=[['CT','Chánh Tâm'],['HT','Hiền Thuỷ'],['Shidai','Shidai'],['TTV','Tự Tại Viên']];
+  const brandRows=brandKeys.map(([k,label])=>{
+    const c=cur.byBrand[k],p=prev.byBrand[k];
+    if(!c||(c.total<=0&&(!p||p.total<=0)))return'';
+    return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:7px 14px;font-size:12px;color:var(--text2)">${label}</td>
+      <td style="padding:7px 14px;text-align:right;font-weight:700;font-size:12px;white-space:nowrap">${vnd(c.total)}</td>
+      <td style="padding:7px 14px;text-align:right;color:var(--muted);font-size:11.5px;white-space:nowrap">${vnd(p?p.total:0)}</td>
+      <td style="padding:7px 14px;text-align:right">${dgBadge(c.total,p?p.total:0,'vnd',false)}</td>
+    </tr>`;
+  }).join('');
+  const brandTbl=brandRows?dgTbl(['THƯƠNG HIỆU','DOANH THU','TUẦN TRƯỚC','CHÊNH LỆCH'],brandRows,460):'';
+  const monthNote=`<div style="margin-top:12px;font-size:12px;color:var(--text2)">📅 Doanh thu lũy kế tháng (đến ${fmtDate(localDate(d.toStr))}): <b>${vnd(d.mMonth.combRevenue)}</b> · ${num(d.mMonth.combOrders)} đơn</div>`;
+  return{html:table+(brandTbl?`<div class="sec-label" style="margin-top:16px">Theo Thương Hiệu</div>${brandTbl}`:'')+monthNote,convCur,lh,lhPrev,cur,prev};
+}
+
+// ── Phần III: Hiệu quả Marketing ──
+function dgMktSection(d){
+  const grid=`<div class="sec-label" style="margin-top:2px">Chi Phí & Chất Lượng Mess</div><div style="margin-bottom:16px">${dgMetricGrid(DG_MESS_METRICS,d.qCur,d.qPrev)}</div>
+    <div class="sec-label">Xử Lý Dữ Liệu — Sale Online (Lẻ)</div><div style="margin-bottom:6px">${dgMetricGrid(DG_ONL_METRICS,d.qCur,d.qPrev)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px">Lý do mất lead nhiều nhất: ${(d.qCur.topLostReasons||[]).map(x=>`${x.reason} (${x.count})`).join(' · ')||'—'}</div>
+    <div class="sec-label">Xử Lý Dữ Liệu — Sale Sỉ</div><div style="margin-bottom:16px">${dgMetricGrid(DG_SI_METRICS,d.qCur,d.qPrev)}</div>`;
+  const brandKeys=[['CT','Chánh Tâm'],['HT','Hiền Thuỷ'],['Shidai','Shidai'],['TTV','Tự Tại Viên']];
+  const perBrand=brandKeys.map(([k,label])=>({k,label,c:mktMetricsForRange(d.fromStr,d.toStr,[k]),p:mktMetricsForRange(d.prev.from,d.prev.to,[k])}));
+  const active=perBrand.filter(x=>x.c.totalSpend>0||x.c.combRevenue>0);
+  const rows=active.map(x=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:8px 13px;font-weight:700;font-size:12px;white-space:nowrap">${x.label}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px;white-space:nowrap">${vnd(x.c.totalSpend)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(x.c.nDat+x.c.nTiem)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px;white-space:nowrap">${x.c.costPerDat!=null?vnd(x.c.costPerDat):'—'}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap">${vnd(x.c.combRevenue)}</td>
+    <td style="padding:8px 13px;text-align:right">${dgBadge(x.c.combRevenue,x.p.combRevenue,'vnd',false)}</td>
+  </tr>`).join('');
+  const tbl=active.length?dgTbl(['THƯƠNG HIỆU/KÊNH','NGÂN SÁCH','LEAD (ĐẠT+TIỀM NĂNG)','CPL','DOANH THU','CHÊNH LỆCH'],rows,600):dgEmpty('Chưa có chi phí/doanh thu theo thương hiệu trong kỳ');
+  let notes='';
+  if(active.length){
+    const bestLead=[...active].sort((a,b)=>(b.c.nDat+b.c.nTiem)-(a.c.nDat+a.c.nTiem))[0];
+    const bestRev=[...active].sort((a,b)=>b.c.combRevenue-a.c.combRevenue)[0];
+    const withCpl=active.filter(x=>x.c.costPerDat!=null);
+    const worstCpl=withCpl.length?[...withCpl].sort((a,b)=>b.c.costPerDat-a.c.costPerDat)[0]:null;
+    const bestCpl=withCpl.length?[...withCpl].sort((a,b)=>a.c.costPerDat-b.c.costPerDat)[0]:null;
+    notes=`<ul style="margin:12px 0 0;padding-left:18px;font-size:12px;color:var(--text2);line-height:1.8">
+      <li>Nguồn mang về nhiều lead nhất: <b>${bestLead.label}</b> (${num(bestLead.c.nDat+bestLead.c.nTiem)} lead)</li>
+      <li>Nguồn mang về nhiều doanh thu nhất: <b>${bestRev.label}</b> (${vnd(bestRev.c.combRevenue)})</li>
+      ${worstCpl?`<li>CPL cao nhất: <b>${worstCpl.label}</b> (${vnd(worstCpl.c.costPerDat)}/data đạt) — cần xem lại chất lượng/targeting</li>`:''}
+      ${bestCpl&&bestCpl!==worstCpl?`<li>CPL thấp nhất: <b>${bestCpl.label}</b> (${vnd(bestCpl.c.costPerDat)}/data đạt)</li>`:''}
+    </ul>`;
+  }
+  return{html:grid+`<div class="sec-label">Theo Thương Hiệu / Kênh</div>`+tbl+notes,perBrand:active};
+}
+
+// ── Phần IV: Hiệu quả xử lý lead Sales theo nhân sự ──
+function dgSiRepTable(fromStr,toStr){
+  const fromD=fromStr?localDate(fromStr):null,toD=toStr?localDate(toStr,true):null;
+  const inR=ds=>{const d=parseDate(ds);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
+  const hasStt=s=>!!(s&&s.toString().trim());
+  const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const crmMap=getSiCrmHistory(saleSiCrmRows);
+  const today=new Date();today.setHours(0,0,0,0);
+  const byRep={};
+  const get=rep=>{rep=rep||'Chưa gán';if(!byRep[rep])byRep[rep]={received:0,handled:0,overdue:0,progressed:0,orders:0,revenue:0};return byRep[rep];};
+  (saleSiRows||[]).forEach(r=>{
+    const rep=(r[COL_SI.SALES]||'').trim()||'Chưa gán';
+    const b=get(rep);
+    if(inR(r[COL_SI.DATE])){b.received++;if(hasStt(r[COL_SI.STATUS]))b.handled++;}
+    const ci=siContactInfo(r,crmMap);
+    const nextD=parseDate(ci.next);
+    const statusL=(r[COL_SI.STATUS]||'').toLowerCase();
+    const isDon=statusL.includes('đã ra đơn')||vndNum(r[COL_SI.TOTAL_REV])>0;
+    if(!isDon&&nextD&&nextD<today)b.overdue++;
+    const recs=siCareRecords(r,crmMap);
+    if(recs.some(rec=>inR(rec[COL_SICRM.DATE])))b.progressed++;
+  });
+  const repByKey={};
+  (saleSiRows||[]).forEach(r=>{const rep=(r[COL_SI.SALES]||'').trim();if(!rep)return;const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(k&&!repByKey[k])repByKey[k]=rep;});});
+  (saleSiCrmRows||[]).forEach(r=>{
+    const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]);if(cv<=0||!inR(r[COL_SICRM.CLOSE_DATE]))return;
+    const ph=last9(r[COL_SICRM.PHONE]);
+    const rep=repByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?repByKey['PH:'+ph]:'')||'Chưa gán';
+    const b=get(rep);b.orders++;b.revenue+=cv;
+  });
+  return byRep;
+}
+function dgOnlRepTable(fromStr,toStr){
+  const fromD=fromStr?localDate(fromStr):null,toD=toStr?localDate(toStr,true):null;
+  const inR=ds=>{const d=parseDate(ds);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
+  const hasStt=s=>!!(s&&s.toString().trim());
+  const byRep={};
+  (saleOnlRows||[]).filter(r=>inR(r[COL_SAONL.DATE])).forEach(r=>{
+    const rep=(r[COL_SAONL.SALES]||'').trim()||'Chưa gán';
+    if(!byRep[rep])byRep[rep]={received:0,handled:0,orders:0,revenue:0};
+    const b=byRep[rep];b.received++;
+    if(hasStt(r[COL_SAONL.STATUS]))b.handled++;
+    if((r[COL_SAONL.STATUS]||'')==='Chốt đơn'){b.orders++;b.revenue+=vndNum(r[COL_SAONL.REVENUE]);}
+  });
+  return byRep;
+}
+function dgRepSection(d){
+  const si=dgSiRepTable(d.fromStr,d.toStr);
+  const onl=dgOnlRepTable(d.fromStr,d.toStr);
+  const siRows=Object.entries(si).sort((a,b)=>b[1].revenue-a[1].revenue).map(([rep,b])=>`<tr style="border-bottom:1px solid var(--border)${rep==='Chưa gán'?';background:var(--bg2)':''}">
+    <td style="padding:8px 13px;font-weight:700;font-size:12px;white-space:nowrap">${rep}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.received)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.handled)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.received-b.handled)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px;color:${b.overdue>0?'var(--red)':'inherit'};font-weight:${b.overdue>0?700:400}">${num(b.overdue)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.progressed)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.orders)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap">${vnd(b.revenue)}</td>
+  </tr>`).join('');
+  const onlRows=Object.entries(onl).sort((a,b)=>b[1].revenue-a[1].revenue).map(([rep,b])=>`<tr style="border-bottom:1px solid var(--border)${rep==='Chưa gán'?';background:var(--bg2)':''}">
+    <td style="padding:8px 13px;font-weight:700;font-size:12px;white-space:nowrap">${rep}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.received)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.handled)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.received-b.handled)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px">${num(b.orders)}</td>
+    <td style="padding:8px 13px;text-align:right;font-size:12px;font-weight:700;white-space:nowrap">${vnd(b.revenue)}</td>
+  </tr>`).join('');
+  const html=`<div class="sec-label" style="margin-top:2px">Sale Sỉ (lead nhận trong tuần; quá hạn/tiến triển tính trên toàn bộ pipeline đang quản lý)</div>
+    ${Object.keys(si).length?dgTbl(['NHÂN SỰ','LEAD NHẬN','ĐÃ XỬ LÝ','CHƯA XỬ LÝ','QUÁ HẠN','CÓ TIẾN TRIỂN','ĐƠN','DOANH THU'],siRows,680):dgEmpty('Chưa có data')}
+    <div class="sec-label" style="margin-top:16px">Sale Online (Lẻ)</div>
+    ${Object.keys(onl).length?dgTbl(['NHÂN SỰ','LEAD NHẬN','ĐÃ XỬ LÝ','CHƯA XỬ LÝ','ĐƠN','DOANH THU'],onlRows,560):dgEmpty('Chưa có data')}`;
+  const worstSi=Object.entries(si).filter(([,b])=>b.received>0).sort((a,b)=>(a[1].handled/a[1].received)-(b[1].handled/b[1].received))[0];
+  return{html,si,onl,worstSi};
+}
+
+// ── Phần V: Phân tích pipeline khách hàng Sỉ (Bắc+Nam) ──
+function dgPipelineData(fromStr,toStr){
+  const today=new Date();today.setHours(0,0,0,0);
+  const in7=new Date(today);in7.setDate(in7.getDate()+7);
+  const in30=new Date(today);in30.setDate(in30.getDate()+30);
+  const fromD=fromStr?localDate(fromStr):null,toD=toStr?localDate(toStr,true):null;
+  const inWeek=ds=>{const d=parseDate(ds);if(!d)return false;if(fromD&&d<fromD)return false;if(toD&&d>toD)return false;return true;};
+  const crmMap=getSiCrmHistory(saleSiCrmRows);
+  const rows=(saleSiRows||[]).filter(siHasValidSrcName);
+  const stOf=r=>(r[COL_SI.STATUS]||'').toLowerCase();
+  const isDon=r=>stOf(r).includes('đã ra đơn')||vndNum(r[COL_SI.TOTAL_REV])>0;
+  const isPho=r=>/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(stOf(r));
+  const isTiem=r=>/tiềm năng|tiem nang/.test(stOf(r))&&!isPho(r);
+  const isLost=r=>/mất kết n|mat ket n/.test(stOf(r));
+  const isLongCareR=r=>/chăm sóc dài hạn|cham soc dai han/.test(stOf(r));
+  const notYet=rows.filter(r=>!isDon(r));
+  const enriched=notYet.map(r=>({r,ci:siContactInfo(r,crmMap),name:siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),store:(r[COL_SI.STORE]||'').trim()}));
+  const closeSoon7=enriched.filter(x=>{const dt=parseDate(x.ci.next);return dt&&dt>=today&&dt<=in7;}).sort((a,b)=>parseDate(a.ci.next)-parseDate(b.ci.next));
+  const closeSoonMonth=enriched.filter(x=>{const dt=parseDate(x.ci.next);return dt&&dt>in7&&dt<=in30;}).sort((a,b)=>parseDate(a.ci.next)-parseDate(b.ci.next));
+  const progressed=enriched.filter(x=>siCareRecords(x.r,crmMap).some(rec=>inWeek(rec[COL_SICRM.DATE])))
+    .sort((a,b)=>(a.ci.days??999)-(b.ci.days??999));
+  const noProgress=enriched.filter(x=>{const dt=parseDate(x.ci.next);const overdue=dt&&dt<today;const stale=x.ci.days==null||x.ci.days>14;return stale&&(overdue||!dt);})
+    .sort((a,b)=>(b.ci.days??9999)-(a.ci.days??9999));
+  const atRisk=enriched.filter(x=>isLost(x.r)||(isTiem(x.r)&&x.ci.days!=null&&x.ci.days>14))
+    .sort((a,b)=>(b.ci.days??9999)-(a.ci.days??9999));
+  const longCareList=enriched.filter(x=>isLongCareR(x.r))
+    .sort((a,b)=>(b.ci.expected||0)-(a.ci.expected||0));
+  return{enriched,closeSoon7,closeSoonMonth,progressed,noProgress,atRisk,longCareList};
+}
+function dgReviewList(pd){
+  const score=new Map();
+  const add=(list,pts,reason)=>list.forEach(x=>{const c=score.get(x.r)||{x,pts:0,reasons:[]};c.pts+=pts;c.reasons.push(reason);score.set(x.r,c);});
+  add(pd.closeSoon7,5,'Dự kiến chốt trong 7 ngày');
+  add(pd.atRisk,4,'Có nguy cơ mất — cần Sales xác nhận');
+  add(pd.noProgress,3,'Không có tiến triển / quá hạn follow');
+  add(pd.closeSoonMonth,2,'Dự kiến chốt trong tháng');
+  add(pd.longCareList,1,'Sỉ tiềm năng dài hạn — cần kế hoạch chăm sóc');
+  return[...score.values()].sort((a,b)=>b.pts-a.pts||((b.x.ci.expected||0)-(a.x.ci.expected||0))).slice(0,15);
+}
+function dgReviewQuestion(reasons){
+  if(reasons.includes('Dự kiến chốt trong 7 ngày'))return'Bước tiếp theo để chốt là gì? Có cần hỗ trợ gì không?';
+  if(reasons.includes('Có nguy cơ mất — cần Sales xác nhận'))return'Khách có dấu hiệu chuyển sang đơn vị khác không? Đã follow đúng hẹn chưa?';
+  if(reasons.includes('Không có tiến triển / quá hạn follow'))return'Vì sao chưa follow lại? Có cần đổi cách tiếp cận không?';
+  if(reasons.includes('Dự kiến chốt trong tháng'))return'Khách đang thiếu điều kiện gì để chốt sớm hơn?';
+  return'Kế hoạch chăm sóc dài hạn cho khách này là gì?';
+}
+function dgPipeRow(x){
+  const r=x.r,ci=x.ci;
+  return`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:7px 12px;font-size:12px">${siNameCell(x.name,x.store)}</td>
+    <td style="padding:7px 12px;font-size:11px;white-space:nowrap">${r[COL_SI.STATUS]||'—'}</td>
+    <td style="padding:7px 12px;font-size:11px;white-space:nowrap">${productOf(r)}</td>
+    <td style="padding:7px 12px;font-size:12px;text-align:right;white-space:nowrap">${ci.expected>0?vnd(ci.expected):'—'}</td>
+    <td style="padding:7px 12px;font-size:11px;color:var(--muted);white-space:nowrap">${ci.days!=null?ci.days+' ngày trước':'chưa CS'}</td>
+    <td style="padding:7px 12px;font-size:12px;font-weight:600;color:#ca8a04;white-space:nowrap">${ci.next||'—'}</td>
+    <td style="padding:7px 12px;font-size:11px;white-space:nowrap">${r[COL_SI.SALES]||'—'}</td>
+  </tr>`;
+}
+function dgPipeTable(list,emptyMsg,cap){
+  if(!list.length)return dgEmpty(emptyMsg);
+  cap=cap||20;
+  const shown=list.slice(0,cap);
+  const more=list.length>cap?`<div style="font-size:11px;color:var(--muted);margin-top:6px">+ ${list.length-cap} khách khác (đủ điều kiện nhưng không hiện hết để báo cáo gọn)</div>`:'';
+  return dgTbl(['KHÁCH HÀNG','TRẠNG THÁI','SẢN PHẨM','GIÁ TRỊ DỰ KIẾN','PHẢN HỒI GẦN NHẤT','NGÀY HẸN LẠI','SALES'],shown.map(dgPipeRow).join(''),640)+more;
+}
+function dgReviewRow(item){
+  const x=item.x,r=x.r,ci=x.ci;
+  return`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:7px 12px;font-size:12px">${siNameCell(x.name,x.store)}</td>
+    <td style="padding:7px 12px;font-size:11px;color:var(--text2)">${item.reasons.join(', ')}</td>
+    <td style="padding:7px 12px;font-size:12px;text-align:right;white-space:nowrap">${ci.expected>0?vnd(ci.expected):'—'}</td>
+    <td style="padding:7px 12px;font-size:11px;white-space:nowrap">${r[COL_SI.SALES]||'—'}</td>
+    <td style="padding:7px 12px;font-size:11px;color:var(--text2)">${dgReviewQuestion(item.reasons)}</td>
+  </tr>`;
+}
+function dgPipelineSection(d){
+  const pd=dgPipelineData(d.fromStr,d.toStr);
+  const review=dgReviewList(pd);
+  const html=`
+    <div class="sec-label" style="margin-top:2px">1. Khách dự kiến chốt trong 7 ngày (${pd.closeSoon7.length})</div>
+    <div style="margin-bottom:16px">${dgPipeTable(pd.closeSoon7,'Không có khách nào có hẹn chốt trong 7 ngày tới')}</div>
+    <div class="sec-label">2. Khách dự kiến chốt trong tháng (${pd.closeSoonMonth.length})</div>
+    <div style="margin-bottom:16px">${dgPipeTable(pd.closeSoonMonth,'Không có khách nào có hẹn chốt trong tháng (ngoài nhóm 7 ngày)')}</div>
+    <div class="sec-label">3. Khách có tiến triển mới trong tuần (${pd.progressed.length})</div>
+    <div style="margin-bottom:16px">${dgPipeTable(pd.progressed,'Không có lượt chăm sóc mới nào trong tuần')}</div>
+    <div class="sec-label">4. Khách không có tiến triển (${pd.noProgress.length})</div>
+    <div style="margin-bottom:16px">${dgPipeTable(pd.noProgress,'Không có khách nào bị đình trệ')}</div>
+    <div class="sec-label">5. Khách có nguy cơ mất (${pd.atRisk.length}) <span style="font-weight:400;text-transform:none;color:var(--muted)">— chỉ đánh dấu nghi vấn, cần Sales xác nhận</span></div>
+    <div style="margin-bottom:16px">${dgPipeTable(pd.atRisk,'Chưa phát hiện khách nào có dấu hiệu nguy cơ mất')}</div>
+    <div class="sec-label">6. Khách sỉ tiềm năng dài hạn (${pd.longCareList.length})</div>
+    <div style="margin-bottom:16px">${dgPipeTable(pd.longCareList,'Không có khách nào đang ở nhóm chăm sóc dài hạn')}</div>
+    <div class="sec-label">7. Khách đề xuất rà soát tại cuộc họp (top ${review.length})</div>
+    <div>${review.length?dgTbl(['KHÁCH HÀNG','LÝ DO ĐỀ XUẤT','GIÁ TRỊ DỰ KIẾN','SALES','CÂU HỎI CHO SALES'],review.map(dgReviewRow).join(''),760):dgEmpty('Không có khách nào cần rà soát ưu tiên')}</div>`;
+  return{html,pd,review};
+}
+
+// ── Phần VII: Dấu hiệu cần xác minh ──
+function dgVerifyFlags(){
+  const flags=[];
+  const rows=(saleSiRows||[]).filter(siHasValidSrcName);
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const noSales=rows.filter(r=>!(r[COL_SI.SALES]||'').trim());
+  if(noSales.length)flags.push({title:`${noSales.length} khách Sỉ chưa gán Sales phụ trách`,detail:'Khách không có người phụ trách sẽ không được theo dõi/follow đúng hẹn.',who:'Trưởng nhóm Sỉ'});
+  const phoneCounts={};
+  rows.forEach(r=>{const p=last9(r[COL_SI.PHONE]);if(p)phoneCounts[p]=(phoneCounts[p]||0)+1;});
+  const dupPhones=Object.entries(phoneCounts).filter(([,c])=>c>1);
+  if(dupPhones.length)flags.push({title:`${dupPhones.length} SĐT xuất hiện nhiều hơn 1 lần trong Master Sỉ`,detail:'Có thể là lead trùng (nhập nhiều lần) hoặc 1 khách bị tách thành nhiều Lead ID khác nhau.',who:'Sale Sỉ'});
+  const donNoRev=rows.filter(r=>(r[COL_SI.STATUS]||'').toLowerCase().includes('đã ra đơn')&&vndNum(r[COL_SI.TOTAL_REV])<=0);
+  if(donNoRev.length)flags.push({title:`${donNoRev.length} khách Sỉ trạng thái "Đã ra đơn" nhưng Doanh thu cộng dồn = 0`,detail:'Master có thể chưa cập nhật kịp theo CRM — cần đối chiếu Master ⨝ CRM Sỉ.',who:'Sale Sỉ / Kế toán'});
+  const onlNoSrc=(saleOnlRows||[]).filter(r=>(r[COL_SAONL.STATUS]||'')==='Chốt đơn'&&!(r[COL_SAONL.AD_ID]||'').trim()&&!(r[COL_SAONL.SOURCE]||'').trim());
+  if(onlNoSrc.length)flags.push({title:`${onlNoSrc.length} đơn Sale Online đã chốt nhưng không rõ nguồn`,detail:'Thiếu cả Nguồn & Ads ID — không gắn được về chiến dịch Marketing nào.',who:'Sale Online'});
+  const noNextTiem=(saleSiRows||[]).filter(siHasValidSrcName).filter(r=>{
+    const s=(r[COL_SI.STATUS]||'').toLowerCase();
+    return/tiềm năng/.test(s)&&!/không tiềm năng|khong tiem nang/.test(s)&&!(r[COL_SI.LAST_CS]||'').toString().trim();
+  });
+  if(noNextTiem.length)flags.push({title:`${noNextTiem.length} khách Sỉ "Tiềm năng" nhưng chưa có ngày CS gần nhất`,detail:'Trạng thái tiềm năng nhưng chưa có bước tiếp theo cụ thể.',who:'Sale Sỉ'});
+  return flags;
+}
+function dgVerifySection(){
+  const flags=dgVerifyFlags();
+  if(!flags.length)return{html:dgEmpty('Không phát hiện dấu hiệu bất thường nào trong dữ liệu hiện tại'),flags};
+  const html=`<div style="display:flex;flex-direction:column;gap:8px">${flags.map(f=>`
+    <div style="border-left:4px solid #f59e0b;background:var(--bg2);border-radius:10px;padding:11px 14px">
+      <div style="font-size:12.5px;font-weight:800;color:var(--text)">🔎 ${f.title}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.55">${f.detail}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Cần xác nhận: ${f.who}</div>
+    </div>`).join('')}</div>`;
+  return{html,flags};
+}
+
+// ── Phần I / VIII / IX / X: tổng hợp từ các phần trên (rule-based, không gọi AI) ──
+function dgExecSummary(biz,mkt,rep,pipe,verify){
+  const b=[];
+  const revG=qcCmpGrowth(biz.prev.combRevenue,biz.cur.combRevenue);
+  if(revG!=null)b.push(`${revG>=0?'📈':'📉'} Doanh thu tuần này <b>${vnd(biz.cur.combRevenue)}</b> (${revG>=0?'+':''}${revG.toFixed(1)}% so tuần trước)`);
+  if(pipe.pd.closeSoon7.length)b.push(`🎯 <b>${pipe.pd.closeSoon7.length} khách</b> dự kiến chốt trong 7 ngày tới, tổng giá trị dự kiến <b>${vnd(pipe.pd.closeSoon7.reduce((s,x)=>s+(x.ci.expected||0),0))}</b>`);
+  if(pipe.pd.atRisk.length)b.push(`⚠️ <b>${pipe.pd.atRisk.length} khách</b> có dấu hiệu nguy cơ mất — cần Sales xác nhận sớm`);
+  if(pipe.pd.noProgress.length)b.push(`🔔 <b>${pipe.pd.noProgress.length} khách</b> đang không có tiến triển hoặc quá hạn follow`);
+  if(rep.worstSi&&rep.worstSi[1].received>0){const r=rep.worstSi[1].handled/rep.worstSi[1].received*100;if(r<80)b.push(`👤 Sales <b>${rep.worstSi[0]}</b> mới xử lý ${r.toFixed(0)}% lead nhận trong tuần — cần rà soát`);}
+  if(verify.flags.length)b.push(`🔎 <b>${verify.flags.length} nhóm dấu hiệu</b> cần bộ phận xác minh dữ liệu (xem Phần VII)`);
+  const cplBad=(mkt.perBrand||[]).filter(x=>x.c.costPerDat!=null&&x.p.costPerDat!=null&&x.c.costPerDat>x.p.costPerDat*1.2);
+  if(cplBad.length)b.push(`💸 CPL tăng mạnh (>20%) ở: ${cplBad.map(x=>x.label).join(', ')}`);
+  if(!b.length)b.push('Không có biến động nổi bật trong tuần — số liệu ổn định so với tuần trước.');
+  return`<ul style="margin:0;padding-left:20px;font-size:13px;line-height:2;color:var(--text)">${b.slice(0,7).map(x=>`<li>${x}</li>`).join('')}</ul>`;
+}
+function dgMeetingQuestions(rep,pipe,verify){
+  const qs=[];
+  pipe.review.slice(0,5).forEach(item=>qs.push(`${siNameCell(item.x.name,item.x.store).replace(/<[^>]+>/g,' ').trim()}: ${dgReviewQuestion(item.reasons)}`));
+  Object.entries(rep.si).filter(([rep2,b])=>b.overdue>0).sort((a,b)=>b[1].overdue-a[1].overdue).slice(0,2).forEach(([rep2,b])=>qs.push(`Sales ${rep2} đang có ${b.overdue} khách quá hạn follow — kế hoạch xử lý thế nào?`));
+  verify.flags.slice(0,3).forEach(f=>qs.push(`${f.title} — ${f.who} xác nhận nguyên nhân?`));
+  if(!qs.length)qs.push('Không có câu hỏi ưu tiên nào phát sinh từ dữ liệu tuần này.');
+  return`<ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.9;color:var(--text)">${qs.slice(0,10).map(q=>`<li>${q}</li>`).join('')}</ol>`;
+}
+function dgActionProposals(pipe,verify){
+  const rows=[];
+  pipe.review.slice(0,8).forEach(item=>{
+    const nm=siNameCell(item.x.name,item.x.store).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    rows.push([`${nm} — ${item.reasons[0]}`,dgReviewQuestion(item.reasons),item.x.r[COL_SI.SALES]||'Sale Sỉ','Trước cuộc họp tuần sau']);
+  });
+  verify.flags.forEach(f=>rows.push([f.title,'Rà soát & xác nhận nguyên nhân, cập nhật lại dữ liệu nếu sai',f.who,'Trước cuộc họp tuần sau']));
+  if(!rows.length)return dgEmpty('Không có đề xuất hành động nào trong tuần này');
+  const body=rows.map(([issue,action,who,due])=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:8px 12px;font-size:12px">${issue}</td>
+    <td style="padding:8px 12px;font-size:12px;color:var(--text2)">${action}</td>
+    <td style="padding:8px 12px;font-size:11.5px;white-space:nowrap">${who}</td>
+    <td style="padding:8px 12px;font-size:11.5px;white-space:nowrap;color:var(--muted)">${due}</td>
+  </tr>`).join('');
+  return dgTbl(['VẤN ĐỀ','HÀNH ĐỘNG GỢI Ý','NGƯỜI/BỘ PHẬN XÁC NHẬN','THỜI HẠN ĐỀ XUẤT'],body,700)+
+    `<div style="font-size:11px;color:var(--muted);margin-top:10px">Đây chỉ là đề xuất — người quản lý và bộ phận liên quan cần xác nhận trước khi thực hiện.</div>`;
+}
+function dgConclusion(pipe,verify,rep){
+  const before=[],during=[],after=[];
+  verify.flags.forEach(f=>before.push(f.title));
+  pipe.pd.atRisk.slice(0,5).forEach(x=>during.push(`Khách nguy cơ mất: ${siPersonName(x.r[COL_SI.REP],x.r[COL_SI.STORE])}`));
+  Object.entries(rep.si).filter(([,b])=>b.overdue>0).forEach(([r,b])=>during.push(`${b.overdue} khách quá hạn follow của Sales ${r}`));
+  pipe.pd.closeSoonMonth.slice(0,5).forEach(x=>after.push(`Theo dõi khách dự kiến chốt trong tháng: ${siPersonName(x.r[COL_SI.REP],x.r[COL_SI.STORE])}`));
+  pipe.pd.longCareList.slice(0,5).forEach(x=>after.push(`Khách chăm sóc dài hạn: ${siPersonName(x.r[COL_SI.REP],x.r[COL_SI.STORE])}`));
+  const grp=(title,list)=>`<div class="sec-label" style="margin-top:${title.startsWith('1')?'2px':'14px'}">${title}</div>${list.length?`<ul style="margin:0;padding-left:20px;font-size:12.5px;line-height:1.9;color:var(--text2)">${list.slice(0,8).map(x=>`<li>${x}</li>`).join('')}</ul>`:dgEmpty('Không có mục nào')}`;
+  return grp('1. Việc cần xử lý trước cuộc họp',before)+grp('2. Việc cần đưa ra trao đổi trong cuộc họp',during)+grp('3. Việc cần theo dõi sau cuộc họp',after);
+}
+
+function renderDanhGia(){
   const el=document.getElementById('page-danhgia');
   if(!el)return;
-  let data=[];
-  try{
-    const res=await fetch('weekly-reviews.json?t='+Date.now());
-    if(res.ok)data=await res.json();
-  }catch(e){data=[];}
-  if(!Array.isArray(data))data=[];
-  data=[...data].sort((a,b)=>(b.weekStart||'').localeCompare(a.weekStart||''));
-  if(!data.length){
-    el.innerHTML=`
-      <div class="page-title">Báo Cáo Đánh Giá</div>
-      <div class="page-sub">Kiểm soát chất lượng: chi phí & chất lượng mess, xử lý dữ liệu Sale Sỉ + Sale Online — theo tuần (Thứ 6 → Thứ 5)</div>
-      <div style="padding:80px 20px;text-align:center;color:var(--muted)">
-        <div style="font-size:48px;margin-bottom:12px">🗓️</div>
-        <div style="font-size:15px;font-weight:700;color:var(--text2)">Chưa có báo cáo tuần nào</div>
-        <div style="font-size:13px;margin-top:6px">Báo cáo đầu tiên sẽ tự động tạo vào 8h sáng Thứ 6 tới (giờ Việt Nam).</div>
-      </div>`;
-    return;
-  }
+  if(!allRows.length||!saleSiRows.length){el.innerHTML=`<div class="page-title">Báo Cáo Đánh Giá</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>`;return;}
+  const def=dgDefaultWeek();
+  const fromStr=window._dgFrom||def.from,toStr=window._dgTo||def.to;
+  const d=dgWeekData(fromStr,toStr);
+  const biz=dgBizSection(d);
+  const mkt=dgMktSection(d);
+  const rep=dgRepSection(d);
+  const pipe=dgPipelineSection(d);
+  const verify=dgVerifySection();
   el.innerHTML=`
     <div class="page-title">Báo Cáo Đánh Giá</div>
-    <div class="page-sub">Kiểm soát chất lượng: chi phí & chất lượng mess, xử lý dữ liệu Sale Sỉ + Sale Online — theo tuần (Thứ 6 → Thứ 5) · tự động cập nhật mỗi sáng Thứ 6 · ${data.length} báo cáo</div>
-    ${data.map((w,i)=>dgWeekCard(w,i)).join('')}`;
+    <div class="page-sub">Báo cáo họp tuần Sales–Marketing · tính trực tiếp từ dữ liệu dashboard · Sỉ chỉ tính Bắc+Nam (chưa gộp Miền Trung)</div>
+    <div class="period-bar">
+      <div class="date-filter">
+        <label>Tuần từ</label>
+        <input type="date" value="${fromStr}" onchange="dgSetRange('from',this.value)">
+        <label>đến</label>
+        <input type="date" value="${toStr}" onchange="dgSetRange('to',this.value)">
+      </div>
+      <div style="font-size:11.5px;color:var(--muted)">So với tuần ${fmtDate(localDate(d.prev.from))} – ${fmtDate(localDate(d.prev.to))} · Lũy kế tháng từ ${fmtDate(localDate(d.monthFrom))}</div>
+      <button class="refresh-btn" onclick="loadData()">↺ Cập Nhật</button>
+    </div>
+    ${dgSecWrap('I','Tóm Tắt Điều Hành','',dgExecSummary(biz,mkt,rep,pipe,verify))}
+    ${dgSecWrap('II','Kết Quả Kinh Doanh','',biz.html)}
+    ${dgSecWrap('III','Hiệu Quả Marketing','',mkt.html)}
+    ${dgSecWrap('IV','Hiệu Quả Xử Lý Lead Của Sales','',rep.html)}
+    ${dgSecWrap('V','Phân Tích Pipeline Khách Hàng (Sỉ)','Phần ưu tiên nhất trong báo cáo',pipe.html)}
+    ${dgSecWrap('VI','Công Việc Tồn Đọng','',dgEmpty('Chưa có nguồn dữ liệu quản lý công việc/task trong dashboard — cần bổ sung 1 sheet theo dõi việc + deadline để làm phần này.'))}
+    ${dgSecWrap('VII','Các Dấu Hiệu Cần Xác Minh','',verify.html)}
+    ${dgSecWrap('VIII','Câu Hỏi Dành Cho Cuộc Họp','',dgMeetingQuestions(rep,pipe,verify))}
+    ${dgSecWrap('IX','Đề Xuất Hành Động','',dgActionProposals(pipe,verify))}
+    ${dgSecWrap('X','Kết Luận Báo Cáo','',dgConclusion(pipe,verify,rep))}`;
 }
 function renderQcCompare(){
   const el=document.getElementById('page-qc-compare');
