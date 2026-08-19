@@ -352,6 +352,7 @@ const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DE
 const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
 const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,ADDRESS:12,LICENSE:13,FANPAGE:14,MODEL:15,SHOWROOM:16,FINANCE:17,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:23,TOTAL_REV:24,MA_KH:25,LINK:26,NOTE:27};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
+const COL_SICRM_MT={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,MA_KH:16};
 // File hoá đơn mới không có cột Chi nhánh (BRANCH) như file cũ — các cột còn lại lùi lên trước 1 vị trí
 const COL_KIOT={BRANCH:-1,INVOICE:0,DATE:1,MA_KH:2,NAME:3,PHONE:4,SALES:5,CHANNEL:6,AMOUNT:7,DISCOUNT:8};
@@ -526,7 +527,7 @@ async function loadData(){
     }
     {
       const r=results[taskIdx.sicrmMT];
-      if(r.status==='fulfilled'){setStatus('Đang parse CRM Sỉ (Miền Trung)...');saleSiCrmRowsMT=parseSaleSiCrmCsv(r.value);setStatus(`Parse xong CRM Sỉ MT: ${saleSiCrmRowsMT.length} lượt`);}
+      if(r.status==='fulfilled'){setStatus('Đang parse CRM Sỉ (Miền Trung)...');saleSiCrmRowsMT=parseSaleSiCrmCsv(r.value,COL_SICRM_MT);setStatus(`Parse xong CRM Sỉ MT: ${saleSiCrmRowsMT.length} lượt`);}
       else setStatus('⚠️ CRM Sỉ (Miền Trung) không tải được');
     }
     {
@@ -781,12 +782,15 @@ function parseKiotCsv(texts){
   console.log('[KIOT] Rows:',kiotRows.length);
 }
 
-function parseSaleSiCrmCsv(text){
+function parseSaleSiCrmCsv(text,col){
+  col=col||COL_SICRM;
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
   // Auto-detect cột theo TÊN HEADER thay vì cố định theo vị trí — sheet CRM Sỉ đã từng bị thêm/đổi thứ tự cột
   // (thêm "Phân loại KH" ở giữa) khiến toàn bộ cột sau đó lệch vị trí, gây lỗi hiển thị sai (VD cột "Nội dung
   // CS" ra giá trị của cột "Hình thức CS"). Định vị lại theo tên cột mỗi lần tải để không bị lệch nữa.
+  // Ghi vào object `col` truyền riêng cho mỗi sheet (BN dùng COL_SICRM, MT dùng COL_SICRM_MT) — KHÔNG dùng
+  // chung 1 global, vì 2 sheet có thể lệch cột khác nhau, ghi đè lẫn nhau sẽ làm sai dữ liệu của sheet còn lại.
   const headers=(parsed.data[0]||[]).map(h=>String(h).trim().toLowerCase());
   // Khớp CHÍNH XÁC trước (tránh case "Ad ID" bị khớp nhầm vào "Lead ID - Mã KH" vì chứa chuỗi con "ad id"),
   // chỉ fallback sang khớp chuỗi con khi không có cột nào khớp y hệt.
@@ -795,28 +799,28 @@ function parseSaleSiCrmCsv(text){
     for(const kw of kws){const i=headers.findIndex(h=>h.includes(kw));if(i>=0)return i;}
     return fb;
   };
-  COL_SICRM.DATE=ci(['ngày chăm sóc','ngày cs'],COL_SICRM.DATE);
-  COL_SICRM.LEAD_ID=ci(['lead id'],COL_SICRM.LEAD_ID);
-  COL_SICRM.SOURCE=ci(['nguồn khách','nguồn'],COL_SICRM.SOURCE);
-  COL_SICRM.CHANNEL=ci(['kênh'],COL_SICRM.CHANNEL);
-  COL_SICRM.AD_ID=ci(['ad id','mã quảng cáo'],COL_SICRM.AD_ID);
-  COL_SICRM.NAME=ci(['họ tên','tên khách'],COL_SICRM.NAME);
-  COL_SICRM.PHONE=ci(['sđt','số điện thoại'],COL_SICRM.PHONE);
-  COL_SICRM.SALES=ci(['sales phụ trách'],COL_SICRM.SALES);
-  COL_SICRM.FORM=ci(['hình thức chăm sóc','hình thức'],COL_SICRM.FORM);
-  COL_SICRM.CONTENT=ci(['nội dung chăm sóc','nội dung'],COL_SICRM.CONTENT);
-  COL_SICRM.RESULT=ci(['kết quả chăm sóc','kết quả'],-1);
-  COL_SICRM.EXPECTED=ci(['giá trị dự kiến'],COL_SICRM.EXPECTED);
-  COL_SICRM.NEXT_ACTION=ci(['việc cần làm tiếp theo'],COL_SICRM.NEXT_ACTION);
-  COL_SICRM.NEED_HELP=ci(['sales cần hỗ trợ'],COL_SICRM.NEED_HELP);
-  COL_SICRM.STATUS=ci(['tình trạng hỗ trợ'],COL_SICRM.STATUS);
-  COL_SICRM.NEXT_DATE=ci(['ngày hẹn tiếp theo'],COL_SICRM.NEXT_DATE);
-  COL_SICRM.CLOSE_DATE=ci(['ngày chốt đơn'],COL_SICRM.CLOSE_DATE);
-  COL_SICRM.CLOSE_VALUE=ci(['tổng giá trị chốt'],COL_SICRM.CLOSE_VALUE);
-  console.log('[SICRM] COL detected:',JSON.stringify(COL_SICRM));
+  col.DATE=ci(['ngày chăm sóc','ngày cs'],col.DATE);
+  col.LEAD_ID=ci(['lead id'],col.LEAD_ID);
+  col.SOURCE=ci(['nguồn khách','nguồn'],col.SOURCE);
+  col.CHANNEL=ci(['kênh'],col.CHANNEL);
+  col.AD_ID=ci(['ad id','mã quảng cáo'],col.AD_ID);
+  col.NAME=ci(['họ tên','tên khách'],col.NAME);
+  col.PHONE=ci(['sđt','số điện thoại'],col.PHONE);
+  col.SALES=ci(['sales phụ trách'],col.SALES);
+  col.FORM=ci(['hình thức chăm sóc','hình thức'],col.FORM);
+  col.CONTENT=ci(['nội dung chăm sóc','nội dung'],col.CONTENT);
+  col.RESULT=ci(['kết quả chăm sóc','kết quả'],-1);
+  col.EXPECTED=ci(['giá trị dự kiến'],col.EXPECTED);
+  col.NEXT_ACTION=ci(['việc cần làm tiếp theo'],col.NEXT_ACTION);
+  col.NEED_HELP=ci(['sales cần hỗ trợ'],col.NEED_HELP);
+  col.STATUS=ci(['tình trạng hỗ trợ'],col.STATUS);
+  col.NEXT_DATE=ci(['ngày hẹn tiếp theo'],col.NEXT_DATE);
+  col.CLOSE_DATE=ci(['ngày chốt đơn'],col.CLOSE_DATE);
+  col.CLOSE_VALUE=ci(['tổng giá trị chốt'],col.CLOSE_VALUE);
+  console.log('[SICRM] COL detected:',JSON.stringify(col));
   const rows=parsed.data.slice(1).filter(row=>row.some(c=>c!=='')).map(row=>{
     // Clean Lead ID cell which may contain tabs/newlines
-    if(row[COL_SICRM.LEAD_ID]!=null)row[COL_SICRM.LEAD_ID]=row[COL_SICRM.LEAD_ID].replace(/[\t\n\r]/g,' ').trim();
+    if(row[col.LEAD_ID]!=null)row[col.LEAD_ID]=row[col.LEAD_ID].replace(/[\t\n\r]/g,' ').trim();
     return row;
   });
   console.log('[SICRM] Rows:',rows.length);
@@ -1445,26 +1449,28 @@ function getSiCrmMap(){
   return m;
 }
 // Thông tin CS của 1 khách — tính từ lịch sử đã gộp (Mã KH + Lead ID + SĐT), khử trùng theo dòng
-function siContactInfo(masterRow,histMap){
-  const recs=siCareRecords(masterRow,histMap);
+function siContactInfo(masterRow,histMap,col){
+  col=col||window._siActiveCOL_SICRM||COL_SICRM;
+  const recs=siCareRecords(masterRow,histMap,col);
   const today=new Date();today.setHours(0,0,0,0);
   let last=null,lastStr='',status='',next='',reason='',result='',content='';
-  recs.forEach(r=>{const d=parseDate(r[COL_SICRM.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[COL_SICRM.DATE]||'';status=(r[COL_SICRM.STATUS]||'').trim();next=(r[COL_SICRM.NEXT_DATE]||'').trim();reason=(r[COL_SICRM.NEED_HELP]||'').trim();result=(r[COL_SICRM.RESULT]||'').trim();content=(r[COL_SICRM.CONTENT]||'').trim();}});
+  recs.forEach(r=>{const d=parseDate(r[col.DATE]);if(d&&(!last||d>last)){last=d;lastStr=r[col.DATE]||'';status=(r[col.STATUS]||'').trim();next=(r[col.NEXT_DATE]||'').trim();reason=(r[col.NEED_HELP]||'').trim();result=(r[col.RESULT]||'').trim();content=(r[col.CONTENT]||'').trim();}});
   const count=recs.length;
-  let expected=0;for(const rec of recs){const e=vndNum(rec[COL_SICRM.EXPECTED]);if(e>0){expected=e;break;}}  // giá trị dự kiến (lượt CS gần nhất có)
+  let expected=0;for(const rec of recs){const e=vndNum(rec[col.EXPECTED]);if(e>0){expected=e;break;}}  // giá trị dự kiến (lượt CS gần nhất có)
   if(!last){const d=parseDate(masterRow[COL_SI.LAST_CS]);if(d){last=d;lastStr=masterRow[COL_SI.LAST_CS]||'';}}
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
   return {days,lastStr,count,status,next,expected,reason,result,content};
 }
 // Gộp lịch sử CS của 1 khách từ 3 khoá (Mã KH + Lead ID + SĐT), khử trùng theo dòng, sắp mới→cũ
-function siCareRecords(masterRow,histMap){
+function siCareRecords(masterRow,histMap,col){
+  col=col||window._siActiveCOL_SICRM||COL_SICRM;
   const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   const ph=last9(masterRow[COL_SI.PHONE]);
   const keys=[norm(masterRow[COL_SI.MA_KH]),norm(masterRow[COL_SI.LEAD_ID]),ph?'PH:'+ph:''];
   const seen=new Set(),merged=[];
   keys.forEach(k=>{if(!k)return;(histMap[k]||[]).forEach(r=>{if(!seen.has(r)){seen.add(r);merged.push(r);}});});
-  merged.sort((x,y)=>{const dx=parseDate(x[COL_SICRM.DATE]),dy=parseDate(y[COL_SICRM.DATE]);return(dy?dy:0)-(dx?dx:0);});
+  merged.sort((x,y)=>{const dx=parseDate(x[col.DATE]),dy=parseDate(y[col.DATE]);return(dy?dy:0)-(dx?dx:0);});
   return merged;
 }
 
@@ -1541,6 +1547,8 @@ function renderSaleSi(){
   const siDataRegion=window._siRegion||'bn';
   const activeSiRows=siDataRegion==='mt'?saleSiRowsMT:saleSiRows;
   const activeSiCrmRows=siDataRegion==='mt'?saleSiCrmRowsMT:saleSiCrmRows;
+  const activeCOL_SICRM=siDataRegion==='mt'?COL_SICRM_MT:COL_SICRM;
+  window._siActiveCOL_SICRM=activeCOL_SICRM;
   if(!activeSiRows.length){document.getElementById('page-sale-si').innerHTML=`<div style="padding:24px 24px 0">${siRegionToggle()}</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu${siDataRegion==='mt'?' (Miền Trung)':''}...</div>`;return;}
   const _f=document.getElementById('dateFrom'),_t=document.getElementById('dateTo');
   const fromD=_f&&_f.value?localDate(_f.value):null,toD=_t&&_t.value?localDate(_t.value,true):null;
@@ -1590,11 +1598,11 @@ function renderSaleSi(){
   rows.forEach(r=>{const src=(r[COL_SI.SOURCE]||'').toLowerCase(),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim(),st=(r[COL_SI.STORE]||'').trim();const ph=last9(r[COL_SI.PHONE]);[nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;if(!srcByKey[k])srcByKey[k]=src;if(!nameByKey[k]&&nm&&nm!=='—')nameByKey[k]=nm;if(!phoneByKey[k]&&mph)phoneByKey[k]=mph;if(!storeByKey[k]&&st)storeByKey[k]=st;});});
   const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
   let onlRev=0,selfRev=0;const closeList=[];
-  activeSiCrmRows.forEach(r=>{const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);if(cv<=0||!inR(cd))return;const ph=last9(r[COL_SICRM.PHONE]);const src=srcByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||'';const on=src.includes('online');if(on)onlRev+=cv;else selfRev+=cv;
-    const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
-    const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
-    const st=lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
-    closeList.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],siNameCell(nm,st),pho,on?'Online':'Offline',vnd(cv)]);});
+  activeSiCrmRows.forEach(r=>{const cv=vndNum(r[activeCOL_SICRM.CLOSE_VALUE]),cd=parseDate(r[activeCOL_SICRM.CLOSE_DATE]);if(cv<=0||!inR(cd))return;const ph=last9(r[activeCOL_SICRM.PHONE]);const src=srcByKey[nrmK(r[activeCOL_SICRM.LEAD_ID])]||(ph?srcByKey['PH:'+ph]:'')||'';const on=src.includes('online');if(on)onlRev+=cv;else selfRev+=cv;
+    const nm=(r[activeCOL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[activeCOL_SICRM.LEAD_ID],r[activeCOL_SICRM.PHONE]);
+    const pho=(r[activeCOL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[activeCOL_SICRM.LEAD_ID],r[activeCOL_SICRM.PHONE]);
+    const st=lookByKeys(storeByKey,r[activeCOL_SICRM.LEAD_ID],r[activeCOL_SICRM.PHONE]);
+    closeList.push([r[activeCOL_SICRM.CLOSE_DATE],r[activeCOL_SICRM.LEAD_ID],siNameCell(nm,st),pho,on?'Online':'Offline',vnd(cv)]);});
   const totalRev=onlRev+selfRev;
   // Danh sách chi tiết cho card (bấm để xem)
   const siCols=['Ngày tạo','Lead ID/Mã KH','Tên khách','SĐT','Nguồn','Tỉnh/TP','Sales','Trạng thái','DT cộng dồn'];
@@ -1705,22 +1713,22 @@ function renderSaleSi(){
   </tr>`).join('');
 
   // ── CRM care log (gid=138010004) ──
-  const crm=activeSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE])));
+  const crm=activeSiCrmRows.filter(saleRangePred(r=>parseDate(r[activeCOL_SICRM.DATE])));
   let crmSection='';
   if(crm.length){
     const totalCS=crm.length;
     const byForm={};
-    crm.forEach(r=>{const f=(r[COL_SICRM.FORM]||'Khác').trim()||'Khác';byForm[f]=(byForm[f]||0)+1;});
-    const done=crm.filter(r=>(r[COL_SICRM.STATUS]||'').toLowerCase().includes('xong')).length;
-    const pending=crm.filter(r=>(r[COL_SICRM.STATUS]||'').toLowerCase().includes('tồn đọng'));
+    crm.forEach(r=>{const f=(r[activeCOL_SICRM.FORM]||'Khác').trim()||'Khác';byForm[f]=(byForm[f]||0)+1;});
+    const done=crm.filter(r=>(r[activeCOL_SICRM.STATUS]||'').toLowerCase().includes('xong')).length;
+    const pending=crm.filter(r=>(r[activeCOL_SICRM.STATUS]||'').toLowerCase().includes('tồn đọng'));
     // Section IX: outstanding follow-ups (Còn tồn đọng), sorted by next appointment date
-    const pendSorted=[...pending].sort((a,b)=>{const da=parseDate(a[COL_SICRM.NEXT_DATE]),db=parseDate(b[COL_SICRM.NEXT_DATE]);return(da?da:0)-(db?db:0);});
+    const pendSorted=[...pending].sort((a,b)=>{const da=parseDate(a[activeCOL_SICRM.NEXT_DATE]),db=parseDate(b[activeCOL_SICRM.NEXT_DATE]);return(da?da:0)-(db?db:0);});
     const supRows=pendSorted.map(r=>`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SICRM.DATE]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted)">${r[COL_SICRM.LEAD_ID]||'—'}</td>
-      <td style="padding:8px 12px">${siNameCell((r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]),lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]))}</td>
-      <td style="padding:8px 12px;font-size:12px;white-space:nowrap">${r[COL_SICRM.SALES]||'—'}</td>
-      <td style="padding:8px 12px;font-size:12px;color:#ca8a04;font-weight:600;white-space:nowrap;text-align:right;width:96px">${r[COL_SICRM.NEXT_DATE]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[activeCOL_SICRM.DATE]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--muted)">${r[activeCOL_SICRM.LEAD_ID]||'—'}</td>
+      <td style="padding:8px 12px">${siNameCell((r[activeCOL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[activeCOL_SICRM.LEAD_ID],r[activeCOL_SICRM.PHONE]),lookByKeys(storeByKey,r[activeCOL_SICRM.LEAD_ID],r[activeCOL_SICRM.PHONE]))}</td>
+      <td style="padding:8px 12px;font-size:12px;white-space:nowrap">${r[activeCOL_SICRM.SALES]||'—'}</td>
+      <td style="padding:8px 12px;font-size:12px;color:#ca8a04;font-weight:600;white-space:nowrap;text-align:right;width:96px">${r[activeCOL_SICRM.NEXT_DATE]||'—'}</td>
     </tr>`).join('');
     const formChips=Object.entries(byForm).sort((a,b)=>b[1]-a[1]).map(([f,c])=>`<div class="stat-chip">${f==='Zalo'?'💬':f==='Gọi điện'?'📞':f==='Gặp trực tiếp'?'🤝':'📋'} ${f}: <b>${c}</b></div>`).join('');
     crmSection=`
@@ -1735,7 +1743,7 @@ function renderSaleSi(){
       ${mkKpi('📋','Tổng Lượt CS',num(totalCS),'toàn bộ lịch sử','g-blue')}
       ${mkKpi('✅','Đã Xong',num(done),pct(totalCS?done/totalCS*100:0)+' lượt','g-green')}
       ${mkKpi('⏳','Còn Tồn Đọng',num(pending.length),'cần theo dõi tiếp','g-yellow')}
-      ${mkKpi('👥','KH Được CS',num(new Set(crm.map(r=>(r[COL_SICRM.LEAD_ID]||'').trim()).filter(Boolean)).size),'khách riêng biệt','g-blue')}
+      ${mkKpi('👥','KH Được CS',num(new Set(crm.map(r=>(r[activeCOL_SICRM.LEAD_ID]||'').trim()).filter(Boolean)).size),'khách riêng biệt','g-blue')}
     </div>
     <div class="sec-label">IX. Danh Sách Khách Cần Theo Dõi <span style="font-weight:400;font-size:11px;color:var(--muted)">(còn tồn đọng · ${pending.length} khách)</span></div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
@@ -1957,6 +1965,8 @@ function renderSaleSiData(){
   const siDataRegion=window._siRegion||'bn';
   const activeSiRows=siDataRegion==='mt'?saleSiRowsMT:saleSiRows;
   const activeSiCrmRows=siDataRegion==='mt'?saleSiCrmRowsMT:saleSiCrmRows;
+  const activeCOL_SICRM=siDataRegion==='mt'?COL_SICRM_MT:COL_SICRM;
+  window._siActiveCOL_SICRM=activeCOL_SICRM;
   if(!activeSiRows.length){elp.innerHTML=`<div style="padding:24px 24px 0">${siRegionToggle()}</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu${siDataRegion==='mt'?' (Miền Trung)':''}...</div>`;return;}
   const nrm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   // Lọc theo NGÀY CHĂM SÓC: hiện khách có lượt CS trong kỳ; toàn bộ ngày → tất cả khách
@@ -1966,9 +1976,9 @@ function renderSaleSiData(){
   let rows;
   if(!hasRange){rows=validSiRows;}
   else{
-    const cp=saleRangePred(r=>parseDate(r[COL_SICRM.DATE]));
+    const cp=saleRangePred(r=>parseDate(r[activeCOL_SICRM.DATE]));
     const keys=new Set();
-    activeSiCrmRows.filter(cp).forEach(r=>{const id=nrm(r[COL_SICRM.LEAD_ID]);if(id)keys.add(id);});
+    activeSiCrmRows.filter(cp).forEach(r=>{const id=nrm(r[activeCOL_SICRM.LEAD_ID]);if(id)keys.add(id);});
     rows=validSiRows.filter(r=>keys.has(nrm(r[COL_SI.MA_KH]))||keys.has(nrm(r[COL_SI.LEAD_ID])));
   }
   const toN=vndNum;
@@ -2004,9 +2014,9 @@ function renderSaleSiData(){
   // KPI hoạt động chăm sóc
   const khTotal=baseEnriched.length;
   const khDaCS=baseEnriched.filter(x=>x.ci.count>0).length;
-  const crmInRange=hasRange?activeSiCrmRows.filter(saleRangePred(r=>parseDate(r[COL_SICRM.DATE]))):activeSiCrmRows;
+  const crmInRange=hasRange?activeSiCrmRows.filter(saleRangePred(r=>parseDate(r[activeCOL_SICRM.DATE]))):activeSiCrmRows;
   const csTotal=crmInRange.length;
-  const csDone=crmInRange.filter(r=>(r[COL_SICRM.STATUS]||'').toLowerCase().includes('xong')).length;
+  const csDone=crmInRange.filter(r=>(r[activeCOL_SICRM.STATUS]||'').toLowerCase().includes('xong')).length;
   const csPending=csTotal-csDone;
   const daysBadge=ci=>{if(ci.days===null)return'<span style="color:#dc2626;font-weight:800">Chưa CS</span>';
     const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
@@ -2116,6 +2126,7 @@ function openSiProfile(i){
   const x=(window._siProfiles||[])[i];if(!x)return;
   const r=x.r,ci=x.ci,rev=x.rev;
   const recs=siCareRecords(r,window._siHist||{});
+  const csCol=window._siActiveCOL_SICRM||COL_SICRM;
   const chip=(t,bg,fg)=>`<span style="display:inline-block;padding:3px 11px;border-radius:6px;background:${bg};color:${fg};font-size:12px;font-weight:700">${t}</span>`;
   const v=(r[COL_SI.STATUS]||'').trim(),tl=v.toLowerCase();
   const sttChip=!v?'':tl.includes('đã ra đơn')?chip(v,'#dcfce7','#16a34a'):/không tiềm năng|khong tiem nang|phổ thông|pho thong/.test(tl)?chip(v,'#cffafe','#0891b2'):/tiềm năng|tiem nang/.test(tl)?chip(v,'#ede9fe','#7c3aed'):/mất kết n|mat ket n/.test(tl)?chip(v,'#fee2e2','#e11d48'):chip(v,'#e5e7eb','#6b7280');
@@ -2124,12 +2135,12 @@ function openSiProfile(i){
   const careTable=recs.length?`<table style="width:100%;border-collapse:collapse">
     <thead><tr style="border-bottom:1.5px solid var(--border)">${['NGÀY CS','HÌNH THỨC','NỘI DUNG TRAO ĐỔI','KẾT QUẢ','TÌNH TRẠNG','NGÀY HẸN'].map(h=>`<th style="padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">${h}</th>`).join('')}</tr></thead>
     <tbody>${recs.map(c=>`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[COL_SICRM.DATE]||'—'}</td>
-      <td style="padding:7px 10px;font-size:12px;white-space:nowrap">${c[COL_SICRM.FORM]||'—'}</td>
-      <td style="padding:7px 10px;font-size:12px"><div style="min-width:240px;white-space:pre-line;line-height:1.45">${c[COL_SICRM.CONTENT]||'—'}</div></td>
-      <td style="padding:7px 10px;font-size:12px"><div style="min-width:160px;white-space:pre-line;line-height:1.45">${c[COL_SICRM.RESULT]||'—'}</div></td>
-      <td style="padding:7px 10px;font-size:11px;white-space:nowrap">${c[COL_SICRM.STATUS]||'—'}</td>
-      <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:#ca8a04;font-weight:600">${c[COL_SICRM.NEXT_DATE]||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[csCol.DATE]||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;white-space:nowrap">${c[csCol.FORM]||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px"><div style="min-width:240px;white-space:pre-line;line-height:1.45">${c[csCol.CONTENT]||'—'}</div></td>
+      <td style="padding:7px 10px;font-size:12px"><div style="min-width:160px;white-space:pre-line;line-height:1.45">${c[csCol.RESULT]||'—'}</div></td>
+      <td style="padding:7px 10px;font-size:11px;white-space:nowrap">${c[csCol.STATUS]||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;white-space:nowrap;color:#ca8a04;font-weight:600">${c[csCol.NEXT_DATE]||'—'}</td>
     </tr>`).join('')}</tbody></table>`:'<div style="padding:14px;color:var(--muted);font-size:13px;text-align:center">Chưa có lịch sử chăm sóc trong CRM</div>';
   const name=siPersonName(r[COL_SI.REP],r[COL_SI.STORE])||'Khách hàng';
   const avaRaw=(r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID]||r[COL_SI.PHONE]||'').toString().trim();
@@ -2719,16 +2730,17 @@ function setSiCare(v){window._siCare=v;renderSaleSiData();}
 function setSiSearch(v){window._siSearch=v;window._siSearchFocus=true;renderSaleSiData();}
 function toggleSiCust(i){const d=document.getElementById('si-detail-'+i),a=document.getElementById('si-arrow-'+i);if(d){const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}}
 // Lịch sử chăm sóc theo khách (tất cả lượt CS, sắp mới→cũ), keyed theo Mã KH/Lead ID
-function getSiCrmHistory(crmRows){
+function getSiCrmHistory(crmRows,col){
   crmRows=crmRows||saleSiCrmRows;
+  col=col||window._siActiveCOL_SICRM||COL_SICRM;
   const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   const m={};
   crmRows.forEach(r=>{
-    const id=norm(r[COL_SICRM.LEAD_ID]),ph=last9(r[COL_SICRM.PHONE]);
+    const id=norm(r[col.LEAD_ID]),ph=last9(r[col.PHONE]);
     [id,ph?'PH:'+ph:''].forEach(k=>{if(k)(m[k]=m[k]||[]).push(r);});
   });
-  Object.values(m).forEach(a=>a.sort((x,y)=>{const dx=parseDate(x[COL_SICRM.DATE]),dy=parseDate(y[COL_SICRM.DATE]);return(dy?dy:0)-(dx?dx:0);}));
+  Object.values(m).forEach(a=>a.sort((x,y)=>{const dx=parseDate(x[col.DATE]),dy=parseDate(y[col.DATE]);return(dy?dy:0)-(dx?dx:0);}));
   return m;
 }
 let _vnSvgCache=null;
