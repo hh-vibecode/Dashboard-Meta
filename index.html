@@ -461,10 +461,9 @@ async function loadData(){
   const siRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=2107421092&single=true&output=csv';
   const sicrmRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=138010004&single=true&output=csv';
   const saonlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=2107421092&single=true&output=csv';
-  // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này (đỡ phải đổi nhiều link).
-  // Thêm tháng mới: lấy gid tab mới rồi thêm 1 dòng kiotRawN bên dưới + thêm vào mảng kiotRawUrls.
-  const kiotRaw1='https://docs.google.com/spreadsheets/d/e/2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw/pub?gid=1181725551&single=true&output=csv'; // T6
-  const kiotRaw2='https://docs.google.com/spreadsheets/d/e/2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw/pub?gid=1911837309&single=true&output=csv'; // T7
+  // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này. Tab được QUÉT TỰ ĐỘNG
+  // (đọc trang pubhtml lấy danh sách tab hiện có) — không cần sửa code khi có tháng mới, xem loadKiotAllMonths().
+  const kiotSheetId='2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw';
   if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
@@ -478,10 +477,9 @@ async function loadData(){
     taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
     taskIdx.saonl=tasks.length;tasks.push(fetchCsvWithProxy(saonlRaw,5));
     taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
-    taskIdx.kiot=tasks.length;tasks.push(fetchCsvWithProxy(kiotRaw1,7));
-    taskIdx.kiot2=tasks.length;tasks.push(fetchCsvWithProxy(kiotRaw2,8));
     taskIdx.siMT=tasks.length;tasks.push(fetchCsvWithProxy(siRawMT,9));
     taskIdx.sicrmMT=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRawMT,10));
+    const kiotPromise=loadKiotAllMonths(kiotSheetId);
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
     if(mktRaw){
@@ -531,10 +529,11 @@ async function loadData(){
       else setStatus('⚠️ CRM Sỉ (Miền Trung) không tải được');
     }
     {
-      const r1=results[taskIdx.kiot],r2=results[taskIdx.kiot2];
-      const texts=[r1,r2].filter(r=>r.status==='fulfilled').map(r=>r.value);
-      if(texts.length){setStatus('Đang parse Hoá đơn Kiot...');parseKiotCsv(texts);setStatus(`Parse xong Hoá đơn Kiot: ${kiotRows.length} dòng`);}
-      else setStatus('⚠️ Hoá đơn Kiot không tải được');
+      try{
+        const texts=await kiotPromise;
+        if(texts.length){setStatus('Đang parse Hoá đơn Kiot...');parseKiotCsv(texts);setStatus(`Parse xong Hoá đơn Kiot: ${kiotRows.length} dòng (${texts.length} tab)`);}
+        else setStatus('⚠️ Hoá đơn Kiot: không tìm thấy tab nào');
+      }catch(e){setStatus('⚠️ Hoá đơn Kiot không tải được: '+e.message);}
     }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
@@ -552,9 +551,9 @@ async function loadData(){
   }catch(e){stopThinking();showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
 
-async function fetchCsvWithProxy(rawUrl,idx=0){
+async function fetchCsvWithProxy(rawUrl,idx=0,labelOverride){
   const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM','KIOT1','KIOT2','SỈ-MT','SICRM-MT'];
-  const lbl=labels[idx]||'';
+  const lbl=labelOverride||labels[idx]||'';
   const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now();
   // Google Sheets published CSV hỗ trợ CORS trực tiếp → thử trực tiếp trước (nhanh + ổn định)
   const attempts=[csvUrl,
@@ -577,6 +576,52 @@ async function fetchCsvWithProxy(rawUrl,idx=0){
     }catch(e){setStatus(`[${lbl}] ${i===0?'Trực tiếp':'Proxy '+i} timeout/lỗi, thử tiếp...`);continue;}
   }
   throw new Error(`[${lbl}] Không tải được dữ liệu (đã thử trực tiếp + 3 proxy)`);
+}
+
+// Tải trang pubhtml THÔ (không convert sang CSV) — dùng để đọc danh sách tab hiện có của 1 sheet
+async function fetchHtmlWithProxy(url,lbl){
+  const attempts=[url,
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+    'https://corsproxy.io/?'+encodeURIComponent(url),
+    'https://thingproxy.freeboard.io/fetch/'+url];
+  for(let i=0;i<attempts.length;i++){
+    setStatus(`[${lbl}] ${i===0?'Tải trực tiếp':'Proxy '+i}...`);
+    try{
+      const ctrl=new AbortController();
+      const timer=setTimeout(()=>ctrl.abort(),15000);
+      const res=await fetch(attempts[i],{signal:ctrl.signal,redirect:'follow'});
+      if(!res.ok){clearTimeout(timer);continue;}
+      const text=await res.text();
+      clearTimeout(timer);
+      if(text&&text.length>200)return text;
+    }catch(e){continue;}
+  }
+  throw new Error(`[${lbl}] Không tải được danh sách tab`);
+}
+// Đọc danh sách {name,gid} của mọi tab trong 1 sheet đã publish, từ đúng đoạn JS nội bộ Google sinh ra
+// trong trang pubhtml: items.push({name: "T8", pageUrl: "...", gid: "535862897", ...}) — mỗi tab 1 dòng vậy.
+function parseSheetTabs(html){
+  const re=/items\.push\(\{name:\s*"([^"]*)"[^}]*?gid:\s*"(\d+)"/g;
+  const out=[];let m;
+  while((m=re.exec(html)))out.push({name:m[1],gid:m[2]});
+  return out;
+}
+// Quét toàn bộ tab tháng của sheet Hoá đơn Kiot rồi tải CSV từng tab — KHÔNG cần sửa code khi có tháng mới,
+// chỉ cần user "Xuất bản lên web" (Publish to web) tab mới trong Google Sheets là tự nhận ra ở lần tải kế tiếp.
+async function loadKiotAllMonths(sheetId){
+  const pubhtmlUrl=`https://docs.google.com/spreadsheets/d/e/${sheetId}/pubhtml`;
+  const html=await fetchHtmlWithProxy(pubhtmlUrl,'KIOT-DANH SÁCH TAB');
+  const tabs=parseSheetTabs(html);
+  if(!tabs.length)throw new Error('không tìm thấy tab nào trong sheet Kiot (kiểm tra lại đã Publish to web dạng "Toàn bộ tài liệu" chưa)');
+  setStatus(`[KIOT] Tìm thấy ${tabs.length} tab: ${tabs.map(t=>t.name).join(', ')}`);
+  const results=await Promise.allSettled(tabs.map(t=>{
+    const csvUrl=`https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?gid=${t.gid}&single=true&output=csv`;
+    return fetchCsvWithProxy(csvUrl,99,'KIOT-'+t.name);
+  }));
+  const texts=results.filter(r=>r.status==='fulfilled').map(r=>r.value);
+  const failed=tabs.filter((t,i)=>results[i].status==='rejected');
+  if(failed.length)setStatus(`⚠️ [KIOT] ${failed.length}/${tabs.length} tab tải lỗi: ${failed.map(t=>t.name).join(', ')}`);
+  return texts;
 }
 
 function parseMktCsv(text){
