@@ -639,7 +639,7 @@ function parseMktCsv(text){
   COL.CAMPAIGN   =ci(['tên chiến dịch','campaign name'],0);
   COL.AD_ID      =ci(['mã quảng cáo','ad id'],1);
   COL.DATE       =ci(['ngày bắt đầu','reporting starts','ngày'],2);
-  COL.REACH      =ci(['phạm vi tiếp cận','reach'],4);
+  COL.REACH      =ci(['người tiếp cận','phạm vi tiếp cận','reach'],4);
   COL.IMPRESSIONS=ci(['lượt hiển thị','impressions'],5);
   COL.SPEND      =ci(['số tiền đã chi','amount spent','chi phí','chi tiêu'],8);
   COL.MESSAGES   =headers.findIndex(h=>(h.includes('lượt bắt đầu cuộc trò chuyện')||h.includes('conversations started')||h.includes('messaging conversations started'))&&!h.startsWith('chi'));
