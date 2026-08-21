@@ -450,6 +450,7 @@ function toggleOnlGroup(){const s=document.getElementById('onl-subnav'),a=docume
 
 // ── Load ──
 async function loadData(){
+  const mktRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
@@ -457,29 +458,37 @@ async function loadData(){
   // Báo Cáo Sỉ — bản Miền Trung (đội riêng, cùng form/cùng thứ tự cột với bản Bắc+Nam ở trên) — chuyển đổi qua nút trên trang Báo Cáo KH Sỉ, không tách trang riêng
   const siRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=2107421092&single=true&output=csv';
   const sicrmRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=138010004&single=true&output=csv';
+  // Sale Online (Lẻ) — tách 2 sheet: "1.MASTER DATA LẺ" (hồ sơ khách) + "2.CRM" (lịch sử CS/chốt đơn), cùng
+  // file, cùng tinh thần Master⨝CRM như Báo Cáo Sỉ. Sheet gid=2107421092 cũ ("2.CRM (cũ)") đã ngừng cập nhật.
+  const saonlMasterRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=1474031151&single=true&output=csv';
+  const saonlCrmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=768026359&single=true&output=csv';
   // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này. Tab được QUÉT TỰ ĐỘNG
   // (đọc trang pubhtml lấy danh sách tab hiện có) — không cần sửa code khi có tháng mới, xem loadKiotAllMonths().
   const kiotSheetId='2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw';
+  if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
     const tasks=[];
     const taskIdx={};
+    if(mktRaw){taskIdx.mkt=tasks.length;tasks.push(fetchCsvWithProxy(mktRaw,0));}
     taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));
     taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3));
     taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
+    taskIdx.saonlMaster=tasks.length;tasks.push(fetchCsvWithProxy(saonlMasterRaw,99,'SAONL-MASTER'));
+    taskIdx.saonlCrm=tasks.length;tasks.push(fetchCsvWithProxy(saonlCrmRaw,99,'SAONL-CRM'));
     taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
     taskIdx.siMT=tasks.length;tasks.push(fetchCsvWithProxy(siRawMT,9));
     taskIdx.sicrmMT=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRawMT,10));
     const kiotPromise=loadKiotAllMonths(kiotSheetId);
-    // MKT + Sale Online (Lẻ) giờ đọc thẳng Supabase thay vì Google Sheets, xem project_supabase-migration-mkt-saleonline
-    setStatus('Đang tải MKT + Sale Online từ Supabase...');
-    const mktSbPromise=loadMktFromSupabase().then(()=>true).catch(e=>{setStatus('⚠️ MKT (Supabase) lỗi: '+e.message);return false;});
-    const saonlSbPromise=loadSaleOnlFromSupabase().then(()=>true).catch(e=>{setStatus('⚠️ Sale Online (Supabase) lỗi: '+e.message);return false;});
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
-    const mktOk=await mktSbPromise;
-    if(mktOk)setStatus(`Parse xong MKT (Supabase): ${allRows.length} chiến dịch/ngày`);
+    if(mktRaw){
+      if(results[taskIdx.mkt].status==='rejected')throw new Error('MKT: '+results[taskIdx.mkt].reason.message);
+      setStatus('Nhận data MKT, đang parse...');
+      parseMktCsv(results[taskIdx.mkt].value);
+      setStatus(`Parse xong MKT: ${allRows.length} chiến dịch`);
+    }
     {
       const r=results[taskIdx.crm];
       if(r.status==='fulfilled'){setStatus('Đang parse CRM Hub...');parseCrmHub(r.value);setStatus(`Parse xong CRM Hub: ${crmHubRows.length} leads`);}
@@ -496,8 +505,15 @@ async function loadData(){
       else setStatus('⚠️ Sale Sỉ không tải được');
     }
     {
-      const saonlOk=await saonlSbPromise;
-      if(saonlOk)setStatus(`Parse xong Sale Online (Supabase): ${saleOnlRows.length} khách, ${saleOnlCrmRows.length} lượt CS`);
+      const rm=results[taskIdx.saonlMaster],rc=results[taskIdx.saonlCrm];
+      if(rm.status==='fulfilled'&&rc.status==='fulfilled'){
+        setStatus('Đang parse Sale Online (Master + CRM)...');
+        const master=parseSaleOnlMasterCsv(rm.value);
+        const crm=parseSaleOnlCrmCsv(rc.value);
+        saleOnlCrmRows=crm.rows;
+        saleOnlRows=buildSaleOnlFlatRows(master,crm);
+        setStatus(`Parse xong Sale Online: ${saleOnlRows.length} khách, ${saleOnlCrmRows.length} lượt CS`);
+      } else setStatus('⚠️ Sale Online không tải được ('+(rm.status==='rejected'?'Master':'CRM')+')');
     }
     {
       const r=results[taskIdx.sicrm];
@@ -523,7 +539,7 @@ async function loadData(){
     }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
-    if(mktOk)applyFilter();
+    if(mktRaw)applyFilter();
     renderSaleOverview();
     renderSaleSi();
     renderSaleSiData();
@@ -608,288 +624,6 @@ async function loadKiotAllMonths(sheetId){
   const failed=tabs.filter((t,i)=>results[i].status==='rejected');
   if(failed.length)setStatus(`⚠️ [KIOT] ${failed.length}/${tabs.length} tab tải lỗi: ${failed.map(t=>t.name).join(', ')}`);
   return texts;
-}
-
-// ── Supabase: nguồn data mới cho MKT + Sale Online (đang thay dần Google Sheets, xem project_supabase-migration-mkt-saleonline) ──
-const SUPABASE_URL='https://bcrpxfvvjsjpvbksqzls.supabase.co';
-const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcnB4ZnZ2anNqcHZia3NxemxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyNzE0OTgsImV4cCI6MjEwMjg0NzQ5OH0.XGEUvHP1YBhxYKD9Xq1yH2gl95-V9VgaY5HfsAnFb2c';
-// anon key chỉ có quyền ĐỌC (RLS chặn ghi) nên lộ ra client-side là an toàn, giống pattern publish-to-web của Google Sheets trước đây
-async function sbFetchAll(table,query){
-  const pageSize=1000;let offset=0,out=[];
-  while(true){
-    const url=`${SUPABASE_URL}/rest/v1/${table}?${query}`;
-    const res=await fetch(url,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY,Range:`${offset}-${offset+pageSize-1}`}});
-    if(!res.ok)throw new Error(`Supabase [${table}] lỗi ${res.status}`);
-    const chunk=await res.json();
-    out=out.concat(chunk);
-    if(chunk.length<pageSize)break;
-    offset+=pageSize;
-  }
-  return out;
-}
-// Nạp MKT từ Supabase (mkt_spend, cấp Ad/ngày) — dựng lại 2 tầng dữ liệu như parseMktCsv() từng làm từ CSV:
-// allRowsRaw = cấp Ad (để buildAdCampMap() gắn Ad ID -> tên chiến dịch), allRows = gộp cấp Chiến dịch/ngày
-// (tương đương dòng "All" trong export cũ) để mọi hàm tính KPI Tổng Quan dùng nguyên vẹn, không cần sửa gì thêm.
-// Lưu ý: Reach ở đây là TỔNG cộng dồn theo Ad, không phải reach hợp nhất (unique) như dòng "All" gốc của Meta —
-// vì Meta khử trùng lặp người xem giữa các Ad cùng chiến dịch còn phép cộng thì không. Số Spend/Impressions/
-// Messages/Comments cộng dồn thì chính xác tuyệt đối (không có trùng lặp giữa các Ad).
-async function loadMktFromSupabase(){
-  const rows=await sbFetchAll('mkt_spend','select=*');
-  COL.DATE=0;COL.CAMPAIGN=1;COL.ADSET_NAME=2;COL.AD_NAME=3;COL.AD_ID=4;
-  COL.REACH=5;COL.IMPRESSIONS=6;COL.SPEND=7;COL.MESSAGES=8;COL.CTR=9;COL.CPC=10;COL.COMMENTS=11;
-  window.allRowsRaw=rows.map(r=>{
-    const row=[];
-    row[COL.DATE]=r.ad_date;row[COL.CAMPAIGN]=r.campaign_name||'';row[COL.ADSET_NAME]=r.adset_name||'';
-    row[COL.AD_NAME]=r.ad_name||'';row[COL.AD_ID]=r.ad_id;
-    row[COL.REACH]=r.reach||0;row[COL.IMPRESSIONS]=r.impressions||0;row[COL.SPEND]=Number(r.spend)||0;
-    row[COL.MESSAGES]=r.messages||0;row[COL.CTR]=Number(r.ctr)||0;row[COL.CPC]=Number(r.cpc)||0;row[COL.COMMENTS]=r.comments||0;
-    return row;
-  });
-  const groups={};
-  rows.forEach(r=>{
-    const key=(r.campaign_name||'')+'|'+r.ad_date;
-    const g=groups[key]||(groups[key]={campaign_name:r.campaign_name||'',ad_date:r.ad_date,reach:0,impressions:0,spend:0,messages:0,comments:0,clicks:0});
-    g.reach+=r.reach||0;g.impressions+=r.impressions||0;g.spend+=Number(r.spend)||0;
-    g.messages+=r.messages||0;g.comments+=r.comments||0;
-    g.clicks+=((Number(r.ctr)||0)/100)*(r.impressions||0);
-  });
-  allRows=Object.values(groups).map(g=>{
-    const row=[];
-    row[COL.DATE]=g.ad_date;row[COL.CAMPAIGN]=g.campaign_name;row[COL.ADSET_NAME]='';row[COL.AD_NAME]='';row[COL.AD_ID]='';
-    row[COL.REACH]=Math.round(g.reach);row[COL.IMPRESSIONS]=Math.round(g.impressions);row[COL.SPEND]=g.spend;
-    row[COL.MESSAGES]=Math.round(g.messages);
-    row[COL.CTR]=g.impressions>0?(100*g.clicks/g.impressions):0;
-    row[COL.CPC]=g.clicks>0?(g.spend/g.clicks):0;
-    row[COL.COMMENTS]=Math.round(g.comments);
-    return row;
-  });
-  console.log('[MKT-SUPABASE] ad rows:',rows.length,'/ campaign-ngày rows:',allRows.length);
-}
-// Nạp Sale Online (Master + CRM) từ Supabase, dựng lại shape {rows,c} y hệt parseSaleOnlMasterCsv/
-// parseSaleOnlCrmCsv để tái dùng buildSaleOnlFlatRows() sẵn có mà không phải sửa hàm đó.
-async function loadSaleOnlFromSupabase(){
-  const customers=await sbFetchAll('saonl_customers','select=*');
-  const careLogs=await sbFetchAll('saonl_care_log','select=*&order=care_date.desc');
-  const mc={DATE:0,SOURCE:1,CHANNEL:2,SALES:3,AD_ID:4,LEAD_ID:5,NAME:6,PHONE:7,CITY:8,DISTRICT:9,ADDRESS:10,STATUS:11,PRODUCT:12,LAST_CS:13,TOTAL_REV:14,MA_KH:15,GROUP:16};
-  const masterRows=customers.map(c=>{
-    const row=[];
-    row[mc.DATE]=c.created_date;row[mc.SOURCE]=c.source||'';row[mc.CHANNEL]=c.channel||'';
-    row[mc.SALES]=c.sales_rep||'';row[mc.AD_ID]=c.ad_id||'';row[mc.LEAD_ID]=c.lead_id;
-    row[mc.NAME]=c.name||'';row[mc.PHONE]=c.phone||'';row[mc.CITY]=c.city||'';row[mc.DISTRICT]=c.district||'';
-    row[mc.ADDRESS]=c.address||'';row[mc.STATUS]=c.status||'';row[mc.PRODUCT]=c.product_need||'';
-    row[mc.LAST_CS]=c.last_care_date||'';row[mc.TOTAL_REV]=c.total_revenue||0;row[mc.MA_KH]=c.ma_kh||'';row[mc.GROUP]=c.customer_group||'';
-    return row;
-  });
-  const cc=COL_SAONLCRM; // shape đã khớp sẵn 1-1 với cột saonl_care_log
-  const custByLead={};customers.forEach(c=>{custByLead[c.lead_id]=c;});
-  const crmRows=careLogs.map(l=>{
-    const cust=custByLead[l.customer_id]||{};
-    const row=[];
-    row[cc.DATE]=l.care_date;row[cc.LEAD_ID]=l.customer_id;row[cc.SOURCE]=l.source||cust.source||'';
-    row[cc.CHANNEL]=l.channel||cust.channel||'';row[cc.SALES]=l.sales_rep||'';row[cc.AD_ID]=l.ad_id||'';
-    row[cc.NAME]=cust.name||'';row[cc.PHONE]=cust.phone||'';row[cc.STATUS_KH]=l.status_kh||'';
-    row[cc.FORM]=l.care_form||'';row[cc.CONTENT]=l.content||'';row[cc.EXPECTED]=l.expected_value||0;
-    row[cc.STATUS]=l.status||'';row[cc.LOST_GROUP]=l.lost_group||'';row[cc.LOST_REASON]=l.lost_reason||'';
-    row[cc.CLOSE_DATE]=l.close_date||'';row[cc.CLOSE_VALUE]=l.close_value||0;
-    return row;
-  });
-  const master={rows:masterRows,c:mc},crm={rows:crmRows,c:cc};
-  saleOnlCrmRows=crm.rows;
-  saleOnlRows=buildSaleOnlFlatRows(master,crm);
-  window._saonlCustomersRaw=customers; // giữ nguyên object gốc (không phải mảng cột) cho form Thêm khách/Ghi CS dùng
-  console.log('[SAONL-SUPABASE] customers:',masterRows.length,'care logs:',crmRows.length,'flat:',saleOnlRows.length);
-}
-
-// ── App Quản Trị MKT/Sale: form Thêm khách mới + Ghi nhận chăm sóc (ghi thẳng Supabase, xem project_supabase-migration-mkt-saleonline) ──
-async function sbInsert(table,row){
-  const res=await fetch(`${SUPABASE_URL}/rest/v1/${table}`,{
-    method:'POST',
-    headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json',Prefer:'return=representation'},
-    body:JSON.stringify(row)
-  });
-  if(!res.ok){const t=await res.text();throw new Error(`Supabase [${table}] insert lỗi ${res.status}: ${t.slice(0,300)}`);}
-  const data=await res.json();
-  return data[0];
-}
-function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-// Danh sách kênh/nguồn thực tế đã dùng trong data (để gợi ý datalist, không ép cứng vì kênh có thể phát sinh thêm)
-function saonlKnownChannels(){
-  const set=new Set();
-  (window._saonlCustomersRaw||[]).forEach(c=>{if(c.channel)set.add(c.channel);});
-  return[...set].sort((a,b)=>a.localeCompare(b,'vi'));
-}
-async function saonlActiveSalesReps(){
-  try{const rows=await sbFetchAll('saonl_sales_reps','select=name&active=eq.true&order=name.asc');return rows.map(r=>r.name);}
-  catch(e){console.warn('không tải được saonl_sales_reps',e);return[...new Set((window._saonlCustomersRaw||[]).map(c=>c.sales_rep).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));}
-}
-function saonlModalShell(id,title,gradient,bodyHtml){
-  let modal=document.getElementById(id);if(!modal){modal=document.createElement('div');modal.id=id;document.body.appendChild(modal);}
-  modal.innerHTML=`<div onclick="document.getElementById('${id}').style.display='none'" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2100;display:flex;align-items:flex-start;justify-content:center;padding:36px 18px;overflow:auto">
-    <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:18px;max-width:560px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden">
-      <div style="background:${gradient};padding:18px 24px;display:flex;align-items:center;gap:12px;color:#fff">
-        <div style="flex:1;font-size:17px;font-weight:800">${title}</div>
-        <span onclick="document.getElementById('${id}').style.display='none'" style="cursor:pointer;font-size:20px;line-height:1;padding:4px 8px;opacity:.85">✕</span>
-      </div>
-      <div style="padding:20px 24px;max-height:76vh;overflow:auto">${bodyHtml}</div>
-    </div></div>`;
-  modal.style.display='flex';
-}
-function saonlField(label,inputHtml,note){
-  return`<div style="margin-bottom:13px"><label style="display:block;font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px">${label}</label>${inputHtml}${note?`<div style="font-size:10.5px;color:var(--muted);margin-top:3px">${note}</div>`:''}</div>`;
-}
-const saonlInputStyle='width:100%;box-sizing:border-box;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;font-family:var(--font);outline:none';
-
-// ---- Thêm khách mới ----
-async function openSaonlAddCustomer(){
-  const reps=await saonlActiveSalesReps();
-  const channels=saonlKnownChannels();
-  const body=`
-    <form id="saonlAddCustForm" onsubmit="event.preventDefault();submitSaonlAddCustomer();">
-      ${saonlField('Họ tên khách *',`<input required name="name" style="${saonlInputStyle}" placeholder="VD: KL Anh Tân - TN">`)}
-      ${saonlField('SĐT',`<input name="phone" style="${saonlInputStyle}" placeholder="09xxxxxxxx">`)}
-      ${saonlField('Nguồn *',`<select required name="source" style="${saonlInputStyle}"><option value="Offline">Offline (tại cửa hàng)</option><option value="Online">Online (Ads)</option></select>`,'Đa số khách Lẻ nhập tay là Offline')}
-      ${saonlField('Kênh *',`<input required name="channel" list="saonlChannelList" style="${saonlInputStyle}" placeholder="VD: Đồ thờ Hiền Thủy">
-        <datalist id="saonlChannelList">${channels.map(c=>`<option value="${c.replace(/"/g,'&quot;')}">`).join('')}</datalist>`)}
-      ${saonlField('Sales phụ trách *',`<select required name="sales_rep" style="${saonlInputStyle}"><option value="">-- chọn --</option>${reps.map(r=>`<option value="${r.replace(/"/g,'&quot;')}">${r}</option>`).join('')}</select>`)}
-      ${saonlField('Địa chỉ',`<textarea name="address" rows="2" style="${saonlInputStyle};resize:vertical"></textarea>`)}
-      ${saonlField('Ad ID',`<input name="ad_id" style="${saonlInputStyle}" placeholder="Chỉ có nếu Nguồn = Online">`)}
-      ${saonlField('Mã KH',`<input name="ma_kh" style="${saonlInputStyle}" placeholder="Để trống sẽ tự tạo">`)}
-      <div id="saonlAddCustErr" style="color:var(--red);font-size:12px;font-weight:600;margin-bottom:8px;display:none"></div>
-      <button type="submit" class="btn" style="width:100%;padding:10px;font-size:13px">Lưu khách mới</button>
-    </form>`;
-  saonlModalShell('saonlAddCustModal','➕ Thêm Khách Mới','linear-gradient(135deg,#0abf7a,#0891b2)',body);
-}
-async function submitSaonlAddCustomer(){
-  const f=document.getElementById('saonlAddCustForm');
-  const errEl=document.getElementById('saonlAddCustErr');
-  errEl.style.display='none';
-  const fd=new FormData(f);
-  const name=(fd.get('name')||'').toString().trim();
-  if(!name){errEl.textContent='Thiếu họ tên khách';errEl.style.display='block';return;}
-  const btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Đang lưu...';
-  try{
-    const leadId='MANUAL'+Date.now().toString(36).toUpperCase();
-    const row={
-      lead_id:leadId,created_date:todayISO(),
-      source:(fd.get('source')||'Offline').toString(),
-      channel:(fd.get('channel')||'').toString().trim(),
-      sales_rep:(fd.get('sales_rep')||'').toString().trim()||null,
-      phone:(fd.get('phone')||'').toString().trim()||null,
-      address:(fd.get('address')||'').toString().trim()||null,
-      ad_id:(fd.get('ad_id')||'').toString().trim()||null,
-      ma_kh:(fd.get('ma_kh')||'').toString().trim()||leadId,
-      name
-    };
-    await sbInsert('saonl_customers',row);
-    document.getElementById('saonlAddCustModal').style.display='none';
-    await loadSaleOnlFromSupabase();
-    renderSaleOnl();renderSaleOnlData();
-    alert('Đã thêm khách "'+name+'" (Lead ID: '+leadId+')');
-  }catch(e){
-    errEl.textContent='Lỗi: '+e.message;errEl.style.display='block';
-  }finally{
-    btn.disabled=false;btn.textContent='Lưu khách mới';
-  }
-}
-
-// ---- Ghi nhận chăm sóc ----
-async function openSaonlAddCare(leadId){
-  const customers=window._saonlCustomersRaw||[];
-  const preset=leadId?customers.find(c=>c.lead_id===leadId):null;
-  const reps=await saonlActiveSalesReps();
-  const pickerHtml=preset
-    ?`<input type="hidden" name="customer_id" value="${preset.lead_id}"><div style="${saonlInputStyle};background:var(--bg2);font-weight:700">${preset.name||preset.lead_id} <span style="color:var(--muted);font-weight:500">(${preset.lead_id})</span></div>`
-    :`<div style="position:relative">
-        <input required autocomplete="off" name="customer_id_search" id="saonlCustSearchBox" oninput="saonlSearchCustomer(this.value)" style="${saonlInputStyle}" placeholder="Gõ tên/SĐT/Lead ID để tìm khách...">
-        <input type="hidden" name="customer_id" id="saonlPickedCustId">
-        <div id="saonlCustResults" style="display:none;position:absolute;z-index:10;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;margin-top:4px;max-height:220px;overflow:auto;box-shadow:var(--shadow-md)"></div>
-      </div>`;
-  const body=`
-    <form id="saonlAddCareForm" onsubmit="event.preventDefault();submitSaonlAddCare();">
-      ${saonlField('Khách hàng *',pickerHtml)}
-      ${saonlField('Ngày chăm sóc *',`<input required type="date" name="care_date" value="${todayISO()}" style="${saonlInputStyle}">`)}
-      ${saonlField('Trạng thái *',`<select required name="status" style="${saonlInputStyle}" onchange="saonlToggleCareFields(this.value)">
-        <option value="">-- chọn --</option>
-        <option value="Đang chăm sóc">Đang chăm sóc</option>
-        <option value="Chốt đơn">Chốt đơn</option>
-        <option value="Mất lead">Mất lead</option>
-        <option value="Chăm sóc dài hạn">Chăm sóc dài hạn</option>
-      </select>`)}
-      ${saonlField('Nội dung trao đổi',`<textarea name="content" rows="3" style="${saonlInputStyle};resize:vertical"></textarea>`)}
-      ${saonlField('Giá trị tiềm năng (VND)',`<input name="expected_value" inputmode="numeric" style="${saonlInputStyle}" placeholder="VD: 30000000">`)}
-      <div id="saonlCareLostBlock" style="display:none">
-        ${saonlField('Nhóm nguyên nhân mất lead',`<input name="lost_group" list="saonlLostGroupList" style="${saonlInputStyle}" placeholder="VD: Không phản hồi">
-          <datalist id="saonlLostGroupList"><option value="Không phản hồi"><option value="Giá cao"><option value="Chọn nơi khác"></datalist>`)}
-      </div>
-      <div id="saonlCareCloseBlock" style="display:none">
-        ${saonlField('Ngày chốt',`<input type="date" name="close_date" value="${todayISO()}" style="${saonlInputStyle}">`)}
-        ${saonlField('Doanh thu (VND)',`<input name="close_value" inputmode="numeric" style="${saonlInputStyle}" placeholder="VD: 28800000">`)}
-      </div>
-      ${saonlField('Sales phụ trách',`<select name="sales_rep" style="${saonlInputStyle}"><option value="">${preset&&preset.sales_rep?preset.sales_rep+' (giữ nguyên)':'-- chọn --'}</option>${reps.map(r=>`<option value="${r.replace(/"/g,'&quot;')}">${r}</option>`).join('')}</select>`)}
-      <div id="saonlAddCareErr" style="color:var(--red);font-size:12px;font-weight:600;margin-bottom:8px;display:none"></div>
-      <button type="submit" class="btn" style="width:100%;padding:10px;font-size:13px">Lưu lượt chăm sóc</button>
-    </form>`;
-  saonlModalShell('saonlAddCareModal','📋 Ghi Nhận Chăm Sóc','linear-gradient(135deg,#4361ee,#7c3aed)',body);
-}
-function saonlSearchCustomer(q){
-  const box=document.getElementById('saonlCustResults');
-  const hidden=document.getElementById('saonlPickedCustId');
-  if(hidden)hidden.value=''; // gõ lại thì phải chọn lại, tránh submit nhầm khách cũ
-  q=(q||'').trim().toLowerCase();
-  if(q.length<2){box.style.display='none';return;}
-  const matches=(window._saonlCustomersRaw||[]).filter(c=>
-    (c.name||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.lead_id||'').toLowerCase().includes(q)
-  ).slice(0,20);
-  if(!matches.length){box.innerHTML='<div style="padding:10px 12px;font-size:12px;color:var(--muted)">Không tìm thấy khách nào</div>';box.style.display='block';return;}
-  box.innerHTML=matches.map(c=>`<div onclick="saonlPickCustomer('${c.lead_id.replace(/'/g,"\\'")}')" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''"><b>${(c.name||'—').replace(/</g,'&lt;')}</b> <span style="color:var(--muted)">${c.phone||''} · ${c.lead_id}</span></div>`).join('');
-  box.style.display='block';
-}
-function saonlPickCustomer(leadId){
-  const cust=(window._saonlCustomersRaw||[]).find(c=>c.lead_id===leadId);
-  if(!cust)return;
-  document.getElementById('saonlPickedCustId').value=leadId;
-  document.getElementById('saonlCustSearchBox').value=(cust.name||'')+' — '+leadId;
-  document.getElementById('saonlCustResults').style.display='none';
-}
-function saonlToggleCareFields(status){
-  document.getElementById('saonlCareLostBlock').style.display=status==='Mất lead'?'block':'none';
-  document.getElementById('saonlCareCloseBlock').style.display=status==='Chốt đơn'?'block':'none';
-}
-async function submitSaonlAddCare(){
-  const f=document.getElementById('saonlAddCareForm');
-  const errEl=document.getElementById('saonlAddCareErr');
-  errEl.style.display='none';
-  const fd=new FormData(f);
-  const customerId=(fd.get('customer_id')||'').toString().trim();
-  const status=(fd.get('status')||'').toString().trim();
-  if(!customerId){errEl.textContent='Chưa chọn khách hàng (gõ rồi chọn đúng 1 dòng gợi ý)';errEl.style.display='block';return;}
-  if(!status){errEl.textContent='Thiếu trạng thái';errEl.style.display='block';return;}
-  const cust=(window._saonlCustomersRaw||[]).find(c=>c.lead_id===customerId);
-  if(!cust){errEl.textContent='Không tìm thấy khách hàng với Lead ID "'+customerId+'"';errEl.style.display='block';return;}
-  const btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Đang lưu...';
-  try{
-    const row={
-      customer_id:customerId,
-      care_date:(fd.get('care_date')||todayISO()).toString(),
-      source:cust.source||null,channel:cust.channel||null,ad_id:cust.ad_id||null,
-      sales_rep:(fd.get('sales_rep')||'').toString().trim()||cust.sales_rep||null,
-      content:(fd.get('content')||'').toString().trim()||null,
-      expected_value:vndNum(fd.get('expected_value'))||null,
-      status,
-      lost_group:status==='Mất lead'?((fd.get('lost_group')||'').toString().trim()||null):null,
-      close_date:status==='Chốt đơn'?((fd.get('close_date')||'').toString()||null):null,
-      close_value:status==='Chốt đơn'?(vndNum(fd.get('close_value'))||null):null,
-    };
-    await sbInsert('saonl_care_log',row);
-    document.getElementById('saonlAddCareModal').style.display='none';
-    await loadSaleOnlFromSupabase();
-    renderSaleOnl();renderSaleOnlData();
-    alert('Đã lưu lượt chăm sóc cho "'+(cust.name||customerId)+'"');
-  }catch(e){
-    errEl.textContent='Lỗi: '+e.message;errEl.style.display='block';
-  }finally{
-    btn.disabled=false;btn.textContent='Lưu lượt chăm sóc';
-  }
 }
 
 function parseMktCsv(text){
@@ -2852,15 +2586,7 @@ function renderSaleOnlData(){
     if(t.includes('đang chăm sóc'))return chip(v,'#dbeafe','#2563eb');
     return chip(v,'#e5e7eb','#6b7280');};
 
-  // Phân trang -- 6000+ khách render hết 1 lần vào DOM rất nặng, chỉ render đúng 1 trang (30 dòng) đang xem
-  const PAGE_SIZE=30;
-  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
-  let curPage=Math.min(Math.max(1,window._saonlDataPage||1),totalPages);
-  window._saonlDataPage=curPage;
-  const pgStart=(curPage-1)*PAGE_SIZE;
-  const pageSlice=filtered.slice(pgStart,pgStart+PAGE_SIZE);
-
-  const bodyRows=pageSlice.map((r,idx)=>{const i=pgStart+idx;return`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+  const bodyRows=filtered.map((r,i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SAONL.DATE]||'—'}</td>
       <td style="padding:9px 12px"><div style="font-size:13px;font-weight:700;white-space:normal;word-break:break-word">${r[COL_SAONL.NAME]||'—'}</div><div style="font-size:11px;color:var(--muted)">${r[COL_SAONL.PHONE]||''}</div></td>
       <td style="padding:9px 12px">${srcChip(r[COL_SAONL.SOURCE])}</td>
@@ -2870,20 +2596,12 @@ function renderSaleOnlData(){
       <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${toN(r[COL_SAONL.POTENTIAL])>0?'#7c3aed':'var(--muted)'};white-space:nowrap">${toN(r[COL_SAONL.POTENTIAL])>0?vnd(toN(r[COL_SAONL.POTENTIAL])):'—'}</td>
       <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${toN(r[COL_SAONL.REVENUE])>0?'var(--green)':'var(--muted)'};white-space:nowrap">${toN(r[COL_SAONL.REVENUE])>0?vnd(toN(r[COL_SAONL.REVENUE])):'—'}</td>
       <td style="padding:9px 12px;text-align:center"><span onclick="openSaonlProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">👤<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
-    </tr>`;}).join('');
-  const pager=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:12px;border-top:1px solid var(--border)">
-    <button class="btn-ghost" ${curPage<=1?'disabled':''} onclick="setSaonlPage(${curPage-1})">← Trước</button>
-    <span style="font-size:12px;color:var(--muted);font-weight:600">Trang ${curPage}/${totalPages} · ${num(filtered.length)} khách</span>
-    <button class="btn-ghost" ${curPage>=totalPages?'disabled':''} onclick="setSaonlPage(${curPage+1})">Sau →</button>
-  </div>`;
+    </tr>`).join('');
 
   elp.innerHTML=`
     <div class="page-title">Báo Cáo KH Lẻ — Chi Tiết</div>
     <div class="page-sub">Danh sách từng khách lẻ (Sale Online) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</div>
-    <div class="period-bar">${brandChips('_saonlBrands','renderSaleOnlData')}
-      <button class="btn" style="margin-left:auto" onclick="openSaonlAddCustomer()">➕ Thêm khách mới</button>
-      <button class="btn-ghost" onclick="openSaonlAddCare()">📋 Ghi nhận chăm sóc</button>
-    </div>
+    <div class="period-bar">${brandChips('_saonlBrands','renderSaleOnlData')}</div>
     <div style="margin:14px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(filtered.length)} khách)</span></div>
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
@@ -2904,13 +2622,12 @@ function renderSaleOnlData(){
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['KÊNH','left'],['ADS ID / TÊN QC','left'],['TRẠNG THÁI','left'],['GIÁ TRỊ TN','right'],['DOANH THU','right'],['HỒ SƠ','center']].map(([c,a])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
-    </table></div>${pager}</div>`;
+    </table></div></div>`;
   if(window._saonlSearchFocus){window._saonlSearchFocus=false;const sb=document.getElementById('saonlSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
-function setSaonlSrc(v){window._saonlSrc=v;window._saonlDataPage=1;renderSaleOnlData();}
-function setSaonlStt(v){window._saonlStt=v;window._saonlDataPage=1;renderSaleOnlData();}
-function setSaonlSearch(v){window._saonlSearch=v;window._saonlSearchFocus=true;window._saonlDataPage=1;renderSaleOnlData();}
-function setSaonlPage(p){window._saonlDataPage=p;renderSaleOnlData();window.scrollTo({top:0,behavior:'smooth'});}
+function setSaonlSrc(v){window._saonlSrc=v;renderSaleOnlData();}
+function setSaonlStt(v){window._saonlStt=v;renderSaleOnlData();}
+function setSaonlSearch(v){window._saonlSearch=v;window._saonlSearchFocus=true;renderSaleOnlData();}
 function closeSaonlProfile(){const m=document.getElementById('saonlProfileModal');if(m)m.style.display='none';}
 function openSaonlProfile(i){
   const r=(window._saonlProfiles||[])[i];if(!r)return;
@@ -2934,7 +2651,6 @@ function openSaonlProfile(i){
         <span onclick="closeSaonlProfile()" style="cursor:pointer;font-size:22px;line-height:1;padding:4px 8px;opacity:.85">✕</span>
       </div>
       <div style="padding:22px 26px;max-height:72vh;overflow:auto">
-        <button class="btn" style="margin-bottom:16px" onclick="openSaonlAddCare('${(r[COL_SAONL.LEAD_ID]||'').toString().replace(/'/g,"\\'")}')">📋 Ghi nhận chăm sóc cho khách này</button>
         <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Tổng quan</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
           ${money('Giá trị tiềm năng',toN(r[COL_SAONL.POTENTIAL])>0?vnd(toN(r[COL_SAONL.POTENTIAL])):'—','#7c3aed')}
