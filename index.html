@@ -2384,13 +2384,17 @@ function renderSaleOnl(){
     offline:{title:'Data nguồn Offline',cols:saoCols,rows:saoMap(rows.filter(r=>(r[COL_SAONL.SOURCE]||'').toLowerCase().includes('offline')))},
     pot:{title:'Lead có giá trị tiềm năng',cols:saoCols,rows:saoMap(rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0))},
   };
+  // Lead theo Kênh / theo Sales: chỉ tính nguồn Online — nguồn Offline là khách mua trực tiếp tại cửa hàng,
+  // "Kênh"/"Sales phụ trách" của nhóm này là tên cửa hàng/nhân viên bán hàng offline (không phải sales online
+  // xử lý lead), gộp chung sẽ làm loãng bảng với hàng chục tên cũ nhiều năm không liên quan đến vận hành online.
+  const rowsOnl=rows.filter(r=>(r[COL_SAONL.SOURCE]||'').toLowerCase().includes('online'));
   // Lead by channel
   const byChan={};
-  rows.forEach(r=>{const c=(r[COL_SAONL.CHANNEL]||'Khác').trim();byChan[c]=(byChan[c]||0)+1;});
+  rowsOnl.forEach(r=>{const c=(r[COL_SAONL.CHANNEL]||'Khác').trim();byChan[c]=(byChan[c]||0)+1;});
   const chanEntries=Object.entries(byChan).sort((a,b)=>b[1]-a[1]);
   // Lead by sales
   const bySales={};
-  rows.forEach(r=>{
+  rowsOnl.forEach(r=>{
     const s=(r[COL_SAONL.SALES]||'Chưa phân công').trim();
     if(!bySales[s])bySales[s]={total:0,closed:0,rev:0};
     bySales[s].total++;
@@ -2479,10 +2483,10 @@ function renderSaleOnl(){
       ${clk('offline',mkKpi('🏪','Data Offline',num(dataOff),'nguồn offline','g-purple'))}
     </div>
 
-    <div class="sec-label">III. Lead Theo Kênh</div>
+    <div class="sec-label">III. Lead Theo Kênh <span style="font-weight:400;text-transform:none;color:var(--muted)">(nguồn Online)</span></div>
     <div class="chart-card"><div class="chart-wrap" style="height:${Math.max(200,chanEntries.length*32)}px"><canvas id="cSaonlChan"></canvas></div></div>
 
-    <div class="sec-label">IV. Lead Theo Sales</div>
+    <div class="sec-label">IV. Lead Theo Sales <span style="font-weight:400;text-transform:none;color:var(--muted)">(nguồn Online — Offline là khách mua trực tiếp tại cửa hàng, không phải sales online xử lý lead)</span></div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES PHỤ TRÁCH</th>
