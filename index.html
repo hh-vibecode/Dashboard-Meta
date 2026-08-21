@@ -450,7 +450,6 @@ function toggleOnlGroup(){const s=document.getElementById('onl-subnav'),a=docume
 
 // ── Load ──
 async function loadData(){
-  const mktRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
@@ -458,37 +457,29 @@ async function loadData(){
   // Báo Cáo Sỉ — bản Miền Trung (đội riêng, cùng form/cùng thứ tự cột với bản Bắc+Nam ở trên) — chuyển đổi qua nút trên trang Báo Cáo KH Sỉ, không tách trang riêng
   const siRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=2107421092&single=true&output=csv';
   const sicrmRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=138010004&single=true&output=csv';
-  // Sale Online (Lẻ) — tách 2 sheet: "1.MASTER DATA LẺ" (hồ sơ khách) + "2.CRM" (lịch sử CS/chốt đơn), cùng
-  // file, cùng tinh thần Master⨝CRM như Báo Cáo Sỉ. Sheet gid=2107421092 cũ ("2.CRM (cũ)") đã ngừng cập nhật.
-  const saonlMasterRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=1474031151&single=true&output=csv';
-  const saonlCrmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=768026359&single=true&output=csv';
   // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này. Tab được QUÉT TỰ ĐỘNG
   // (đọc trang pubhtml lấy danh sách tab hiện có) — không cần sửa code khi có tháng mới, xem loadKiotAllMonths().
   const kiotSheetId='2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw';
-  if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
     const tasks=[];
     const taskIdx={};
-    if(mktRaw){taskIdx.mkt=tasks.length;tasks.push(fetchCsvWithProxy(mktRaw,0));}
     taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));
     taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3));
     taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
-    taskIdx.saonlMaster=tasks.length;tasks.push(fetchCsvWithProxy(saonlMasterRaw,99,'SAONL-MASTER'));
-    taskIdx.saonlCrm=tasks.length;tasks.push(fetchCsvWithProxy(saonlCrmRaw,99,'SAONL-CRM'));
     taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
     taskIdx.siMT=tasks.length;tasks.push(fetchCsvWithProxy(siRawMT,9));
     taskIdx.sicrmMT=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRawMT,10));
     const kiotPromise=loadKiotAllMonths(kiotSheetId);
+    // MKT + Sale Online (Lẻ) giờ đọc thẳng Supabase thay vì Google Sheets, xem project_supabase-migration-mkt-saleonline
+    setStatus('Đang tải MKT + Sale Online từ Supabase...');
+    const mktSbPromise=loadMktFromSupabase().then(()=>true).catch(e=>{setStatus('⚠️ MKT (Supabase) lỗi: '+e.message);return false;});
+    const saonlSbPromise=loadSaleOnlFromSupabase().then(()=>true).catch(e=>{setStatus('⚠️ Sale Online (Supabase) lỗi: '+e.message);return false;});
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
-    if(mktRaw){
-      if(results[taskIdx.mkt].status==='rejected')throw new Error('MKT: '+results[taskIdx.mkt].reason.message);
-      setStatus('Nhận data MKT, đang parse...');
-      parseMktCsv(results[taskIdx.mkt].value);
-      setStatus(`Parse xong MKT: ${allRows.length} chiến dịch`);
-    }
+    const mktOk=await mktSbPromise;
+    if(mktOk)setStatus(`Parse xong MKT (Supabase): ${allRows.length} chiến dịch/ngày`);
     {
       const r=results[taskIdx.crm];
       if(r.status==='fulfilled'){setStatus('Đang parse CRM Hub...');parseCrmHub(r.value);setStatus(`Parse xong CRM Hub: ${crmHubRows.length} leads`);}
@@ -505,15 +496,8 @@ async function loadData(){
       else setStatus('⚠️ Sale Sỉ không tải được');
     }
     {
-      const rm=results[taskIdx.saonlMaster],rc=results[taskIdx.saonlCrm];
-      if(rm.status==='fulfilled'&&rc.status==='fulfilled'){
-        setStatus('Đang parse Sale Online (Master + CRM)...');
-        const master=parseSaleOnlMasterCsv(rm.value);
-        const crm=parseSaleOnlCrmCsv(rc.value);
-        saleOnlCrmRows=crm.rows;
-        saleOnlRows=buildSaleOnlFlatRows(master,crm);
-        setStatus(`Parse xong Sale Online: ${saleOnlRows.length} khách, ${saleOnlCrmRows.length} lượt CS`);
-      } else setStatus('⚠️ Sale Online không tải được ('+(rm.status==='rejected'?'Master':'CRM')+')');
+      const saonlOk=await saonlSbPromise;
+      if(saonlOk)setStatus(`Parse xong Sale Online (Supabase): ${saleOnlRows.length} khách, ${saleOnlCrmRows.length} lượt CS`);
     }
     {
       const r=results[taskIdx.sicrm];
@@ -539,7 +523,7 @@ async function loadData(){
     }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
-    if(mktRaw)applyFilter();
+    if(mktOk)applyFilter();
     renderSaleOverview();
     renderSaleSi();
     renderSaleSiData();
@@ -624,6 +608,95 @@ async function loadKiotAllMonths(sheetId){
   const failed=tabs.filter((t,i)=>results[i].status==='rejected');
   if(failed.length)setStatus(`⚠️ [KIOT] ${failed.length}/${tabs.length} tab tải lỗi: ${failed.map(t=>t.name).join(', ')}`);
   return texts;
+}
+
+// ── Supabase: nguồn data mới cho MKT + Sale Online (đang thay dần Google Sheets, xem project_supabase-migration-mkt-saleonline) ──
+const SUPABASE_URL='https://bcrpxfvvjsjpvbksqzls.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcnB4ZnZ2anNqcHZia3NxemxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyNzE0OTgsImV4cCI6MjEwMjg0NzQ5OH0.XGEUvHP1YBhxYKD9Xq1yH2gl95-V9VgaY5HfsAnFb2c';
+// anon key chỉ có quyền ĐỌC (RLS chặn ghi) nên lộ ra client-side là an toàn, giống pattern publish-to-web của Google Sheets trước đây
+async function sbFetchAll(table,query){
+  const pageSize=1000;let offset=0,out=[];
+  while(true){
+    const url=`${SUPABASE_URL}/rest/v1/${table}?${query}`;
+    const res=await fetch(url,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY,Range:`${offset}-${offset+pageSize-1}`}});
+    if(!res.ok)throw new Error(`Supabase [${table}] lỗi ${res.status}`);
+    const chunk=await res.json();
+    out=out.concat(chunk);
+    if(chunk.length<pageSize)break;
+    offset+=pageSize;
+  }
+  return out;
+}
+// Nạp MKT từ Supabase (mkt_spend, cấp Ad/ngày) — dựng lại 2 tầng dữ liệu như parseMktCsv() từng làm từ CSV:
+// allRowsRaw = cấp Ad (để buildAdCampMap() gắn Ad ID -> tên chiến dịch), allRows = gộp cấp Chiến dịch/ngày
+// (tương đương dòng "All" trong export cũ) để mọi hàm tính KPI Tổng Quan dùng nguyên vẹn, không cần sửa gì thêm.
+// Lưu ý: Reach ở đây là TỔNG cộng dồn theo Ad, không phải reach hợp nhất (unique) như dòng "All" gốc của Meta —
+// vì Meta khử trùng lặp người xem giữa các Ad cùng chiến dịch còn phép cộng thì không. Số Spend/Impressions/
+// Messages/Comments cộng dồn thì chính xác tuyệt đối (không có trùng lặp giữa các Ad).
+async function loadMktFromSupabase(){
+  const rows=await sbFetchAll('mkt_spend','select=*');
+  COL.DATE=0;COL.CAMPAIGN=1;COL.ADSET_NAME=2;COL.AD_NAME=3;COL.AD_ID=4;
+  COL.REACH=5;COL.IMPRESSIONS=6;COL.SPEND=7;COL.MESSAGES=8;COL.CTR=9;COL.CPC=10;COL.COMMENTS=11;
+  window.allRowsRaw=rows.map(r=>{
+    const row=[];
+    row[COL.DATE]=r.ad_date;row[COL.CAMPAIGN]=r.campaign_name||'';row[COL.ADSET_NAME]=r.adset_name||'';
+    row[COL.AD_NAME]=r.ad_name||'';row[COL.AD_ID]=r.ad_id;
+    row[COL.REACH]=r.reach||0;row[COL.IMPRESSIONS]=r.impressions||0;row[COL.SPEND]=Number(r.spend)||0;
+    row[COL.MESSAGES]=r.messages||0;row[COL.CTR]=Number(r.ctr)||0;row[COL.CPC]=Number(r.cpc)||0;row[COL.COMMENTS]=r.comments||0;
+    return row;
+  });
+  const groups={};
+  rows.forEach(r=>{
+    const key=(r.campaign_name||'')+'|'+r.ad_date;
+    const g=groups[key]||(groups[key]={campaign_name:r.campaign_name||'',ad_date:r.ad_date,reach:0,impressions:0,spend:0,messages:0,comments:0,clicks:0});
+    g.reach+=r.reach||0;g.impressions+=r.impressions||0;g.spend+=Number(r.spend)||0;
+    g.messages+=r.messages||0;g.comments+=r.comments||0;
+    g.clicks+=((Number(r.ctr)||0)/100)*(r.impressions||0);
+  });
+  allRows=Object.values(groups).map(g=>{
+    const row=[];
+    row[COL.DATE]=g.ad_date;row[COL.CAMPAIGN]=g.campaign_name;row[COL.ADSET_NAME]='';row[COL.AD_NAME]='';row[COL.AD_ID]='';
+    row[COL.REACH]=Math.round(g.reach);row[COL.IMPRESSIONS]=Math.round(g.impressions);row[COL.SPEND]=g.spend;
+    row[COL.MESSAGES]=Math.round(g.messages);
+    row[COL.CTR]=g.impressions>0?(100*g.clicks/g.impressions):0;
+    row[COL.CPC]=g.clicks>0?(g.spend/g.clicks):0;
+    row[COL.COMMENTS]=Math.round(g.comments);
+    return row;
+  });
+  console.log('[MKT-SUPABASE] ad rows:',rows.length,'/ campaign-ngày rows:',allRows.length);
+}
+// Nạp Sale Online (Master + CRM) từ Supabase, dựng lại shape {rows,c} y hệt parseSaleOnlMasterCsv/
+// parseSaleOnlCrmCsv để tái dùng buildSaleOnlFlatRows() sẵn có mà không phải sửa hàm đó.
+async function loadSaleOnlFromSupabase(){
+  const customers=await sbFetchAll('saonl_customers','select=*');
+  const careLogs=await sbFetchAll('saonl_care_log','select=*&order=care_date.desc');
+  const mc={DATE:0,SOURCE:1,CHANNEL:2,SALES:3,AD_ID:4,LEAD_ID:5,NAME:6,PHONE:7,CITY:8,DISTRICT:9,ADDRESS:10,STATUS:11,PRODUCT:12,LAST_CS:13,TOTAL_REV:14,MA_KH:15,GROUP:16};
+  const masterRows=customers.map(c=>{
+    const row=[];
+    row[mc.DATE]=c.created_date;row[mc.SOURCE]=c.source||'';row[mc.CHANNEL]=c.channel||'';
+    row[mc.SALES]=c.sales_rep||'';row[mc.AD_ID]=c.ad_id||'';row[mc.LEAD_ID]=c.lead_id;
+    row[mc.NAME]=c.name||'';row[mc.PHONE]=c.phone||'';row[mc.CITY]=c.city||'';row[mc.DISTRICT]=c.district||'';
+    row[mc.ADDRESS]=c.address||'';row[mc.STATUS]=c.status||'';row[mc.PRODUCT]=c.product_need||'';
+    row[mc.LAST_CS]=c.last_care_date||'';row[mc.TOTAL_REV]=c.total_revenue||0;row[mc.MA_KH]=c.ma_kh||'';row[mc.GROUP]=c.customer_group||'';
+    return row;
+  });
+  const cc=COL_SAONLCRM; // shape đã khớp sẵn 1-1 với cột saonl_care_log
+  const custByLead={};customers.forEach(c=>{custByLead[c.lead_id]=c;});
+  const crmRows=careLogs.map(l=>{
+    const cust=custByLead[l.customer_id]||{};
+    const row=[];
+    row[cc.DATE]=l.care_date;row[cc.LEAD_ID]=l.customer_id;row[cc.SOURCE]=l.source||cust.source||'';
+    row[cc.CHANNEL]=l.channel||cust.channel||'';row[cc.SALES]=l.sales_rep||'';row[cc.AD_ID]=l.ad_id||'';
+    row[cc.NAME]=cust.name||'';row[cc.PHONE]=cust.phone||'';row[cc.STATUS_KH]=l.status_kh||'';
+    row[cc.FORM]=l.care_form||'';row[cc.CONTENT]=l.content||'';row[cc.EXPECTED]=l.expected_value||0;
+    row[cc.STATUS]=l.status||'';row[cc.LOST_GROUP]=l.lost_group||'';row[cc.LOST_REASON]=l.lost_reason||'';
+    row[cc.CLOSE_DATE]=l.close_date||'';row[cc.CLOSE_VALUE]=l.close_value||0;
+    return row;
+  });
+  const master={rows:masterRows,c:mc},crm={rows:crmRows,c:cc};
+  saleOnlCrmRows=crm.rows;
+  saleOnlRows=buildSaleOnlFlatRows(master,crm);
+  console.log('[SAONL-SUPABASE] customers:',masterRows.length,'care logs:',crmRows.length,'flat:',saleOnlRows.length);
 }
 
 function parseMktCsv(text){
