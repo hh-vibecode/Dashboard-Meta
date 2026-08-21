@@ -450,7 +450,6 @@ function toggleOnlGroup(){const s=document.getElementById('onl-subnav'),a=docume
 
 // ── Load ──
 async function loadData(){
-  const mktRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
@@ -465,13 +464,12 @@ async function loadData(){
   // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này. Tab được QUÉT TỰ ĐỘNG
   // (đọc trang pubhtml lấy danh sách tab hiện có) — không cần sửa code khi có tháng mới, xem loadKiotAllMonths().
   const kiotSheetId='2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw';
-  if(!mktRaw)return;
   showLoading();
   document.getElementById('btnLoad').disabled=true;
   try{
+    const mktPromise=loadMktFromSupabase().then(()=>true).catch(e=>{setStatus('⚠️ MKT (Supabase) lỗi: '+e.message);return false;});
     const tasks=[];
     const taskIdx={};
-    if(mktRaw){taskIdx.mkt=tasks.length;tasks.push(fetchCsvWithProxy(mktRaw,0));}
     taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));
     taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3));
     taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
@@ -483,12 +481,8 @@ async function loadData(){
     const kiotPromise=loadKiotAllMonths(kiotSheetId);
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
-    if(mktRaw){
-      if(results[taskIdx.mkt].status==='rejected')throw new Error('MKT: '+results[taskIdx.mkt].reason.message);
-      setStatus('Nhận data MKT, đang parse...');
-      parseMktCsv(results[taskIdx.mkt].value);
-      setStatus(`Parse xong MKT: ${allRows.length} chiến dịch`);
-    }
+    await mktPromise;
+    setStatus(`MKT (Supabase): ${allRows.length} chiến dịch/ngày`);
     {
       const r=results[taskIdx.crm];
       if(r.status==='fulfilled'){setStatus('Đang parse CRM Hub...');parseCrmHub(r.value);setStatus(`Parse xong CRM Hub: ${crmHubRows.length} leads`);}
@@ -539,7 +533,7 @@ async function loadData(){
     }
     document.getElementById('btnLoad').disabled=false;
     setStatus('Đang render...');
-    if(mktRaw)applyFilter();
+    applyFilter();
     renderSaleOverview();
     renderSaleSi();
     renderSaleSiData();
@@ -626,6 +620,59 @@ async function loadKiotAllMonths(sheetId){
   return texts;
 }
 
+// MKT giờ nạp trực tiếp từ Supabase (bảng mkt_spend, tự động cập nhật hàng ngày 7h sáng qua GitHub Actions ở
+// repo mkt-sale-app) thay vì đọc CSV Google Sheet thủ công — dựng lại đúng 2 tầng dữ liệu (allRowsRaw cấp Ad,
+// allRows cấp Chiến dịch/ngày) mà parseMktCsv() từng tạo ra, dùng chung COL object nên mọi hàm render/KPI phía
+// dưới không cần sửa gì. Lưu ý Reach ở allRows là TỔNG cộng dồn theo Ad (không khử trùng lặp như Meta) — Spend/
+// Impressions/Messages/Comments cộng dồn thì chính xác tuyệt đối.
+const SUPABASE_URL='https://bcrpxfvvjsjpvbksqzls.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjcnB4ZnZ2anNqcHZia3NxemxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyNzE0OTgsImV4cCI6MjEwMjg0NzQ5OH0.XGEUvHP1YBhxYKD9Xq1yH2gl95-V9VgaY5HfsAnFb2c';
+async function sbFetchAll(table,query){
+  const pageSize=1000;let offset=0,out=[];
+  while(true){
+    const url=`${SUPABASE_URL}/rest/v1/${table}?${query}`;
+    const res=await fetch(url,{headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY,Range:`${offset}-${offset+pageSize-1}`}});
+    if(!res.ok)throw new Error(`Supabase [${table}] lỗi ${res.status}`);
+    const chunk=await res.json();
+    out=out.concat(chunk);
+    if(chunk.length<pageSize)break;
+    offset+=pageSize;
+  }
+  return out;
+}
+async function loadMktFromSupabase(){
+  const rows=await sbFetchAll('mkt_spend','select=*');
+  COL.CAMPAIGN=0;COL.AD_ID=1;COL.DATE=2;COL.ADSET_NAME=3;COL.AD_NAME=4;
+  COL.REACH=5;COL.IMPRESSIONS=6;COL.SPEND=7;COL.MESSAGES=8;COL.CTR=9;COL.CPC=10;COL.COMMENTS=11;
+  window.allRowsRaw=rows.map(r=>{
+    const row=[];
+    row[COL.CAMPAIGN]=r.campaign_name||'';row[COL.AD_ID]=r.ad_id;row[COL.DATE]=r.ad_date;
+    row[COL.ADSET_NAME]=r.adset_name||'';row[COL.AD_NAME]=r.ad_name||'';
+    row[COL.REACH]=r.reach||0;row[COL.IMPRESSIONS]=r.impressions||0;row[COL.SPEND]=Number(r.spend)||0;
+    row[COL.MESSAGES]=r.messages||0;row[COL.CTR]=Number(r.ctr)||0;row[COL.CPC]=Number(r.cpc)||0;row[COL.COMMENTS]=r.comments||0;
+    return row;
+  });
+  const groups={};
+  rows.forEach(r=>{
+    const key=(r.campaign_name||'')+'|'+r.ad_date;
+    const g=groups[key]||(groups[key]={campaign_name:r.campaign_name||'',ad_date:r.ad_date,reach:0,impressions:0,spend:0,messages:0,comments:0,clicks:0});
+    g.reach+=r.reach||0;g.impressions+=r.impressions||0;g.spend+=Number(r.spend)||0;
+    g.messages+=r.messages||0;g.comments+=r.comments||0;
+    g.clicks+=((Number(r.ctr)||0)/100)*(r.impressions||0);
+  });
+  allRows=Object.values(groups).map(g=>{
+    const row=[];
+    row[COL.CAMPAIGN]=g.campaign_name;row[COL.AD_ID]='';row[COL.DATE]=g.ad_date;
+    row[COL.ADSET_NAME]='';row[COL.AD_NAME]='';
+    row[COL.REACH]=Math.round(g.reach);row[COL.IMPRESSIONS]=Math.round(g.impressions);row[COL.SPEND]=g.spend;
+    row[COL.MESSAGES]=Math.round(g.messages);
+    row[COL.CTR]=g.impressions>0?(100*g.clicks/g.impressions):0;
+    row[COL.CPC]=g.clicks>0?(g.spend/g.clicks):0;
+    row[COL.COMMENTS]=Math.round(g.comments);
+    return row;
+  });
+  console.log('[MKT-SUPABASE] ad rows:',rows.length,'/ campaign-ngày rows:',allRows.length);
+}
 function parseMktCsv(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
@@ -3110,15 +3157,6 @@ function renderDetail(camps,period,filteredRows,saleStats){
         </tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
-    </div>
-    <div class="sec-label" style="margin-top:18px">Brand → Loại Sản Phẩm</div>
-    <div class="tov-card">
-      <div class="tov-head">
-        <div class="tov-title">Bảng Tổng Quan</div>
-        <span class="stat-chip" style="font-size:11px">${camps.length} chiến dịch</span>
-        <span class="period-chip" style="font-size:11px">📅 ${period}</span>
-      </div>
-      <div class="tov-scroll" id="tovBody">${buildGroupedTable(filteredRows,saleStats)}</div>
     </div>`;
 }
 
