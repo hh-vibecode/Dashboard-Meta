@@ -151,3 +151,12 @@ alter table mkt_spend alter column reach type bigint;
 alter table mkt_spend alter column impressions type bigint;
 alter table mkt_spend alter column messages type bigint;
 alter table mkt_spend alter column comments type bigint;
+
+-- Migration 2026-08-21 (2): mở quyền INSERT cho anon trên saonl_customers + saonl_care_log,
+-- phục vụ form "Thêm khách mới"/"Ghi nhận chăm sóc" ghi thẳng từ client (App Quản Trị MKT/Sale).
+-- Rủi ro đã được user xác nhận chấp nhận (app chỉ dùng nội bộ, anon key public không tránh được).
+drop policy if exists "anon insert saonl_customers" on saonl_customers;
+create policy "anon insert saonl_customers" on saonl_customers for insert to anon with check (true);
+
+drop policy if exists "anon insert saonl_care_log" on saonl_care_log;
+create policy "anon insert saonl_care_log" on saonl_care_log for insert to anon with check (true);
