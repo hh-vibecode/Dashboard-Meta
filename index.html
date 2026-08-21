@@ -343,20 +343,19 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 const COL={
   CAMPAIGN:0,AD_ID:1,DATE:2,REACH:4,IMPRESSIONS:5,SPEND:8,MESSAGES:10,CTR:11,CPC:12,COMMENTS:13,
 };
-const COL_SALE={
-  DATE_CREATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,
-  SALES_PERSON:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,
-  CONTENT:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,CUSTOMER_ID:16,
-};
 const COL_CRM={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,CUST_TYPE:6,DEPT:7,SALES:8,AD_ID:9};
 const COL_ONL={DATE:1,ORDER_ID:2,NEWOLD:3,TAG:4,NAME:5,PHONE:6,SOURCE:11,STAFF:13,AD_ID:14};
 const COL_SI={DATE:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,LEAD_ID:6,REP:7,PHONE:8,STORE:9,CITY:10,DISTRICT:11,ADDRESS:12,LICENSE:13,FANPAGE:14,MODEL:15,SHOWROOM:16,FINANCE:17,STATUS:18,LAST_CS:19,DAYS_NO_CS:20,CS_NOTE:21,FIRST_ORDER:23,TOTAL_REV:24,MA_KH:25,LINK:26,NOTE:27};
 const COL_SICRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
 const COL_SICRM_MT={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,SALES:7,FORM:8,CONTENT:9,RESULT:10,EXPECTED:11,NEXT_ACTION:12,NEED_HELP:13,STATUS:14,NEXT_DATE:15,CLOSE_DATE:16,CLOSE_VALUE:17};
-const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,MA_KH:16};
+// Sale Online (Lẻ) giờ tách 2 sheet như Sỉ: "1.MASTER DATA LẺ" (hồ sơ khách) + "2.CRM" (lịch sử CS + chốt đơn).
+// saleOnlRows là mảng ĐÃ GỘP (Master ⨝ CRM theo Lead ID/SĐT) về đúng shape cũ để không phải sửa lại mọi nơi
+// đang đọc COL_SAONL — xem buildSaleOnlFlatRows(). saleOnlCrmRows giữ nguyên rows CRM thô (lịch sử nhiều dòng/lead).
+const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,MA_KH:16,CITY:17,DISTRICT:18};
+const COL_SAONLCRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,NAME:6,PHONE:7,STATUS_KH:8,FORM:9,CONTENT:10,EXPECTED:11,STATUS:12,LOST_GROUP:13,LOST_REASON:14,CLOSE_DATE:15,CLOSE_VALUE:16};
 // File hoá đơn mới không có cột Chi nhánh (BRANCH) như file cũ — các cột còn lại lùi lên trước 1 vị trí
 const COL_KIOT={BRANCH:-1,INVOICE:0,DATE:1,MA_KH:2,NAME:3,PHONE:4,SALES:5,CHANNEL:6,AMOUNT:7,DISCOUNT:8};
-let allRows=[],saleRowsRaw=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleSiCrmRows=[],kiotRows=[],saleSiRowsMT=[],saleSiCrmRowsMT=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
+let allRows=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleOnlCrmRows=[],saleSiCrmRows=[],kiotRows=[],saleSiRowsMT=[],saleSiCrmRowsMT=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -452,7 +451,6 @@ function toggleOnlGroup(){const s=document.getElementById('onl-subnav'),a=docume
 // ── Load ──
 async function loadData(){
   const mktRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTOAVLKJ1Ng0K31WStnYl4UjzRH3qbVEuh-Y7wdXDGBR5mTpFF6X3cTq8se3LAafqosie7AiqT5kkSO/pub?gid=2103164095&single=true&output=csv';
-  const saleRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pubhtml?gid=2107421092&single=true';
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
@@ -460,7 +458,10 @@ async function loadData(){
   // Báo Cáo Sỉ — bản Miền Trung (đội riêng, cùng form/cùng thứ tự cột với bản Bắc+Nam ở trên) — chuyển đổi qua nút trên trang Báo Cáo KH Sỉ, không tách trang riêng
   const siRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=2107421092&single=true&output=csv';
   const sicrmRawMT='https://docs.google.com/spreadsheets/d/e/2PACX-1vRzW9YgYPptrefzfauy-gZkJEO-b0TsPdxsXC9FCGxSCHj6xIXv-p9N0Fs4FhgCLhcQU-Jidg5L-0c0/pub?gid=138010004&single=true&output=csv';
-  const saonlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=2107421092&single=true&output=csv';
+  // Sale Online (Lẻ) — tách 2 sheet: "1.MASTER DATA LẺ" (hồ sơ khách) + "2.CRM" (lịch sử CS/chốt đơn), cùng
+  // file, cùng tinh thần Master⨝CRM như Báo Cáo Sỉ. Sheet gid=2107421092 cũ ("2.CRM (cũ)") đã ngừng cập nhật.
+  const saonlMasterRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=1474031151&single=true&output=csv';
+  const saonlCrmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQraTrk4Ha7Sy6G3FwCUlubRbGtKQ4lkqHHDLimn3rmC29DmxFzpV5Ny7Ed57KgSBl3_BTXUj4HahIb/pub?gid=768026359&single=true&output=csv';
   // File hoá đơn Kiot hợp nhất — mỗi tháng thêm 1 tab mới trong CÙNG file này. Tab được QUÉT TỰ ĐỘNG
   // (đọc trang pubhtml lấy danh sách tab hiện có) — không cần sửa code khi có tháng mới, xem loadKiotAllMonths().
   const kiotSheetId='2PACX-1vRPr7hHca81WxPdg-wBN-JklVSw9KXwkPBvw_12QLZmFSfo9VM6kKmnNLQSKZFWTw';
@@ -471,11 +472,11 @@ async function loadData(){
     const tasks=[];
     const taskIdx={};
     if(mktRaw){taskIdx.mkt=tasks.length;tasks.push(fetchCsvWithProxy(mktRaw,0));}
-    if(saleRaw){taskIdx.sale=tasks.length;tasks.push(fetchCsvWithProxy(saleRaw,1));}
     taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));
     taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3));
     taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
-    taskIdx.saonl=tasks.length;tasks.push(fetchCsvWithProxy(saonlRaw,5));
+    taskIdx.saonlMaster=tasks.length;tasks.push(fetchCsvWithProxy(saonlMasterRaw,99,'SAONL-MASTER'));
+    taskIdx.saonlCrm=tasks.length;tasks.push(fetchCsvWithProxy(saonlCrmRaw,99,'SAONL-CRM'));
     taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
     taskIdx.siMT=tasks.length;tasks.push(fetchCsvWithProxy(siRawMT,9));
     taskIdx.sicrmMT=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRawMT,10));
@@ -487,11 +488,6 @@ async function loadData(){
       setStatus('Nhận data MKT, đang parse...');
       parseMktCsv(results[taskIdx.mkt].value);
       setStatus(`Parse xong MKT: ${allRows.length} chiến dịch`);
-    }
-    if(saleRaw&&taskIdx.sale!=null){
-      const r=results[taskIdx.sale];
-      if(r.status==='fulfilled'){setStatus('Đang parse SALE...');parseSaleCsv(r.value);setStatus(`Parse xong SALE: ${saleRowsRaw.length} rows`);}
-      else setStatus('⚠️ SALE không tải được');
     }
     {
       const r=results[taskIdx.crm];
@@ -509,9 +505,15 @@ async function loadData(){
       else setStatus('⚠️ Sale Sỉ không tải được');
     }
     {
-      const r=results[taskIdx.saonl];
-      if(r.status==='fulfilled'){setStatus('Đang parse Sale Online...');parseSaleOnlCsv(r.value);setStatus(`Parse xong Sale Online: ${saleOnlRows.length} rows`);}
-      else setStatus('⚠️ Sale Online không tải được');
+      const rm=results[taskIdx.saonlMaster],rc=results[taskIdx.saonlCrm];
+      if(rm.status==='fulfilled'&&rc.status==='fulfilled'){
+        setStatus('Đang parse Sale Online (Master + CRM)...');
+        const master=parseSaleOnlMasterCsv(rm.value);
+        const crm=parseSaleOnlCrmCsv(rc.value);
+        saleOnlCrmRows=crm.rows;
+        saleOnlRows=buildSaleOnlFlatRows(master,crm);
+        setStatus(`Parse xong Sale Online: ${saleOnlRows.length} khách, ${saleOnlCrmRows.length} lượt CS`);
+      } else setStatus('⚠️ Sale Online không tải được ('+(rm.status==='rejected'?'Master':'CRM')+')');
     }
     {
       const r=results[taskIdx.sicrm];
@@ -781,13 +783,6 @@ function parseMktCsv(text){
   console.log('[MKT] allRows:',allRows.length,'/ raw:',allData.length);
 }
 
-function parseSaleCsv(text){
-  let parsed;
-  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
-  saleRowsRaw=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
-  console.log('[SALE] Rows parsed:',saleRowsRaw.length);
-}
-
 function parseCrmHub(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
@@ -810,11 +805,90 @@ function parseSaleSiCsv(text){
   return rows;
 }
 
-function parseSaleOnlCsv(text){
+// Header-detect dùng chung cho Master Lẻ + CRM Lẻ (2 sheet mới, cùng tinh thần với parseSaleSiCrmCsv)
+function saonlCi(headers){
+  return(kws,fb)=>{
+    for(const kw of kws){const i=headers.findIndex(h=>h===kw);if(i>=0)return i;}
+    for(const kw of kws){const i=headers.findIndex(h=>h.includes(kw));if(i>=0)return i;}
+    return fb;
+  };
+}
+function parseSaleOnlMasterCsv(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
-  saleOnlRows=parsed.data.slice(1).filter(row=>row.some(c=>c!==''));
-  console.log('[SAONL] Rows:',saleOnlRows.length);
+  const headers=(parsed.data[0]||[]).map(h=>String(h).trim().toLowerCase());
+  const ci=saonlCi(headers);
+  const c={
+    DATE:ci(['ngày tạo'],1),SOURCE:ci(['nguồn khách','nguồn'],2),CHANNEL:ci(['kênh'],3),
+    SALES:ci(['sales phụ trách'],4),AD_ID:ci(['ad id','mã quảng cáo'],5),LEAD_ID:ci(['lead id'],6),
+    NAME:ci(['họ tên khách','họ tên'],7),PHONE:ci(['sđt','số điện thoại'],8),CITY:ci(['tỉnh/tp','tỉnh'],9),
+    DISTRICT:ci(['quận/huyện','quận'],10),ADDRESS:ci(['địa chỉ'],11),STATUS:ci(['phân loại kh'],12),
+    PRODUCT:ci(['nhu cầu ban đầu','nhu cầu'],13),LAST_CS:ci(['ngày chăm sóc cuối'],14),
+    TOTAL_REV:ci(['giá trị đơn cộng dồn'],15),MA_KH:ci(['mã kh'],16),GROUP:ci(['nhóm kh'],17),
+  };
+  const rows=parsed.data.slice(1).filter(row=>row.some(x=>x!==''));
+  console.log('[SAONL-MASTER] COL:',JSON.stringify(c),'Rows:',rows.length);
+  return{rows,c};
+}
+function parseSaleOnlCrmCsv(text){
+  let parsed;
+  Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
+  const headers=(parsed.data[0]||[]).map(h=>String(h).trim().toLowerCase());
+  const ci=saonlCi(headers);
+  const c={
+    DATE:ci(['ngày chăm sóc'],0),LEAD_ID:ci(['lead id'],1),SOURCE:ci(['nguồn khách','nguồn'],2),
+    CHANNEL:ci(['kênh'],3),SALES:ci(['sales phụ trách'],4),AD_ID:ci(['ad id','mã quảng cáo'],5),
+    NAME:ci(['họ tên khách','họ tên'],6),PHONE:ci(['sđt','số điện thoại'],7),STATUS_KH:ci(['phân loại kh'],8),
+    FORM:ci(['hình thức chăm sóc','hình thức'],9),CONTENT:ci(['nội dung trao đổi','nội dung'],10),
+    EXPECTED:ci(['giá trị tiềm năng'],11),STATUS:ci(['trạng thái'],12),
+    LOST_GROUP:ci(['nhóm nguyên nhân mất lead','nhóm nguyên nhân'],13),LOST_REASON:ci(['nguyên nhân cụ thể'],14),
+    CLOSE_DATE:ci(['ngày chốt'],15),CLOSE_VALUE:ci(['doanh thu'],16),
+  };
+  const rows=parsed.data.slice(1).filter(row=>row.some(x=>x!=='')).map(row=>{
+    if(row[c.LEAD_ID]!=null)row[c.LEAD_ID]=row[c.LEAD_ID].toString().replace(/[\t\n\r]/g,' ').trim();
+    return row;
+  });
+  console.log('[SAONL-CRM] COL:',JSON.stringify(c),'Rows:',rows.length);
+  return{rows,c};
+}
+// Gộp Master ⨝ CRM (theo Lead ID, fallback SĐT) thành mảng phẳng đúng shape COL_SAONL cũ — Trạng thái/Nội
+// dung/Lý do mất/Ngày chốt lấy từ lượt CRM MỚI NHẤT của khách; Doanh thu = tổng mọi lượt chốt (>0) của khách
+// (giống tinh thần "Giá trị đơn cộng dồn"). Khách chưa có dòng CRM nào → các trường này để trống, không bịa.
+function buildSaleOnlFlatRows(master,crm){
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const mc=master.c,cc=crm.c;
+  const byLead={},byPhone={};
+  crm.rows.forEach(r=>{
+    const id=norm(r[cc.LEAD_ID]),ph=last9(r[cc.PHONE]);
+    if(id)(byLead[id]=byLead[id]||[]).push(r);
+    if(ph)(byPhone[ph]=byPhone[ph]||[]).push(r);
+  });
+  return master.rows.map(m=>{
+    const id=norm(m[mc.LEAD_ID]),ph=last9(m[mc.PHONE]);
+    const recs=(byLead[id]&&byLead[id].length?byLead[id]:byPhone[ph]||[])
+      .slice().sort((a,b)=>{const da=parseDate(a[cc.DATE]),db=parseDate(b[cc.DATE]);return(db?db:0)-(da?da:0);});
+    const latest=recs[0];
+    let potential=0;for(const rec of recs){const v=vndNum(rec[cc.EXPECTED]);if(v>0){potential=v;break;}}
+    let revenue=0,closeDate='',closeD=null;
+    recs.forEach(rec=>{const v=vndNum(rec[cc.CLOSE_VALUE]);if(v>0){revenue+=v;const d=parseDate(rec[cc.CLOSE_DATE]);if(d&&(!closeD||d>closeD)){closeD=d;closeDate=rec[cc.CLOSE_DATE];}}});
+    const row=[];
+    row[0]=m[mc.DATE];row[1]=m[mc.LEAD_ID];row[2]=m[mc.NAME];row[3]=m[mc.PHONE];
+    row[4]=m[mc.SOURCE];row[5]=m[mc.CHANNEL];row[6]=m[mc.SALES];
+    row[7]=(m[mc.AD_ID]||'').trim()||(latest?latest[cc.AD_ID]:'');
+    row[8]=m[mc.PRODUCT];
+    row[9]=potential;
+    row[10]=(latest&&latest[cc.STATUS])||m[mc.STATUS]||'';
+    row[11]=(latest&&latest[cc.CONTENT])||'';
+    row[12]=(latest&&latest[cc.LOST_GROUP])||'';
+    row[13]=(latest&&latest[cc.LOST_REASON])||'';
+    row[14]=closeDate;
+    row[15]=revenue;
+    row[16]=m[mc.MA_KH];
+    row[17]=m[mc.CITY];
+    row[18]=m[mc.DISTRICT];
+    return row;
+  });
 }
 
 function parseKiotCsv(texts){
@@ -896,8 +970,8 @@ function adIdNote(id){
   return`<span title="${v}">${short}</span> <span style="color:var(--muted);font-size:11px">(chưa khớp MKT)</span>`;
 }
 function filterSaleRows(from,to){
-  const base=saleRowsRaw.filter(r=>{
-    const src=(r[COL_SALE.SOURCE]||'').trim().toLowerCase();
+  const base=saleOnlRows.filter(r=>{
+    const src=(r[COL_SAONL.SOURCE]||'').trim().toLowerCase();
     // Gồm tất cả nguồn online (Facebook + TikTok + nguồn khác), không chỉ riêng Facebook
     return src==='online';
   });
@@ -905,8 +979,8 @@ function filterSaleRows(from,to){
   const fromD=from?localDate(from):null;
   const toD=to?localDate(to,true):null;
   return base.filter(r=>{
-    const isClosed=/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
-    const dateCol=isClosed?r[COL_SALE.DATE_CLOSE]:r[COL_SALE.DATE_CREATE];
+    const isClosed=/^chốt\s*đơn/i.test(r[COL_SAONL.STATUS]||'');
+    const dateCol=isClosed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE];
     const d=parseDate(dateCol);if(!d)return false;
     if(fromD&&d<fromD)return false;
     if(toD&&d>toD)return false;
@@ -917,15 +991,15 @@ function filterSaleRows(from,to){
 function calcSaleStats(saleFiltered){
   if(!saleFiltered||!saleFiltered.length)return null;
   const adCampMap=buildAdCampMap();
-  const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+  const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SAONL.STATUS]||'');
   const closedRows=saleFiltered.filter(isChot);
-  const totalRevenue=closedRows.reduce((s,r)=>s+vndNum(r[COL_SALE.REVENUE]),0);
+  const totalRevenue=closedRows.reduce((s,r)=>s+vndNum(r[COL_SAONL.REVENUE]),0);
   const totalOrders=closedRows.length;
   const totalLeads=saleFiltered.length;
   const byCamp={};
   const byDirectProd={HT:{},Shidai:{},CT:{},TTV:{}};
   function directBrand(r){
-    const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
+    const text=(r[COL_SAONL.CHANNEL]||'')+' '+(r[COL_SAONL.PRODUCT]||'');
     if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(text))return'TTV';
     if(/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text))return'HT';
     if(/shidai/i.test(text))return'Shidai';
@@ -933,21 +1007,21 @@ function calcSaleStats(saleFiltered){
     return null;
   }
   saleFiltered.forEach(r=>{
-    const adId=(r[COL_SALE.AD_ID]||'').trim();
+    const adId=(r[COL_SAONL.AD_ID]||'').trim();
     const dbr=directBrand(r);
     // Kênh Tự Tại Viên/Nến Bơ → gom theo fanpage (TTV), bất kể Ad ID
     const camp=(adId&&dbr!=='TTV')?adCampMap[adId]:'';
     if(camp){
       if(!byCamp[camp])byCamp[camp]={leads:0,orders:0,revenue:0};
       byCamp[camp].leads++;
-      if(isChot(r)){byCamp[camp].orders++;byCamp[camp].revenue+=vndNum(r[COL_SALE.REVENUE]);}
+      if(isChot(r)){byCamp[camp].orders++;byCamp[camp].revenue+=vndNum(r[COL_SAONL.REVENUE]);}
     } else {
       const br=dbr;
-      const prod=detectProduct(r[COL_SALE.PRODUCT]||'');
+      const prod=detectProduct(r[COL_SAONL.PRODUCT]||'');
       if(br){
         if(!byDirectProd[br][prod])byDirectProd[br][prod]={leads:0,orders:0,revenue:0};
         byDirectProd[br][prod].leads++;
-        if(isChot(r)){byDirectProd[br][prod].orders++;byDirectProd[br][prod].revenue+=vndNum(r[COL_SALE.REVENUE]);}
+        if(isChot(r)){byDirectProd[br][prod].orders++;byDirectProd[br][prod].revenue+=vndNum(r[COL_SAONL.REVENUE]);}
       }
     }
   });
@@ -1195,15 +1269,15 @@ function applyFilter(){
   if(saleFiltered.length&&(brSel.length||prod!=='all')){
     const adCampMap=buildAdCampMap();
     saleFiltered=saleFiltered.filter(r=>{
-      const text=(r[COL_SALE.CHANNEL]||'')+' '+(r[COL_SALE.PRODUCT]||'');
+      const text=(r[COL_SAONL.CHANNEL]||'')+' '+(r[COL_SAONL.PRODUCT]||'');
       const isTTV=/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(text);
       // Kênh Tự Tại Viên thắng Ad ID; còn lại: có Ad ID → theo campaign, không có → theo kênh
-      const camp=(!isTTV)?adCampMap[(r[COL_SALE.AD_ID]||'').trim()]:null;
+      const camp=(!isTTV)?adCampMap[(r[COL_SAONL.AD_ID]||'').trim()]:null;
       let rb,rp;
       if(camp){rb=detectBrand(camp);rp=detectProduct(camp);}
       else{
         rb=isTTV?'TTV':/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text)?'HT':/shidai/i.test(text)?'Shidai':/chánh tâm|chanh tam|ct[\s\-–]/i.test(text)?'CT':null;
-        rp=detectProduct(r[COL_SALE.PRODUCT]||'');
+        rp=detectProduct(r[COL_SAONL.PRODUCT]||'');
       }
       if(brSel.length&&!brSel.includes(rb))return false;
       if(prod!=='all'&&rp!==prod)return false;
@@ -1350,10 +1424,10 @@ function renderAll(rows,saleFiltered){
 function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,ttvSpend,total,prodCount,allProds,saleFiltered){
   // Doanh số theo nền tảng (Facebook / TikTok / khác) — từ đơn đã chốt
   const platRev=(function(){
-    const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+    const isChot=r=>/^chốt\s*đơn/i.test(r[COL_SAONL.STATUS]||'');
     const p={fb:0,tt:0,other:0,total:0};
     (saleFiltered||[]).filter(isChot).forEach(r=>{
-      const ch=(r[COL_SALE.CHANNEL]||'').toLowerCase();const v=vndNum(r[COL_SALE.REVENUE]);
+      const ch=(r[COL_SAONL.CHANNEL]||'').toLowerCase();const v=vndNum(r[COL_SAONL.REVENUE]);
       if(ch.includes('facebook'))p.fb+=v;else if(ch.includes('tiktok')||ch.includes('tik tok'))p.tt+=v;else p.other+=v;
       p.total+=v;
     });
@@ -1362,9 +1436,9 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
   // Doanh Số MKT = Lẻ (Sale Online đã chốt) + Sỉ nguồn Online đã chốt (cả 2 đều từ lead MKT tạo ra)
   const _f0=document.getElementById('dateFrom'),_t0=document.getElementById('dateTo');
   const siOn=calcSiOnlineStats(_f0?_f0.value:'',_t0?_t0.value:'',brandArr('_mktBrands'));
-  const isChotLe=r=>/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'');
+  const isChotLe=r=>/^chốt\s*đơn/i.test(r[COL_SAONL.STATUS]||'');
   const leClosed=(saleFiltered||[]).filter(isChotLe);
-  const leList=leClosed.map(r=>[r[COL_SALE.DATE_CLOSE],r[COL_SALE.LEAD_ID],r[COL_SALE.NAME],r[COL_SALE.PHONE],r[COL_SALE.CHANNEL]||r[COL_SALE.SOURCE],adIdNote(r[COL_SALE.AD_ID]),vnd(vndNum(r[COL_SALE.REVENUE]))]);
+  const leList=leClosed.map(r=>[r[COL_SAONL.DATE_CLOSE],r[COL_SAONL.LEAD_ID],r[COL_SAONL.NAME],r[COL_SAONL.PHONE],r[COL_SAONL.CHANNEL]||r[COL_SAONL.SOURCE],adIdNote(r[COL_SAONL.AD_ID]),vnd(vndNum(r[COL_SAONL.REVENUE]))]);
   const leRevenue=saleStats?saleStats.totalRevenue:0,leOrders=saleStats?saleStats.totalOrders:0;
   const combRevenue=leRevenue+siOn.revenue,combOrders=leOrders+siOn.orders;
   window._mktSaleBreak={leRevenue,leOrders,siRevenue:siOn.revenue,siOrders:siOn.orders};
@@ -4625,10 +4699,10 @@ function toggleAds(safeId){
     // Per-ad CRM stats (shared across all levels)
     const adCrm={};
     (window._saleFiltered||[]).forEach(r=>{
-      const adId=(r[COL_SALE.AD_ID]||'').trim();if(!adId)return;
+      const adId=(r[COL_SAONL.AD_ID]||'').trim();if(!adId)return;
       if(!adCrm[adId])adCrm[adId]={orders:0,revenue:0};
-      if(/^chốt\s*đơn/i.test(r[COL_SALE.STATUS]||'')){
-        adCrm[adId].orders++;adCrm[adId].revenue+=vndNum(r[COL_SALE.REVENUE]);
+      if(/^chốt\s*đơn/i.test(r[COL_SAONL.STATUS]||'')){
+        adCrm[adId].orders++;adCrm[adId].revenue+=vndNum(r[COL_SAONL.REVENUE]);
       }
     });
     window._adCrm=adCrm;
