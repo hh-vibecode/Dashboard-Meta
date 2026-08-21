@@ -1785,13 +1785,15 @@ function renderSaleSi(){
   const revByCityObj={};rows.forEach(r=>{const c=(r[COL_SI.CITY]||'Chưa rõ').trim();revByCityObj[c]=(revByCityObj[c]||0)+toN(r[COL_SI.TOTAL_REV]);});
   const revCity=Object.entries(revByCityObj).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const revRegionMax=Math.max(...revRegion.map(x=>x.rev),1),revCityMax=Math.max(...revCity.map(e=>e[1]),1);
-  // By city — chỉ tính khách đã có Tỉnh/TP, bỏ qua khách chưa rõ thành phố
+  // By city — chỉ tính khách đã có Tỉnh/TP, bỏ qua khách chưa rõ thành phố. Dùng baseRows (đã lọc theo ngày,
+  // giống "Tổng số khách hàng"=total ở trên) chứ không phải rows (toàn bộ, không lọc ngày) — trước đây 2 cái
+  // lệch nhau khi có filter tháng, cộng % theo miền ra khác hẳn tổng số khách hiển thị (bug đã báo thực tế).
   const byCity={};
-  rows.forEach(r=>{const c=(r[COL_SI.CITY]||'').trim();if(c)byCity[c]=(byCity[c]||0)+1;});
+  baseRows.forEach(r=>{const c=(r[COL_SI.CITY]||'').trim();if(c)byCity[c]=(byCity[c]||0)+1;});
   const cityKnownTotal=Object.values(byCity).reduce((s,n)=>s+n,0)||1;
   // By vùng miền (chữ S)
   const byRegion={};
-  rows.forEach(r=>{const m=siRegion(r[COL_SI.CITY]);byRegion[m]=(byRegion[m]||0)+1;});
+  baseRows.forEach(r=>{const m=siRegion(r[COL_SI.CITY]);byRegion[m]=(byRegion[m]||0)+1;});
   const regionTot=Object.values(byRegion).reduce((s,n)=>s+n,0)||1;
   const regionData=[['Miền Bắc','#0abf7a'],['Miền Trung','#7c3aed'],['Miền Nam','#4361ee']].map(([name,color])=>({name,color,cnt:byRegion[name]||0,pct:(byRegion[name]||0)/regionTot*100}));
   const regionOther=(byRegion['Khác']||0)+(byRegion['Chưa rõ']||0);
