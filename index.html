@@ -266,9 +266,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="app-body">
   <div class="sidebar" id="sidebar">
     <div class="sb-strip"></div>
-    <div class="sb-section" id="sec-danhgia-label">Đánh Giá</div>
-    <nav id="sec-danhgia">
+    <div class="sb-section" id="sec-dev-label">Đang Phát Triển</div>
+    <nav id="sec-dev">
       <div class="nav-item" onclick="switchPage('danhgia')" id="nav-danhgia"><span class="nav-icon">🗓️</span><span class="nav-label">Báo Cáo Đánh Giá</span></div>
+      <div class="nav-item" onclick="switchPage('faq')" id="nav-faq"><span class="nav-icon">💬</span><span class="nav-label">FAQ Sản Phẩm</span></div>
     </nav>
     <div class="sb-section" id="sec-marketing-label">Marketing</div>
     <nav id="sec-marketing">
@@ -299,6 +300,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   <div class="main-content" id="mainContent">
     <div class="tab-page" id="page-danhgia">
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải báo cáo tuần...</div>
+    </div>
+    <div class="tab-page" id="page-faq">
+      <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải FAQ...</div>
     </div>
     <div class="tab-page active" id="page-overview">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
@@ -355,7 +359,7 @@ const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_I
 const COL_SAONLCRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,NAME:6,PHONE:7,STATUS_KH:8,FORM:9,CONTENT:10,EXPECTED:11,STATUS:12,LOST_GROUP:13,LOST_REASON:14,CLOSE_DATE:15,CLOSE_VALUE:16};
 // File hoá đơn mới không có cột Chi nhánh (BRANCH) như file cũ — các cột còn lại lùi lên trước 1 vị trí
 const COL_KIOT={BRANCH:-1,INVOICE:0,DATE:1,MA_KH:2,NAME:3,PHONE:4,SALES:5,CHANNEL:6,AMOUNT:7,DISCOUNT:8};
-let allRows=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleOnlCrmRows=[],saleSiCrmRows=[],kiotRows=[],saleSiRowsMT=[],saleSiCrmRowsMT=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
+let allRows=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleOnlCrmRows=[],saleSiCrmRows=[],kiotRows=[],saleSiRowsMT=[],saleSiCrmRowsMT=[],productFaqRows=[],chartBrand=null,chartProd=null,chartWave=null,chartProdRev=null,chartBrandRev=null,chartCrmChannel=null,chartCrmSales=null,chartPlatRev=null,chartAdsDs=null,chartQcTrend=null,chartQcRev=null,sbCollapsed=false;
 
 // ── Theme ──
 (function(){
@@ -386,7 +390,7 @@ function toggleSidebar(){
 })();
 
 // ── Auth: khoá dashboard + phân quyền (client-side) ──
-const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'},review:{pass:'review@2026',role:'review'},mkt:{pass:'mkt@2026',role:'mkt'}};
+const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'},tester:{pass:'tester@2026',role:'tester'},mkt:{pass:'mkt@2026',role:'mkt'}};
 const AUTH_ALLOWED_IPS=[]; // thêm IP máy bạn vào đây (vd '113.161.x.x') để vào thẳng khỏi đăng nhập
 function togglePass(){const p=document.getElementById('loginPass'),e=document.getElementById('loginEye');if(!p)return;if(p.type==='password'){p.type='text';e.textContent='🙈';e.style.color='#4361ee';}else{p.type='password';e.textContent='👁';e.style.color='#94a3b8';}}
 function doLogin(){
@@ -397,9 +401,9 @@ function doLogin(){
   else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
 }
 // Phân quyền: role => danh sách trang được xem (null = xem hết).
-// admin liệt kê tường minh (KHÔNG null) để loại trừ trang 'danhgia' — trang đánh giá tuần chỉ dành riêng cho role 'review'.
-// Thêm trang mới cho admin thì nhớ bổ sung id vào mảng dưới đây.
-const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],review:null};
+// admin liệt kê tường minh (KHÔNG null) để loại trừ các trang "Đang Phát Triển" (danhgia, faq) — mấy trang này
+// chỉ dành riêng cho role 'tester' cho tới khi chính thức public. Thêm trang mới cho admin thì nhớ bổ sung id vào mảng dưới đây.
+const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
@@ -411,13 +415,13 @@ function applyRole(){
   if(grp){const ok=!allowed||allowed.indexOf('sale-si')>=0||allowed.indexOf('sale-si-data')>=0;grp.style.display=ok?'':'none';}
   const ogrp=document.getElementById('nav-onl-group');
   if(ogrp){const ok=!allowed||allowed.indexOf('sale-onl')>=0||allowed.indexOf('sale-onl-data')>=0;ogrp.style.display=ok?'':'none';}
-  [['sec-danhgia-label','sec-danhgia'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
+  [['sec-dev-label','sec-dev'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
     const n=document.getElementById(nav);if(!n)return;
     const vis=[...n.querySelectorAll('.nav-item')].some(it=>it.style.display!=='none');
     const l=document.getElementById(lab);if(l)l.style.display=vis?'':'none';n.style.display=vis?'':'none';
   });
   if(allowed&&allowed.length)switchPage(allowed[0]);
-  else if(role==='review')switchPage('danhgia');
+  else if(role==='tester')switchPage('danhgia');
 }
 function logout(){localStorage.removeItem('dashRole');localStorage.removeItem('dashUser');document.getElementById('loginGate').style.display='flex';}
 function initAuth(){
@@ -431,11 +435,12 @@ function initAuth(){
 }
 
 function switchPage(p){
-  ['danhgia','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
+  ['danhgia','faq','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
   if(p==='danhgia')renderDanhGia();
+  if(p==='faq')renderFaq();
   // Nhóm Báo Cáo Sỉ: sáng header + mở dropdown khi đang ở 1 trang con
   const grp=document.getElementById('nav-si-group');
   if(grp)grp.classList.toggle('active',p==='sale-si'||p==='sale-si-data');
@@ -672,6 +677,65 @@ async function loadMktFromSupabase(){
     return row;
   });
   console.log('[MKT-SUPABASE] ad rows:',rows.length,'/ campaign-ngày rows:',allRows.length);
+}
+// FAQ Sản Phẩm — tổng hợp từ 13 tài liệu SOP nhóm sản phẩm (Google Drive), lưu trong bảng product_faq
+// (Supabase). Đang ở mục "Đang Phát Triển", chỉ role tester nhìn thấy — xem project_supabase-migration-mkt-saleonline.
+async function loadFaqFromSupabase(){
+  productFaqRows=await sbFetchAll('product_faq','select=*&order=category.asc,id.asc');
+  console.log('[FAQ-SUPABASE] rows:',productFaqRows.length);
+}
+function faqNorm(s){return(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
+function setFaqSearch(v){window._faqSearch=v;window._faqSearchFocus=true;renderFaq();}
+function setFaqCat(v){window._faqCat=v;renderFaq();}
+function toggleFaqItem(i){const d=document.getElementById('faq-a-'+i),a=document.getElementById('faq-arrow-'+i);if(!d)return;const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}
+async function renderFaq(){
+  const el=document.getElementById('page-faq');
+  if(!el)return;
+  if(!productFaqRows.length){
+    el.innerHTML=`<div class="page-title">FAQ Sản Phẩm</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang tải FAQ...</div>`;
+    try{await loadFaqFromSupabase();}catch(e){el.innerHTML=`<div class="page-title">FAQ Sản Phẩm</div><div class="err-box">❌ Không tải được FAQ: ${e.message}</div>`;return;}
+  }
+  const q=faqNorm(window._faqSearch||'');
+  const cat=window._faqCat||'all';
+  const cats=[...new Set(productFaqRows.map(r=>r.category))];
+  const rows=productFaqRows.filter(r=>{
+    if(cat!=='all'&&r.category!==cat)return false;
+    if(q){const hay=faqNorm(r.question+' '+r.answer+' '+r.category+' '+(r.subcategory||''));if(!hay.includes(q))return false;}
+    return true;
+  });
+  const byCat={};
+  rows.forEach(r=>{(byCat[r.category]=byCat[r.category]||[]).push(r);});
+  const catChips=`<span onclick="setFaqCat('all')" style="cursor:pointer;display:inline-block;padding:5px 13px;border-radius:999px;margin:0 6px 6px 0;font-size:12px;font-weight:700;border:1.5px solid ${cat==='all'?'var(--accent)':'var(--border)'};background:${cat==='all'?'var(--accent)':'var(--surface)'};color:${cat==='all'?'#fff':'var(--text2)'}">Tất cả (${productFaqRows.length})</span>`+
+    cats.map(c=>{const n=productFaqRows.filter(r=>r.category===c).length;return`<span onclick="setFaqCat('${c.replace(/'/g,"\\'")}')" style="cursor:pointer;display:inline-block;padding:5px 13px;border-radius:999px;margin:0 6px 6px 0;font-size:12px;font-weight:700;border:1.5px solid ${cat===c?'var(--accent)':'var(--border)'};background:${cat===c?'var(--accent)':'var(--surface)'};color:${cat===c?'#fff':'var(--text2)'}">${c} (${n})</span>`;}).join('');
+  const groupsHtml=Object.entries(byCat).map(([c,items])=>{
+    const bySub={};items.forEach(r=>{(bySub[r.subcategory||'']=bySub[r.subcategory||'']||[]).push(r);});
+    const subHtml=Object.entries(bySub).map(([sub,subItems])=>`
+      ${sub?`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px 2px">${sub}</div>`:''}
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${subItems.map(r=>{
+          const i='f'+r.id;
+          return`<div class="tov-card" style="padding:0">
+            <div onclick="toggleFaqItem('${i}')" style="cursor:pointer;padding:13px 16px;display:flex;align-items:center;gap:10px">
+              <span id="faq-arrow-${i}" style="font-size:10px;color:var(--muted);flex-shrink:0">▶</span>
+              <span style="font-weight:700;font-size:13.5px;color:var(--text)">${r.question}</span>
+            </div>
+            <div id="faq-a-${i}" style="display:none;padding:0 16px 15px 34px">
+              <div style="font-size:13px;color:var(--text2);line-height:1.7;white-space:pre-line">${r.answer}</div>
+              ${r.source_doc?`<div style="font-size:10.5px;color:var(--muted);margin-top:8px">📄 ${r.source_doc}</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+    return`<div class="sec-label" style="margin-top:22px">${c} <span style="font-weight:400;text-transform:none;color:var(--muted)">(${items.length})</span></div>${subHtml}`;
+  }).join('')||`<div style="padding:40px;text-align:center;color:var(--muted)">Không tìm thấy câu hỏi phù hợp</div>`;
+  el.innerHTML=`
+    <div class="page-title">FAQ Sản Phẩm</div>
+    <div class="page-sub">Tổng hợp từ SOP nhóm sản phẩm — ${productFaqRows.length} câu hỏi · dữ liệu lưu ở Supabase (bảng product_faq)</div>
+    <input type="text" id="faqSearchInput" placeholder="🔍 Tìm câu hỏi, từ khoá..." value="${(window._faqSearch||'').replace(/"/g,'&quot;')}" oninput="setFaqSearch(this.value)"
+      style="width:100%;max-width:420px;padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font);margin-bottom:14px">
+    <div>${catChips}</div>
+    ${groupsHtml}`;
+  if(window._faqSearchFocus){const inp=document.getElementById('faqSearchInput');if(inp){inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}window._faqSearchFocus=false;}
 }
 function parseMktCsv(text){
   let parsed;
