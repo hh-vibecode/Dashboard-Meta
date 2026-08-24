@@ -390,7 +390,7 @@ function toggleSidebar(){
 })();
 
 // ── Auth: khoá dashboard + phân quyền (client-side) ──
-const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'},tester:{pass:'tester@2026',role:'tester'},mkt:{pass:'mkt@2026',role:'mkt'}};
+const AUTH_USERS={admin:{pass:'admin@2026',role:'admin'},admin2:{pass:'admin2@2026',role:'admin'},'hue.si':{pass:'hue.si@2026',role:'sale-si'},'toan.si':{pass:'toan.si@2026',role:'sale-si'},'ngoc.onl':{pass:'ngoc.onl@2026',role:'sale-onl'},tester:{pass:'tester@2026',role:'tester'},mkt:{pass:'mkt@2026',role:'mkt'},'sale.mt':{pass:'sale.mt@2026',role:'sale-mt'},'sales.admin':{pass:'salesadmin@2026',role:'sales-admin'}};
 const AUTH_ALLOWED_IPS=[]; // thêm IP máy bạn vào đây (vd '113.161.x.x') để vào thẳng khỏi đăng nhập
 function togglePass(){const p=document.getElementById('loginPass'),e=document.getElementById('loginEye');if(!p)return;if(p.type==='password'){p.type='text';e.textContent='🙈';e.style.color='#4361ee';}else{p.type='password';e.textContent='👁';e.style.color='#94a3b8';}}
 function doLogin(){
@@ -403,9 +403,15 @@ function doLogin(){
 // Phân quyền: role => danh sách trang được xem (null = xem hết).
 // admin liệt kê tường minh (KHÔNG null) để loại trừ các trang "Đang Phát Triển" (danhgia, faq) — mấy trang này
 // chỉ dành riêng cho role 'tester' cho tới khi chính thức public. Thêm trang mới cho admin thì nhớ bổ sung id vào mảng dưới đây.
-const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null};
+const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null,
+  // sale-mt: Sale Sỉ thị trường Miền Trung — chỉ Báo Cáo KH Sỉ (khoá cứng vùng Miền Trung, xem siRegionToggle),
+  // không Marketing/QC/Sale Online. sales-admin: quản lý sale nói chung, thấy hết Sỉ+Lẻ nhưng bỏ Marketing+QC.
+  'sale-mt':['sale-si','sale-si-data'],
+  'sales-admin':['sale-si','sale-si-data','sale-onl','sale-onl-data'],
+};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
+  if(role==='sale-mt')window._siRegion='mt';
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
   document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el=>{
     const id=el.id.replace('nav-','');if(id==='si-group'||id==='onl-group')return;
@@ -2955,11 +2961,18 @@ function setSiProductOv(v){window._siProductOv=v;renderSaleSi();}
 // Chuyển đổi 2 nguồn data Sỉ (Bắc+Nam / Miền Trung — cùng form, khác đội) ngay trên trang Báo Cáo KH Sỉ,
 // không tách trang riêng cho đỡ rối menu. Đổi ở đây thì cả Tổng Quan lẫn CRM đều đổi theo.
 function siRegionToggle(){
+  // Role sale-mt bị khoá cứng ở Miền Trung, không được thấy/chuyển sang Bắc+Nam — chỉ hiện nhãn cố định.
+  if((localStorage.getItem('dashRole')||'')==='sale-mt'){
+    return `<div style="display:inline-flex;padding:5px 12px;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-size:12px;font-weight:700;white-space:nowrap">🧭 Miền Trung</div>`;
+  }
   const r=window._siRegion||'bn';
   const btn=(v,label)=>`<button onclick="setSiRegion('${v}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${r===v?'var(--accent)':'var(--border)'};background:${r===v?'var(--accent)':'var(--surface)'};color:${r===v?'#fff':'var(--text2)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">${label}</button>`;
   return `<div style="display:inline-flex;gap:6px">${btn('bn','🧭 Bắc + Nam')}${btn('mt','🧭 Miền Trung')}</div>`;
 }
-function setSiRegion(v){window._siRegion=v;renderSaleSi();renderSaleSiData();}
+function setSiRegion(v){
+  if((localStorage.getItem('dashRole')||'')==='sale-mt')v='mt'; // khoá cứng, không cho đổi dù có gọi thẳng hàm
+  window._siRegion=v;renderSaleSi();renderSaleSiData();
+}
 function setSiBrand(v){window._siBrand=v;renderSaleSiData();}
 function setSiBrandOv(v){window._siBrandOv=v;renderSaleSi();}
 function setSiStt(v){window._siStt=v;renderSaleSiData();}
