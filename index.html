@@ -407,7 +407,7 @@ const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl'
   // sale-mt: Sale Sỉ thị trường Miền Trung — chỉ Báo Cáo KH Sỉ (khoá cứng vùng Miền Trung, xem siRegionToggle),
   // không Marketing/QC/Sale Online. sales-admin: quản lý sale nói chung, thấy hết Sỉ+Lẻ nhưng bỏ Marketing+QC.
   'sale-mt':['sale-si','sale-si-data'],
-  'sales-admin':['sale-si','sale-si-data','sale-onl','sale-onl-data'],
+  'sales-admin':['sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice'],
 };
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
