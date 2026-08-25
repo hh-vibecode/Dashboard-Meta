@@ -978,6 +978,8 @@ async function loadSocialFromSupabase(){
 }
 function setSocialMonth(v){window._socialMonth=v;renderSocial();}
 function setSocialBrand(v){window._socialBrand=v;renderSocial();}
+function setSocialTab(v){window._socialTab=v;renderSocial();}
+const SOC_PLAT={facebook:{label:'Facebook',icon:'📘'},tiktok:{label:'TikTok',icon:'🎵'}};
 const SOC_N=v=>(v==null?null:Number(v));
 function socEngage(r){const t=SOC_N(r.engagements_total);return t!=null?t:((SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0));}
 function socInteract(r){return (SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0);}
@@ -1010,11 +1012,15 @@ async function renderSocial(){
   const allPrev=prev?socialRows.filter(r=>String(r.stat_month).slice(0,10)===prev):[];
   // Bộ lọc thương hiệu — áp cho toàn bộ trang (thẻ chỉ số, điểm nhấn, page card, bảng).
   // Riêng "So Sánh Thương Hiệu" luôn vẽ trên allCur để vẫn thấy được tỷ trọng giữa các brand.
-  const brandsAvail=[...new Set(allCur.map(r=>r.brand||'Khác'))];
+  const brandsAvail=[...new Set(allCur.map(r=>r.brand||'Khác'))];  // toàn bộ, dùng để validate lựa chọn
   let fBrand=window._socialBrand||'all';
   if(fBrand!=='all'&&!brandsAvail.includes(fBrand)){fBrand='all';window._socialBrand='all';}
-  const rowsCur=fBrand==='all'?allCur:allCur.filter(r=>(r.brand||'Khác')===fBrand);
-  const rowsPrev=fBrand==='all'?allPrev:allPrev.filter(r=>(r.brand||'Khác')===fBrand);
+  const tab=window._socialTab||'tong-quan';
+  const platOf=r=>r.platform||'facebook';
+  const byTab=l=>tab==='tong-quan'?l:l.filter(r=>platOf(r)===tab);
+  const brandOk=r=>fBrand==='all'||(r.brand||'Khác')===fBrand;
+  const rowsCur=byTab(allCur).filter(brandOk);
+  const rowsPrev=byTab(allPrev).filter(brandOk);
   const prevBy={};rowsPrev.forEach(r=>prevBy[r.page_id]=r);
   const S=(l,f)=>l.reduce((s,r)=>s+(SOC_N(f(r))||0),0);
 
@@ -1044,9 +1050,9 @@ async function renderSocial(){
       <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">${chipDelta(c,p,lower)}<span style="font-size:11px;color:var(--muted)">${sub}</span></div>
     </div>`;
   const scorecards=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
-      ${card('Người theo dõi',num(tFol),'toàn bộ '+rowsCur.length+' page',tFol,pFol,false,'var(--accent)')}
+      ${card('Người theo dõi',num(tFol),'toàn bộ '+rowsCur.length+' kênh',tFol,pFol,false,'var(--accent)')}
       ${card('Tăng ròng',(net>=0?'+':'')+num(net),`+${num(tNew)} mới · -${num(tLost)} huỷ`,net,pnet,false,'var(--green)')}
-      ${card('Hiển thị bài viết',num(tImp),'tự nhiên',tImp,pImp,false,'#7c3aed')}
+      ${card(tab==='tiktok'?'Lượt xem video':'Hiển thị bài viết',num(tImp),tab==='tiktok'?'tổng lượt xem':'tự nhiên',tImp,pImp,false,'#7c3aed')}
       ${card('Tương tác',num(tEng),'cảm xúc·bình luận·chia sẻ',tEng,pEng,false,'#f59e0b')}
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
@@ -1098,7 +1104,7 @@ async function renderSocial(){
   }).join('');
 
   // ── So sánh thương hiệu bằng thanh ngang (share of voice) ──
-  const byBrand={};allCur.forEach(r=>{const b=r.brand||'Khác';(byBrand[b]=byBrand[b]||[]).push(r);});
+  const byBrand={};byTab(allCur).forEach(r=>{const b=r.brand||'Khác';(byBrand[b]=byBrand[b]||[]).push(r);});
   const BC={CT:'#4361ee',HT:'#0891b2',TTV:'#0abf7a',Shidai:'#7c3aed',['Khác']:'#94a3b8'};
   const bars=(title,valOf,fmt)=>{
     const ent=Object.entries(byBrand).map(([b,l])=>({b,v:valOf(l)})).sort((a,b)=>b.v-a.v);
@@ -1161,9 +1167,49 @@ async function renderSocial(){
     ${drop&&drop.g<0?hl('⚠️','Cần chú ý',`<b>${drop.r.page_name}</b> — tương tác giảm <b style="color:#e11d48">${Math.abs(drop.g).toFixed(1)}%</b> so với ${socMonthLabel(prev)}`,'#e11d48'):''}
   </div>`;
 
+  // ── Thanh 3 tab: Tổng Quan (gộp FB+TikTok, chứa toàn bộ phần đánh giá) / Facebook / TikTok ──
+  const tabBtn=(k,label)=>`<span onclick="setSocialTab('${k}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px 10px 0 0;font-size:13px;font-weight:800;border:1.5px solid ${tab===k?'var(--border)':'transparent'};border-bottom:1.5px solid ${tab===k?'var(--surface)':'var(--border)'};background:${tab===k?'var(--surface)':'transparent'};color:${tab===k?'var(--text)':'var(--muted)'};margin-bottom:-1.5px">${label}</span>`;
+  const platCount=k=>allCur.filter(r=>platOf(r)===k).length;
+  const tabsHtml=`<div style="display:flex;border-bottom:1.5px solid var(--border);margin:16px 0 18px">
+    ${tabBtn('tong-quan','📊 Tổng Quan')}${tabBtn('facebook',`📘 Facebook (${platCount('facebook')})`)}${tabBtn('tiktok',`🎵 TikTok (${platCount('tiktok')})`)}</div>`;
+  // So sánh nền tảng — chỉ hiện ở Tổng Quan
+  const platRows=['facebook','tiktok'].map(k=>{
+    const l=allCur.filter(r=>platOf(r)===k).filter(brandOk);
+    const lp=allPrev.filter(r=>platOf(r)===k).filter(brandOk);
+    if(!l.length)return'';
+    const eng=l.reduce((x,r)=>x+socEngage(r),0), engP=lp.reduce((x,r)=>x+socEngage(r),0);
+    const fo=S(l,r=>r.followers_total), foP=S(lp,r=>r.followers_total);
+    const im=S(l,r=>r.impressions), imP=S(lp,r=>r.impressions);
+    const nt=S(l,r=>r.followers_new)-S(l,r=>r.followers_lost);
+    return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 12px;font-weight:800;font-size:13px;white-space:nowrap">${SOC_PLAT[k].icon} ${SOC_PLAT[k].label}</td>
+      <td style="padding:10px 12px;font-size:11.5px;color:var(--muted)">${l.length} kênh</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:12.5px;font-variant-numeric:tabular-nums">${num(fo)}<div style="font-weight:400">${chipDelta(fo,foP,false)}</div></td>
+      <td style="padding:10px 12px;text-align:right;font-weight:800;font-size:12.5px;color:${nt>0?'var(--green)':nt<0?'#e11d48':'var(--muted)'}">${nt>0?'+':''}${num(nt)}</td>
+      <td style="padding:10px 12px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums">${num(im)}<div style="font-weight:400">${chipDelta(im,imP,false)}</div></td>
+      <td style="padding:10px 12px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums">${num(eng)}<div style="font-weight:400">${chipDelta(eng,engP,false)}</div></td>
+    </tr>`;
+  }).join('');
+  const platTable=`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+      ${[['NỀN TẢNG','left'],['SỐ KÊNH','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['HIỂN THỊ / LƯỢT XEM','right'],['TƯƠNG TÁC','right']]
+        .map(([c,a])=>`<th style="padding:10px 12px;text-align:${a};font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;white-space:nowrap">${c}</th>`).join('')}
+    </tr></thead><tbody>${platRows}</tbody></table></div></div>`;
+
+  if(!rowsCur.length){
+    el.innerHTML=`<div class="page-title">Báo Cáo Social</div>
+      <div class="page-sub">${tab==='tong-quan'?'Tổng hợp Facebook + TikTok':SOC_PLAT[tab].label} · chốt theo tháng</div>
+      ${tabsHtml}
+      <div class="tov-card" style="padding:40px;text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">${tab==='tiktok'?'🎵':'📘'}</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text2)">Chưa có số liệu ${tab==='tong-quan'?'':SOC_PLAT[tab].label} cho ${socMonthLabel(cur)}</div>
+        ${fBrand!=='all'?`<div style="font-size:12px;color:var(--muted);margin-top:6px">Đang lọc thương hiệu <b>${SRV_BRANDS[fBrand]||fBrand}</b> — thử chọn "Tất cả thương hiệu"</div>`:''}
+      </div>`;
+    return;
+  }
   el.innerHTML=`
     <div class="page-title">Báo Cáo Social</div>
-    <div class="page-sub">Theo dõi tăng trưởng ${rowsCur.length} Page${fBrand!=='all'?` · lọc: <b>${SRV_BRANDS[fBrand]||fBrand}</b>`:' chính'} · chốt theo tháng${prev?` · so sánh với ${socMonthLabel(prev)}`:''}</div>
+    <div class="page-sub">${tab==='tong-quan'?'Tổng hợp Facebook + TikTok':SOC_PLAT[tab].label} · ${rowsCur.length} kênh${fBrand!=='all'?` · lọc: <b>${SRV_BRANDS[fBrand]||fBrand}</b>`:''} · chốt theo tháng${prev?` · so sánh với ${socMonthLabel(prev)}`:''}</div>
     <div class="period-bar">
       <div class="date-filter">
         <label>Kỳ báo cáo</label>
@@ -1172,21 +1218,27 @@ async function renderSocial(){
         </select>
       </div>
       <select onchange="setSocialBrand(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
-        <option value="all"${fBrand==='all'?' selected':''}>🏷️ Tất cả thương hiệu (${allCur.length} page)</option>
-        ${brandsAvail.map(b=>`<option value="${b}"${fBrand===b?' selected':''}>${SRV_BRANDS[b]||b} (${allCur.filter(r=>(r.brand||'Khác')===b).length} page)</option>`).join('')}
+        <option value="all"${fBrand==='all'?' selected':''}>🏷️ Tất cả thương hiệu (${byTab(allCur).length} kênh)</option>
+        ${[...new Set(byTab(allCur).map(r=>r.brand||'Khác'))].map(b=>`<option value="${b}"${fBrand===b?' selected':''}>${SRV_BRANDS[b]||b} (${byTab(allCur).filter(r=>(r.brand||'Khác')===b).length})</option>`).join('')}
       </select>
-      <div style="font-size:11px;color:var(--muted);max-width:470px;line-height:1.5">Hiển thị = lượt hiển thị bài viết <b>tự nhiên</b> (Meta đã ngừng cấp chỉ số tiếp cận cấp Page qua API) · tương tác gồm cả bài có chạy quảng cáo</div>
+      <div style="font-size:11px;color:var(--muted);max-width:470px;line-height:1.5">${tab==='tiktok'
+        ? 'Số liệu TikTok nhập từ Google Sheet (tạm thời, chưa có API) · chỉ số hiển thị = lượt xem video'
+        : 'Hiển thị = lượt hiển thị bài viết <b>tự nhiên</b> (Meta đã ngừng cấp chỉ số tiếp cận cấp Page qua API) · tương tác gồm cả bài có chạy quảng cáo'}</div>
     </div>
+    ${tabsHtml}
     ${scorecards}
-    <div class="sec-label">Điểm Nhấn Trong Kỳ</div>
-    ${highlights}
-    <div class="sec-label">Hiệu Suất Từng Page</div>
+    ${tab==='tong-quan'?`
+      <div class="sec-label">Điểm Nhấn Trong Kỳ</div>
+      ${highlights}
+      <div class="sec-label">So Sánh Nền Tảng</div>
+      ${platTable}`:''}
+    <div class="sec-label">${tab==='tong-quan'?'Hiệu Suất Từng Kênh':'Hiệu Suất Từng Page'}</div>
     <div style="display:grid;grid-template-columns:repeat(${Math.min(4,Math.max(rowsCur.length,1))},1fr);gap:12px">${pageCards}</div>
-    <div class="sec-label">So Sánh Thương Hiệu</div>
+    ${Object.keys(byBrand).length>1?`<div class="sec-label">So Sánh Thương Hiệu</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       ${bars('Tỷ trọng hiển thị',l=>S(l,r=>r.impressions),num)}
       ${bars('Tỷ trọng tương tác',l=>l.reduce((s,r)=>s+socEngage(r),0),num)}
-    </div>
+    </div>`:''}
     <div class="sec-label">Bảng Chi Tiết</div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
       <colgroup>${['24%','12%','13%','13%','13%','8%','9%','8%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>

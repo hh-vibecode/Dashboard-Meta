@@ -88,7 +88,7 @@ async function insight(pageId, token, metric, since, until){
     }catch(e){ console.log(`  ⚠️ ${acc.name}: không đọc được bài đăng (${e.message})`); }
 
     rows.push({
-      stat_month: month, page_id: acc.id, page_name: acc.name, brand: PAGES[acc.id],
+      stat_month: month, page_id: acc.id, page_name: acc.name, brand: PAGES[acc.id], platform: 'facebook',
       followers_total: follows.last ?? acc.followers_count ?? null,
       followers_new: newF.sum, followers_lost: lostF.sum,
       reach: null,                        // Meta đã bỏ metric reach cấp Page
