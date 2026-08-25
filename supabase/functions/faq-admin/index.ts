@@ -80,7 +80,12 @@ Deno.serve(async (req: Request) => {
     if (b.action === "flag") {
       const row = await sb("faq_feedback", {
         method: "POST",
-        body: JSON.stringify({ question: String(b.question || "").slice(0, 1000), bot_answer: String(b.bot_answer || "").slice(0, 4000), note: b.note ? String(b.note).slice(0, 500) : null }),
+        body: JSON.stringify({
+          question: String(b.question || "").slice(0, 1000),
+          bot_answer: String(b.bot_answer || "").slice(0, 4000),
+          note: b.note ? String(b.note).slice(0, 500) : null,
+          reporter: b.reporter ? String(b.reporter).slice(0, 80) : null,   // tài khoản đã báo lỗi
+        }),
       });
       return json({ ok: true, item: row?.[0] });
     }
@@ -99,7 +104,11 @@ Deno.serve(async (req: Request) => {
       });
       if (feedback_id) {
         await sb(`faq_feedback?id=eq.${encodeURIComponent(feedback_id)}`, {
-          method: "PATCH", body: JSON.stringify({ status: "fixed", fixed_faq_id: row?.[0]?.id ?? null }),
+          method: "PATCH",
+          body: JSON.stringify({
+            status: "fixed", fixed_faq_id: row?.[0]?.id ?? null,
+            fixed_at: new Date().toISOString(), fixed_by: b.actor ? String(b.actor).slice(0, 80) : null,
+          }),
         }).catch(() => {});
       }
       return json({ ok: true, item: row?.[0] });
@@ -139,7 +148,10 @@ Deno.serve(async (req: Request) => {
     }
     if (b.action === "resolve") {
       if (!b.id) return json({ error: "Thiếu id" }, 400);
-      await sb(`faq_feedback?id=eq.${encodeURIComponent(b.id)}`, { method: "PATCH", body: JSON.stringify({ status: "fixed" }) });
+      await sb(`faq_feedback?id=eq.${encodeURIComponent(b.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "fixed", fixed_at: new Date().toISOString(), fixed_by: b.actor ? String(b.actor).slice(0, 80) : null }),
+      });
       return json({ ok: true });
     }
     if (b.action === "check") return json({ ok: true });   // dùng để kiểm tra mật khẩu

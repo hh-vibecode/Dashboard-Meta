@@ -253,6 +253,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="fdiv"></div>
     <button class="btn-ghost" onclick="clearFilter()">Xoá</button>
   </div>
+  <div id="presenceBar" style="display:flex;align-items:center;gap:-6px;margin-right:6px"></div>
   <button class="theme-toggle" onclick="toggleTheme()">
     <div class="toggle-track"><div class="toggle-thumb"></div></div>
     <span id="themeLabel">Tối</span>
@@ -724,6 +725,82 @@ async function exportSocialReport(){
     SS('IV','Theo Thương Hiệu',s4)+SS('V','Chi Tiết Từng Kênh',s5)+SS('VI','So Sánh Từng Kênh Với Kỳ Trước',s6)),
     rpFileName('BaoCao_Social'));
 }
+// ══ AI ĐANG ONLINE — hiện avatar ẩn danh + tên tài khoản trên topbar ═══════════════
+// Mỗi tab giữ 1 session_id riêng, cứ 30s "điểm danh" 1 lần vào bảng dash_presence.
+// Ai không điểm danh quá 90s coi như đã thoát. Không có server realtime nên dùng cách hỏi lại định kỳ.
+const PRESENCE_TTL=90000, PRESENCE_PING=30000;
+// Bộ mặt động vật ẩn danh (giống Google Docs) — chọn theo tên tài khoản để mỗi người luôn ra cùng 1 con
+const PRES_ANIMALS=['🦊','🐼','🦉','🐻','🐨','🐯','🦁','🐸','🐧','🦄','🐙','🦋','🐬','🦅','🐝','🦈'];
+const PRES_COLORS=['#4361ee','#0abf7a','#7c3aed','#f59e0b','#e11d48','#0891b2','#ec4899','#64748b'];
+function presHash(str){let h=0;for(let i=0;i<String(str).length;i++)h=(h*31+String(str).charCodeAt(i))|0;return Math.abs(h);}
+function presSessionId(){
+  let id=sessionStorage.getItem('dashSession');
+  if(!id){id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);sessionStorage.setItem('dashSession',id);}
+  return id;
+}
+async function presencePing(){
+  const u=localStorage.getItem('dashUser');
+  if(!u)return;   // chưa đăng nhập thì không điểm danh
+  try{
+    await fetch(`${SUPABASE_URL}/rest/v1/dash_presence?on_conflict=session_id`,{
+      method:'POST',
+      headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY,
+               'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
+      body:JSON.stringify({session_id:presSessionId(),username:u,role:localStorage.getItem('dashRole')||'',last_seen:new Date().toISOString()})
+    });
+  }catch(e){}
+}
+async function presenceRefresh(){
+  const bar=document.getElementById('presenceBar');if(!bar)return;
+  if(!localStorage.getItem('dashUser')){bar.innerHTML='';return;}
+  let rows=[];
+  try{
+    const since=new Date(Date.now()-PRESENCE_TTL).toISOString();
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/dash_presence?select=username,role,last_seen&last_seen=gte.${since}&order=last_seen.desc`,
+      {headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY}});
+    rows=await r.json();
+  }catch(e){return;}
+  if(!Array.isArray(rows))return;
+  // 1 người mở nhiều tab vẫn chỉ tính là 1
+  const seen=new Map();
+  rows.forEach(x=>{if(!seen.has(x.username))seen.set(x.username,x);});
+  const me=localStorage.getItem('dashUser');
+  const list=[...seen.values()].sort((a,b)=>(a.username===me?-1:b.username===me?1:a.username.localeCompare(b.username)));
+  const av=(u,z)=>{
+    const h=presHash(u);
+    return`<div title="${u}" style="width:${z}px;height:${z}px;border-radius:50%;background:${PRES_COLORS[h%PRES_COLORS.length]};
+      display:flex;align-items:center;justify-content:center;font-size:${Math.round(z*0.52)}px;
+      border:2px solid var(--surface);margin-left:-7px;flex-shrink:0">${PRES_ANIMALS[h%PRES_ANIMALS.length]}</div>`;
+  };
+  const shown=list.slice(0,3), extra=list.length-shown.length;
+  bar.innerHTML=`<div id="presWrap" style="display:flex;align-items:center;cursor:default;position:relative;padding-left:7px"
+      onmouseenter="document.getElementById('presPop').style.display='block'"
+      onmouseleave="document.getElementById('presPop').style.display='none'">
+    ${shown.map(x=>av(x.username,26)).join('')}
+    ${extra>0?`<div style="min-width:26px;height:26px;padding:0 5px;border-radius:13px;background:var(--bg2);color:var(--text2);
+        display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid var(--surface);margin-left:-7px">+${extra}</div>`:''}
+    <div id="presPop" style="display:none;position:absolute;top:34px;right:0;z-index:500;background:var(--surface);
+        border:1.5px solid var(--border);border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.22);padding:10px 12px;min-width:200px">
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">
+        Đang online (${list.length})</div>
+      ${list.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+        <div style="margin-left:7px">${av(x.username,22)}</div>
+        <div style="font-size:12.5px;font-weight:700;white-space:nowrap">${x.username}${x.username===me?' <span style="font-weight:500;color:var(--muted)">(bạn)</span>':''}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+function startPresence(){
+  if(window._presTimer)return;
+  presencePing();presenceRefresh();
+  window._presTimer=setInterval(()=>{presencePing();presenceRefresh();},PRESENCE_PING);
+  // rời trang thì xoá dấu vết ngay cho danh sách khỏi bị "ma"
+  window.addEventListener('beforeunload',()=>{
+    try{navigator.sendBeacon&&navigator.sendBeacon(
+      `${SUPABASE_URL}/rest/v1/dash_presence?session_id=eq.${presSessionId()}&apikey=${SUPABASE_ANON_KEY}`,
+      new Blob([''],{type:'application/json'}));}catch(e){}
+  });
+}
 function toggleTheme(){
   const h=document.documentElement,dark=h.getAttribute('data-theme')==='dark';
   h.setAttribute('data-theme',dark?'light':'dark');
@@ -754,12 +831,16 @@ function doLogin(){
   const u=(document.getElementById('loginUser').value||'').trim().toLowerCase();
   const p=document.getElementById('loginPass').value||'';
   const acc=AUTH_USERS[u];
-  if(acc&&acc.pass===p){localStorage.setItem('dashRole',acc.role);localStorage.setItem('dashUser',u);document.getElementById('loginGate').style.display='none';applyRole();}
+  if(acc&&acc.pass===p){localStorage.setItem('dashRole',acc.role);localStorage.setItem('dashUser',u);document.getElementById('loginGate').style.display='none';applyRole();startPresence();}
   else document.getElementById('loginErr').textContent='Sai tên đăng nhập hoặc mật khẩu';
 }
 // Phân quyền: role => danh sách trang được xem (null = xem hết).
 // admin liệt kê tường minh (KHÔNG null) để loại trừ các trang "Đang Phát Triển" (danhgia, faq) — mấy trang này
 // chỉ dành riêng cho role 'tester' cho tới khi chính thức public. Thêm trang mới cho admin thì nhớ bổ sung id vào mảng dưới đây.
+// Mọi trang trong mục "Đang Phát Triển" — MẶC ĐỊNH chỉ role tester xem được.
+// Thêm trang mới vào mục này thì thêm id vào đây, KHỎI phải sửa chỗ nào khác.
+// Khi nào user bảo public thì bỏ id ra khỏi mảng này + thêm vào ROLE_PAGES của các role liên quan.
+const DEV_PAGES=['danhgia','faq','sale-review','social'];
 const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null,
   // sale-mt: Sale Sỉ thị trường Miền Trung — chỉ Báo Cáo KH Sỉ (khoá cứng vùng Miền Trung, xem siRegionToggle),
   // không Marketing/QC/Sale Online. sales-admin: quản lý sale nói chung, thấy hết Sỉ+Lẻ nhưng bỏ Marketing+QC.
@@ -786,10 +867,15 @@ function applyRole(){
   if(allowed&&allowed.length)switchPage(allowed[0]);
   else if(role==='tester')switchPage('danhgia');
 }
-function logout(){localStorage.removeItem('dashRole');localStorage.removeItem('dashUser');document.getElementById('loginGate').style.display='flex';}
+function logout(){
+  try{fetch(`${SUPABASE_URL}/rest/v1/dash_presence?session_id=eq.${presSessionId()}`,{method:'DELETE',
+    headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY}});}catch(e){}
+  if(window._presTimer){clearInterval(window._presTimer);window._presTimer=null;}
+  const pb=document.getElementById('presenceBar');if(pb)pb.innerHTML='';
+  localStorage.removeItem('dashRole');localStorage.removeItem('dashUser');document.getElementById('loginGate').style.display='flex';}
 function initAuth(){
   const gate=document.getElementById('loginGate');if(!gate)return;
-  if(localStorage.getItem('dashRole')){gate.style.display='none';applyRole();return;}
+  if(localStorage.getItem('dashRole')){gate.style.display='none';applyRole();startPresence();return;}
   gate.style.display='flex';
   fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{
     const ipEl=document.getElementById('loginIp');if(ipEl)ipEl.textContent='IP của bạn: '+d.ip+' · gửi IP này cho admin để vào thẳng';
@@ -798,6 +884,13 @@ function initAuth(){
 }
 
 function switchPage(p){
+  // Chặn ở GỐC, không chỉ ẩn menu: ẩn menu thôi thì gọi thẳng switchPage() vẫn vào được trang.
+  const _role=localStorage.getItem('dashRole')||'admin';
+  const _allowed=ROLE_PAGES[_role]!==undefined?ROLE_PAGES[_role]:null;
+  if(_allowed&&_allowed.indexOf(p)<0){
+    if(DEV_PAGES.indexOf(p)>=0)setStatus('Trang này đang phát triển — chỉ tài khoản tester xem được');
+    return;
+  }
   window._curPage=p;
   ['danhgia','faq','sale-review','social','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
@@ -1194,7 +1287,7 @@ async function faqSubmitFix(i){
   const question=g('fxQ'+i).trim(), answer=g('fxA'+i).trim(), category=g('fxCat'+i).trim();
   if(!question||!answer){alert('Cần có câu hỏi và câu trả lời đúng');return;}
   try{
-    const d=await faqAdminCall({action:'teach',question,answer,category,feedback_id:(window._faqChat[i]||{}).feedbackId});
+    const d=await faqAdminCall({action:'teach',question,answer,category,feedback_id:(window._faqChat[i]||{}).feedbackId,actor:localStorage.getItem('dashUser')||''});
     if(d.item)productFaqRows.push(d.item);
     window._faqChat[i].fixed=true;
     const box=document.getElementById('faqFixBox'+i);if(box)box.innerHTML='';
@@ -1207,7 +1300,7 @@ async function faqFlagAnswer(i){
   const q=(chat.slice(0,i).reverse().find(x=>x.role==='user')||{}).content||'';
   const note=prompt('Sai chỗ nào? (ghi ngắn, để trống cũng được)')||'';
   try{
-    const d=await faqAdminCall({action:'flag',question:q,bot_answer:chat[i].content,note});
+    const d=await faqAdminCall({action:'flag',question:q,bot_answer:chat[i].content,note,reporter:localStorage.getItem('dashUser')||'(không rõ)'});
     chat[i].flagged=true; chat[i].feedbackId=d.item&&d.item.id;
     setStatus('Đã ghi nhận lỗi — xem lại ở tab Huấn Luyện');
     renderFaqChatArea();
@@ -1250,7 +1343,9 @@ async function faqSavePass(){
   catch(e){localStorage.removeItem('faqAdminPass');alert(e.message);}
 }
 function faqLogoutTrain(){localStorage.removeItem('faqAdminPass');renderFaq();}
-function setFaqTrainSearch(v){window._faqTrainQ=v;window._faqTrainFocus=true;renderFaqTrainList();}
+function setFaqTrainSearch(v){window._faqTrainQ=v;window._faqTrainPage=1;window._faqTrainFocus=true;renderFaqTrainList();}
+function setFaqTrainPage(p){window._faqTrainPage=p;renderFaqTrainList();
+  const b=document.getElementById('faqTrainList');if(b)b.scrollIntoView({behavior:'smooth',block:'start'});}
 async function faqAddItem(){
   const g=id=>(document.getElementById(id)||{}).value||'';
   const item={category:g('trCat').trim(),subcategory:g('trSub').trim(),question:g('trQ').trim(),answer:g('trA').trim()};
@@ -1289,22 +1384,17 @@ async function faqSaveEdit(id){
     window._faqEditId=null;setStatus('Đã cập nhật');renderFaqTrainList();
   }catch(e){alert('Không lưu được: '+e.message);}
 }
-function toggleFaqKnowledge(){
-  const b=document.getElementById('trKnBox'),a=document.getElementById('trKnArrow');
-  if(!b)return;
-  const open=b.style.display==='none';
-  b.style.display=open?'':'none';
-  if(a)a.textContent=open?'▼':'▶';
-  if(open)renderFaqTrainList();
-}
 function renderFaqTrainList(){
   const box=document.getElementById('faqTrainList');if(!box)return;
   const q=faqNorm(window._faqTrainQ||'');
   const rows=productFaqRows.filter(r=>!q||faqNorm(r.question+' '+r.answer+' '+r.category).includes(q))
     .slice().sort((a,b)=>b.id-a.id);
+  const PER=10, pages=Math.max(1,Math.ceil(rows.length/PER));
+  let pg=window._faqTrainPage||1; if(pg>pages)pg=pages; if(pg<1)pg=1; window._faqTrainPage=pg;
+  const view=rows.slice((pg-1)*PER,pg*PER);
   const ed=window._faqEditId;
-  box.innerHTML=`<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${num(rows.length)} kiến thức${q?' khớp tìm kiếm':''} · mới thêm nằm trên cùng</div>`+
-   (rows.slice(0,60).map(r=>ed===r.id?`
+  box.innerHTML=`<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${num(rows.length)} kiến thức${q?' khớp từ khoá':''} · mới thêm nằm trên cùng${pages>1?` · trang ${pg}/${pages}`:''}</div>`+
+   (view.map(r=>ed===r.id?`
     <div class="tov-card" style="padding:14px 16px;margin-bottom:8px;border-color:var(--accent)">
       <input id="edQ${r.id}" value="${(r.question||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;font-weight:700;font-family:var(--font);margin-bottom:8px">
       <textarea id="edA${r.id}" rows="4" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6">${r.answer||''}</textarea>
@@ -1326,21 +1416,66 @@ function renderFaqTrainList(){
         </div>
       </div>
     </div>`).join('')||'<div style="padding:30px;text-align:center;color:var(--muted)">Không tìm thấy kiến thức nào</div>');
-  if(rows.length>60)box.innerHTML+=`<div style="font-size:11.5px;color:var(--muted);text-align:center;padding:8px">Hiện 60/${num(rows.length)} — dùng ô tìm kiếm để lọc</div>`;
+  if(pages>1){
+    const btn=(p,label,dis)=>dis
+      ? `<span style="padding:5px 10px;font-size:12px;color:var(--muted);opacity:.45">${label}</span>`
+      : `<span onclick="setFaqTrainPage(${p})" style="cursor:pointer;padding:5px 10px;border-radius:7px;font-size:12px;font-weight:700;color:${p===pg?'#fff':'var(--text2)'};background:${p===pg?'var(--accent)':'var(--surface)'};border:1.5px solid ${p===pg?'var(--accent)':'var(--border)'}">${label}</span>`;
+    // hiện tối đa 7 số quanh trang hiện tại cho gọn
+    const nums=[]; let a=Math.max(1,pg-3), b2=Math.min(pages,a+6); a=Math.max(1,b2-6);
+    for(let i=a;i<=b2;i++)nums.push(btn(i,String(i),false));
+    box.innerHTML+=`<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px 0 4px">
+      ${btn(pg-1,'‹ Trước',pg<=1)}${a>1?'<span style="color:var(--muted);font-size:12px">…</span>':''}
+      ${nums.join('')}
+      ${b2<pages?'<span style="color:var(--muted);font-size:12px">…</span>':''}${btn(pg+1,'Sau ›',pg>=pages)}
+    </div>`;
+  }
   if(window._faqTrainFocus){window._faqTrainFocus=false;const sb=document.getElementById('trSearch');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
-let faqFeedbackRows=[];
+let faqFeedbackRows=[],faqFeedbackDone=[];
+function faqTime(t){if(!t)return'—';const d=new Date(t);if(isNaN(d))return String(t).slice(0,16);
+  const p=n=>String(n).padStart(2,'0');
+  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;}
 async function loadFaqFeedback(){
-  try{faqFeedbackRows=await sbFetchAll('faq_feedback','select=*&status=eq.open&order=created_at.desc');}
-  catch(e){faqFeedbackRows=[];}
+  try{
+    const all=await sbFetchAll('faq_feedback','select=*&order=created_at.desc');
+    faqFeedbackRows=all.filter(r=>r.status!=='fixed');
+    faqFeedbackDone=all.filter(r=>r.status==='fixed');
+  }catch(e){faqFeedbackRows=[];faqFeedbackDone=[];}
   renderFaqFeedbackBox();
+}
+function toggleFaqHistory(){
+  const b=document.getElementById('faqFbHist'),a=document.getElementById('faqFbHistArrow');
+  if(!b)return;const open=b.style.display==='none';
+  b.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';
+}
+function faqHistoryHtml(){
+  if(!faqFeedbackDone.length)return'';
+  return`<div style="margin-top:14px">
+    <span onclick="toggleFaqHistory()" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--muted)">
+      <span id="faqFbHistArrow">▶</span> Lịch sử lỗi đã xử lý (${faqFeedbackDone.length})</span>
+    <div id="faqFbHist" style="display:none;margin-top:8px">
+      <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+          ${[['CÂU HỎI','left'],['NGƯỜI BÁO','left'],['LÚC BÁO','left'],['GHI CHÚ','left'],['NGƯỜI SỬA','left'],['LÚC SỬA','left']]
+            .map(([c,a])=>`<th style="padding:9px 11px;text-align:${a};font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.04em;white-space:nowrap">${c}</th>`).join('')}
+        </tr></thead><tbody>
+        ${faqFeedbackDone.map(f=>`<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 11px;font-size:12px;font-weight:600">${f.question}</td>
+          <td style="padding:8px 11px;font-size:11.5px;white-space:nowrap">${f.reporter||'—'}</td>
+          <td style="padding:8px 11px;font-size:11.5px;color:var(--muted);white-space:nowrap">${faqTime(f.created_at)}</td>
+          <td style="padding:8px 11px;font-size:11.5px;color:var(--text2)">${f.note||'—'}</td>
+          <td style="padding:8px 11px;font-size:11.5px;white-space:nowrap">${f.fixed_by||'—'}</td>
+          <td style="padding:8px 11px;font-size:11.5px;color:var(--muted);white-space:nowrap">${f.fixed_at?faqTime(f.fixed_at):'—'}</td>
+        </tr>`).join('')}
+      </tbody></table></div></div>
+    </div></div>`;
 }
 function renderFaqFeedbackBox(){
   const box=document.getElementById('faqFeedbackBox');if(!box)return;
-  if(!faqFeedbackRows.length){box.innerHTML='';return;}
+  if(!faqFeedbackRows.length){box.innerHTML=faqHistoryHtml();return;}
   box.innerHTML=`<div class="sec-label" style="margin-top:0">🚩 Lỗi đã báo, chưa sửa <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(${faqFeedbackRows.length} mục · bấm để dạy lại)</span></div>`+
     faqFeedbackRows.map(f=>`<div class="tov-card" style="padding:13px 16px;margin-bottom:8px;border-left:3px solid #b45309">
-      <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Khách hỏi · ${String(f.created_at).slice(0,10)}</div>
+      <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">👤 ${f.reporter||'(không rõ)'} báo lúc ${faqTime(f.created_at)}</div>
       <div style="font-size:13px;font-weight:700;margin-bottom:5px">${f.question}</div>
       ${f.note?`<div style="font-size:12px;color:#b45309;margin-bottom:5px">Ghi chú: ${f.note}</div>`:''}
       <div style="font-size:12px;color:var(--text2);line-height:1.55;white-space:pre-line;max-height:96px;overflow:auto;background:var(--bg2);border-radius:8px;padding:8px 11px">${f.bot_answer||''}</div>
@@ -1349,7 +1484,7 @@ function renderFaqFeedbackBox(){
         <span onclick="faqFixFeedback(${f.id})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--accent)">✏️ Dạy lại câu này</span>
         <span onclick="faqResolveFeedback(${f.id})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--muted)">✔️ Bỏ qua</span>
       </div>
-    </div>`).join('');
+    </div>`).join('')+faqHistoryHtml();
 }
 function faqFixFeedback(id){
   const f=faqFeedbackRows.find(x=>x.id===id);if(!f)return;
@@ -1385,14 +1520,18 @@ async function faqSubmitFeedbackFix(id){
   const answer=g('fbA'+id).trim();
   if(!answer){alert('Nhập câu trả lời đúng');return;}
   try{
-    const d=await faqAdminCall({action:'teach',question:f.question,answer,category:g('fbCat'+id).trim(),feedback_id:id});
+    const d=await faqAdminCall({action:'teach',question:f.question,answer,category:g('fbCat'+id).trim(),feedback_id:id,actor:localStorage.getItem('dashUser')||''});
     if(d.item)productFaqRows.push(d.item);
+    const f2=faqFeedbackRows.find(x=>x.id===id);
+    if(f2){f2.status='fixed';f2.fixed_at=new Date().toISOString();f2.fixed_by=localStorage.getItem('dashUser')||'';faqFeedbackDone.unshift(f2);}
     faqFeedbackRows=faqFeedbackRows.filter(x=>x.id!==id);
     setStatus('Đã dạy bot');renderFaqFeedbackBox();renderFaqTrainList();
   }catch(e){alert('Không lưu được: '+e.message);}
 }
 async function faqResolveFeedback(id){
-  try{await faqAdminCall({action:'resolve',id});
+  try{await faqAdminCall({action:'resolve',id,actor:localStorage.getItem('dashUser')||''});
+    const f3=faqFeedbackRows.find(x=>x.id===id);
+    if(f3){f3.status='fixed';f3.fixed_at=new Date().toISOString();f3.fixed_by=localStorage.getItem('dashUser')||'';faqFeedbackDone.unshift(f3);}
     faqFeedbackRows=faqFeedbackRows.filter(x=>x.id!==id);renderFaqFeedbackBox();}
   catch(e){alert(e.message);}
 }
@@ -1430,16 +1569,12 @@ function renderFaqTrainTab(){
       <div style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5">Thêm xong sang tab <b>💬 QnA</b> hỏi thử ngay để kiểm tra bot đã trả lời đúng chưa.</div>
     </div>
     <div id="faqFeedbackBox"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;flex-wrap:wrap">
-      <span onclick="toggleFaqKnowledge()" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--muted)">
-        <span id="trKnArrow">▶</span> Kiến thức hiện có (${num(productFaqRows.length)} mục) — bấm để xem / sửa
-      </span>
+    <div style="display:flex;align-items:center;gap:10px;margin:16px 0 10px;flex-wrap:wrap">
+      <div class="sec-label" style="margin:0">Kiến thức hiện có <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(${num(productFaqRows.length)} mục)</span></div>
+      <input id="trSearch" oninput="setFaqTrainSearch(this.value)" value="${(window._faqTrainQ||'').replace(/"/g,'&quot;')}" placeholder="🔎 Gõ từ khoá để tìm nhanh…"
+        style="margin-left:auto;padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:250px">
     </div>
-    <div id="trKnBox" style="display:none">
-      <input id="trSearch" oninput="setFaqTrainSearch(this.value)" value="${(window._faqTrainQ||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm để sửa / xoá…"
-        style="width:100%;max-width:320px;padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);margin-bottom:10px">
-      <div id="faqTrainList"></div>
-    </div>`;
+    <div id="faqTrainList"></div>`;
 }
 async function renderFaq(){
   const el=document.getElementById('page-faq');
