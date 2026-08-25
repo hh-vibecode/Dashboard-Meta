@@ -59,6 +59,12 @@ async function get(url, tries=3){
       out.push({
         page_id: p.id, page_name: p.name,
         conv_id: c.id, type: c.type,
+        // fb_id là KHOÁ NỐI giữa hội thoại COMMENT và INBOX của CÙNG một người:
+        // conv INBOX có id = `{page_id}_{fb_id}`, còn conv COMMENT mang fb_id trong customers[0].
+        // Thiếu nó thì bình luận được điều hướng sang inbox sẽ bị chấm oan là "không trả lời".
+        customer_id: custId,
+        fb_id: c.customers?.[0]?.fb_id || null,
+        from_psid: c.from_psid || null,
         customer: c.customers?.[0]?.name || c.from?.name || '',
         phone: (c.recent_phone_numbers||[]).map(x=>x.phone_number)[0] || null,
         assignees: (c.assignee_ids||[]).map(id=>userMap[id]||id),

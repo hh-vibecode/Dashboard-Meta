@@ -1700,7 +1700,7 @@ function srvBrandOf(pageName){
   if(/chánh tâm|chanh tam/i.test(n))return'CT';
   return'Khác';
 }
-const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'}};
+const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'},tra_loi_inbox:{label:'Bình luận → đã tư vấn ở tin nhắn',bg:'#cffafe',fg:'#0891b2',icon:'📩'}};
 const SRV_SEV={cao:{label:'Nghiêm trọng',fg:'#e11d48'},trung:{label:'Trung bình',fg:'#b45309'},thap:{label:'Nhẹ',fg:'#6b7280'}};
 async function renderSaleReview(){
   const el=document.getElementById('page-sale-review');
@@ -1728,25 +1728,31 @@ async function renderSaleReview(){
     return true;
   });
   const cnt=(list,v)=>list.filter(r=>r.verdict===v).length;
-  const total=dated.length,ok=cnt(dated,'dung');
+  // Nhóm "bình luận → đã tư vấn ở tin nhắn" KHÔNG phải lỗi và cũng không phải lượt được chấm chất lượng
+  // (nội dung tư vấn thật nằm ở hội thoại inbox riêng) → tách khỏi mẫu số tỷ lệ đúng.
+  const inbox=cnt(dated,'tra_loi_inbox');
+  const total=dated.length-inbox,ok=cnt(dated,'dung');
   const kpi=`<div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
     ${mkKpi('📋','Lượt Đã Chấm',num(total),'khách có nhu cầu thật','g-blue')}
     ${mkKpi('✅','Đúng',num(ok),pct(total?ok/total*100:0)+' tổng lượt','g-green')}
     ${mkKpi('⚠️','Thiếu Ý',num(cnt(dated,'thieu')),'trả lời chưa đủ','g-yellow')}
     ${mkKpi('❌','Sai Kiến Thức',num(cnt(dated,'sai')),'cần chấn chỉnh ngay','g-red')}
     ${mkKpi('🤖','Chưa Ai Tư Vấn',num(cnt(dated,'chi_bot')+cnt(dated,'khong_tra_loi')),'chỉ bot rep hoặc bị bỏ qua','g-purple')}
-  </div>`;
+  </div>
+  ${inbox?`<div style="margin-top:-4px;padding:8px 13px;background:#cffafe;color:#0e7490;border-radius:9px;font-size:12px;font-weight:600">
+    📩 ${num(inbox)} bình luận được bot điều hướng sang tin nhắn và sale đã tư vấn ở đó — không tính là lỗi, không tính vào tỷ lệ đúng.</div>`:''}`;
   // ── Bảng tổng hợp theo thương hiệu ──
   const brandKeys=[...new Set(dated.map(r=>srvBrandOf(r.page_name)))].sort((a,b)=>dated.filter(x=>srvBrandOf(x.page_name)===b).length-dated.filter(x=>srvBrandOf(x.page_name)===a).length);
   const brandRows=brandKeys.map(b=>{
     const list=dated.filter(r=>srvBrandOf(r.page_name)===b);
     const d=cnt(list,'dung'),t=cnt(list,'thieu'),s=cnt(list,'sai'),k=cnt(list,'chi_bot')+cnt(list,'khong_tra_loi');
-    const rate=list.length?d/list.length*100:0;
+    const den=list.length-cnt(list,'tra_loi_inbox');
+    const rate=den?d/den*100:0;
     const pages=[...new Set(list.map(r=>r.page_name))];
     return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="setSrvFilter('Brand','${b}')" title="Bấm để lọc riêng thương hiệu này">
       <td style="padding:9px 12px;font-weight:700;font-size:12.5px;white-space:nowrap">${SRV_BRANDS[b]||b}</td>
       <td style="padding:9px 12px;font-size:11.5px;color:var(--muted);white-space:normal">${pages.join(' · ')}</td>
-      <td style="padding:9px 12px;text-align:center;font-weight:700;font-size:12.5px">${num(list.length)}</td>
+      <td style="padding:9px 12px;text-align:center;font-weight:700;font-size:12.5px">${num(den)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:var(--green);font-weight:700">${num(d)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#b45309;font-weight:700">${num(t)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#e11d48;font-weight:700">${num(s)}</td>
