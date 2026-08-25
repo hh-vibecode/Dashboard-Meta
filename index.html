@@ -978,7 +978,8 @@ async function loadSocialFromSupabase(){
 }
 function setSocialMonth(v){window._socialMonth=v;renderSocial();}
 const SOC_N=v=>(v==null?null:Number(v));
-function socEngage(r){return (SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0);}
+function socEngage(r){const t=SOC_N(r.engagements_total);return t!=null?t:((SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0));}
+function socInteract(r){return (SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0);}
 function socGrowth(cur,prev){if(prev==null||cur==null||prev===0)return null;return (cur-prev)/Math.abs(prev)*100;}
 function socDelta(cur,prev,lowerBetter){
   const g=socGrowth(cur,prev);
@@ -1033,43 +1034,44 @@ async function renderSocial(){
   const tEng=rowsCur.reduce((s,r)=>s+socEngage(r),0),pEng=rowsPrev.reduce((s,r)=>s+socEngage(r),0);
   const tPosts=sum(rowsCur,r=>r.posts_count),pPosts=sum(rowsPrev,r=>r.posts_count);
   const tConv=sum(rowsCur,r=>r.new_conversations),pConv=sum(rowsPrev,r=>r.new_conversations);
-  const engRate=tReach>0?tEng/tReach*100:null,pEngRate=pReach>0?pEng/pReach*100:null;
+  const tVisits=sum(rowsCur,r=>r.profile_visits),pVisits=sum(rowsPrev,r=>r.profile_visits);
+  const engRate=tPosts>0?tEng/tPosts:null,pEngRate=pPosts>0?pEng/pPosts:null;
   const netNew=tNew-tLost,pNetNew=pNew-pLost;
   const kpi=(icon,label,val,sub,grad,c,p,lb)=>`<div class="kpi ${grad}"><div class="kpi-icon">${icon}</div><div class="kpi-lbl">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${socDelta(c,p,lb)} ${sub}</div></div>`;
   const kpis=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
       ${kpi('👥','Tổng Người Theo Dõi',num(tFollowers),'so tháng trước','g-blue',tFollowers,pFollowers)}
       ${kpi('📈','Tăng Ròng Trong Tháng',(netNew>=0?'+':'')+num(netNew),`+${num(tNew)} mới / -${num(tLost)} huỷ`,'g-green',netNew,pNetNew)}
-      ${kpi('📡','Người Tiếp Cận',num(tReach),'so tháng trước','g-teal',tReach,pReach)}
-      ${kpi('👁️','Lượt Hiển Thị',num(tImp),'so tháng trước','g-purple',tImp,pImp)}
+      ${kpi('👁️','Hiển Thị Bài Viết',num(tImp),'tự nhiên','g-teal',tImp,pImp)}
+      ${kpi('🔎','Lượt Xem Trang',num(tVisits),'profile visits','g-purple',tVisits,pVisits)}
     </div>
     <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:10px">
       ${kpi('💚','Tổng Tương Tác',num(tEng),'cảm xúc + bình luận + chia sẻ','g-yellow',tEng,pEng)}
-      ${kpi('🎯','Tỷ Lệ Tương Tác',engRate!=null?engRate.toFixed(2)+'%':'—','tương tác / tiếp cận','g-green',engRate,pEngRate)}
+      ${kpi('🎯','Tương Tác TB / Bài',engRate!=null?num(Math.round(engRate)):'—','trung bình mỗi bài đăng','g-green',engRate,pEngRate)}
       ${kpi('📝','Số Bài Đăng',num(tPosts),'trong tháng','g-blue',tPosts,pPosts)}
-      ${kpi('💬','Hội Thoại Mới',num(tConv),'so tháng trước','g-teal',tConv,pConv)}
+      ${kpi('💬','Hội Thoại Mới',rowsCur.some(r=>r.new_conversations!=null)?num(tConv):'—','nguồn Pancake','g-teal',tConv,pConv)}
     </div>`;
   const cell=(v,extra)=>`<td style="padding:9px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;${extra||''}">${v==null?'<span style="color:var(--muted)">—</span>':num(v)}</td>`;
   const mkRow=(r)=>{
     const pv=prevByPage[r.page_id]||{};
     const eng=socEngage(r),pe=socEngage(pv);
-    const er=SOC_N(r.reach)>0?eng/SOC_N(r.reach)*100:null;
+    const er=SOC_N(r.posts_count)>0?eng/SOC_N(r.posts_count):null;
     const net=(SOC_N(r.followers_new)||0)-(SOC_N(r.followers_lost)||0);
     const pnet=(SOC_N(pv.followers_new)||0)-(SOC_N(pv.followers_lost)||0);
     return`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:9px 10px;font-size:12.5px"><div style="font-weight:700;white-space:normal;word-break:break-word">${r.page_name}</div><div style="font-size:11px;color:var(--muted)">${SRV_BRANDS[r.brand]||r.brand||''}</div></td>
       ${cell(SOC_N(r.followers_total))}
       <td style="padding:9px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;font-weight:700;color:${net>0?'var(--green)':net<0?'#e11d48':'var(--muted)'}">${net>0?'+':''}${num(net)}<div style="font-weight:400">${socDelta(net,pnet)}</div></td>
-      ${cell(SOC_N(r.reach))}
       ${cell(SOC_N(r.impressions))}
+      ${cell(SOC_N(r.profile_visits))}
       ${cell(eng)}
-      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">${er!=null?er.toFixed(2)+'%':'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">${er!=null?num(Math.round(er)):'<span style="color:var(--muted)">—</span>'}</td>
       ${cell(SOC_N(r.posts_count))}
       ${cell(SOC_N(r.new_conversations))}
     </tr>`;
   };
   const byBrand={};rowsCur.forEach(r=>{const b=r.brand||'Khác';(byBrand[b]=byBrand[b]||[]).push(r);});
   const brandRows=Object.entries(byBrand).sort((a,b)=>sum(b[1],r=>r.followers_total)-sum(a[1],r=>r.followers_total)).map(([b,list])=>{
-    const eng=list.reduce((s,r)=>s+socEngage(r),0),rch=sum(list,r=>r.reach);
+    const eng=list.reduce((s,r)=>s+socEngage(r),0),rch=sum(list,r=>r.impressions);
     const net=sum(list,r=>r.followers_new)-sum(list,r=>r.followers_lost);
     return`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:9px 10px;font-weight:700;font-size:12.5px">${SRV_BRANDS[b]||b}</td>
@@ -1078,13 +1080,13 @@ async function renderSocial(){
       <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;color:${net>0?'var(--green)':net<0?'#e11d48':'var(--muted)'}">${net>0?'+':''}${num(net)}</td>
       ${cell(rch)}
       ${cell(eng)}
-      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700">${rch>0?(eng/rch*100).toFixed(2)+'%':'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700">${(()=>{const pc=sum(list,r=>r.posts_count);return pc>0?num(Math.round(eng/pc)):'<span style="color:var(--muted)">—</span>';})()}</td>
     </tr>`;
   }).join('');
   const th=(arr)=>arr.map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('');
   el.innerHTML=`
     <div class="page-title">Báo Cáo Social</div>
-    <div class="page-sub">Tổng hợp số liệu tăng trưởng các Page · chốt theo tháng · ${rowsCur.length} page${prev?` · so với ${socMonthLabel(prev)}`:''}</div>
+    <div class="page-sub">Tổng hợp số liệu tăng trưởng các Page · chốt theo tháng · ${rowsCur.length} page${prev?` · so với ${socMonthLabel(prev)}`:''}<br><span style="font-size:11px">Hiển thị = lượt hiển thị bài viết <b>tự nhiên</b> (Meta đã ngừng cung cấp chỉ số tiếp cận cấp Page qua API); tương tác gồm cả bài có chạy quảng cáo.</span></div>
     <div class="period-bar">
       <div class="date-filter">
         <label>Tháng báo cáo</label>
@@ -1098,14 +1100,14 @@ async function renderSocial(){
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
       <colgroup>${['13%','25%','12%','12%','13%','13%','12%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${th([['THƯƠNG HIỆU','left'],['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['TIẾP CẬN','right'],['TƯƠNG TÁC','right'],['TỶ LỆ TT','right']])}
+        ${th([['THƯƠNG HIỆU','left'],['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['HIỂN THỊ','right'],['TƯƠNG TÁC','right'],['TT TB/BÀI','right']])}
       </tr></thead><tbody>${brandRows}</tbody>
     </table></div></div>
     <div class="sec-label" style="margin-top:20px">II. Chi Tiết Từng Page</div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
       <colgroup>${['20%','11%','11%','11%','11%','11%','9%','8%','8%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${th([['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['TIẾP CẬN','right'],['HIỂN THỊ','right'],['TƯƠNG TÁC','right'],['TỶ LỆ TT','right'],['BÀI ĐĂNG','right'],['HỘI THOẠI','right']])}
+        ${th([['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['HIỂN THỊ','right'],['XEM TRANG','right'],['TƯƠNG TÁC','right'],['TT TB/BÀI','right'],['BÀI ĐĂNG','right'],['HỘI THOẠI','right']])}
       </tr></thead><tbody>${rowsCur.map(mkRow).join('')}</tbody>
     </table></div></div>`;
 }
