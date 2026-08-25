@@ -977,6 +977,7 @@ async function loadSocialFromSupabase(){
   console.log('[SOCIAL] rows:',socialRows.length);
 }
 function setSocialMonth(v){window._socialMonth=v;renderSocial();}
+function setSocialBrand(v){window._socialBrand=v;renderSocial();}
 const SOC_N=v=>(v==null?null:Number(v));
 function socEngage(r){const t=SOC_N(r.engagements_total);return t!=null?t:((SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0));}
 function socInteract(r){return (SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0);}
@@ -997,120 +998,205 @@ async function renderSocial(){
   }
   if(!socialRows.length){
     el.innerHTML=`<div class="page-title">Báo Cáo Social</div>
-      <div class="page-sub">Tổng hợp số liệu tăng trưởng các Page theo tháng · chốt vào ngày cuối tháng</div>
-      <div class="tov-card" style="padding:34px;text-align:center">
-        <div style="font-size:34px;margin-bottom:10px">📱</div>
-        <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:6px">Chưa có số liệu Page nào</div>
-        <div style="font-size:12.5px;color:var(--muted);line-height:1.7;max-width:640px;margin:0 auto">
-          Khung báo cáo đã sẵn sàng — chỉ còn chờ nguồn số liệu Page. Khi có API, dữ liệu sẽ tự đổ vào bảng
-          <code style="background:var(--bg2);padding:1px 6px;border-radius:5px">social_page_stats</code> và hiện đầy đủ ở đây.
-        </div>
-        <div style="margin-top:18px;text-align:left;max-width:640px;margin-left:auto;margin-right:auto">
-          <div class="sec-label" style="margin-bottom:8px">Bộ chỉ số sẽ theo dõi mỗi tháng</div>
-          <div style="font-size:12.5px;color:var(--text2);line-height:1.9">
-            👥 <b>Tăng trưởng:</b> tổng người theo dõi · theo dõi mới · huỷ theo dõi · tăng ròng · % tăng trưởng<br>
-            📡 <b>Tiếp cận:</b> người tiếp cận (tự nhiên / trả phí) · lượt hiển thị · lượt xem trang<br>
-            💚 <b>Tương tác:</b> cảm xúc · bình luận · chia sẻ · tỷ lệ tương tác · lượt click link · lượt xem video<br>
-            📝 <b>Nội dung:</b> số bài đăng · tương tác trung bình/bài<br>
-            💬 <b>Tin nhắn:</b> hội thoại mới (đối chiếu với Pancake)
-          </div>
-        </div>
-      </div>`;
+      <div class="page-sub">Theo dõi tăng trưởng các Page · chốt theo tháng</div>
+      <div class="tov-card" style="padding:40px;text-align:center"><div style="font-size:34px">📱</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text2);margin-top:10px">Chưa có số liệu Page nào</div></div>`;
     return;
   }
   const months=[...new Set(socialRows.map(r=>String(r.stat_month).slice(0,10)))].sort().reverse();
   const cur=window._socialMonth||months[0];
-  const idx=months.indexOf(cur);
-  const prev=idx>=0&&idx+1<months.length?months[idx+1]:null;
-  const rowsCur=socialRows.filter(r=>String(r.stat_month).slice(0,10)===cur);
-  const rowsPrev=prev?socialRows.filter(r=>String(r.stat_month).slice(0,10)===prev):[];
-  const prevByPage={};rowsPrev.forEach(r=>prevByPage[r.page_id]=r);
-  const sum=(list,f)=>list.reduce((s,r)=>s+(SOC_N(f(r))||0),0);
-  const tFollowers=sum(rowsCur,r=>r.followers_total),pFollowers=sum(rowsPrev,r=>r.followers_total);
-  const tNew=sum(rowsCur,r=>r.followers_new),pNew=sum(rowsPrev,r=>r.followers_new);
-  const tLost=sum(rowsCur,r=>r.followers_lost),pLost=sum(rowsPrev,r=>r.followers_lost);
-  const tReach=sum(rowsCur,r=>r.reach),pReach=sum(rowsPrev,r=>r.reach);
-  const tImp=sum(rowsCur,r=>r.impressions),pImp=sum(rowsPrev,r=>r.impressions);
-  const tEng=rowsCur.reduce((s,r)=>s+socEngage(r),0),pEng=rowsPrev.reduce((s,r)=>s+socEngage(r),0);
-  const tPosts=sum(rowsCur,r=>r.posts_count),pPosts=sum(rowsPrev,r=>r.posts_count);
-  const tConv=sum(rowsCur,r=>r.new_conversations),pConv=sum(rowsPrev,r=>r.new_conversations);
-  const tVisits=sum(rowsCur,r=>r.profile_visits),pVisits=sum(rowsPrev,r=>r.profile_visits);
-  const engRate=tPosts>0?tEng/tPosts:null,pEngRate=pPosts>0?pEng/pPosts:null;
-  const netNew=tNew-tLost,pNetNew=pNew-pLost;
-  const kpi=(icon,label,val,sub,grad,c,p,lb)=>`<div class="kpi ${grad}"><div class="kpi-icon">${icon}</div><div class="kpi-lbl">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${socDelta(c,p,lb)} ${sub}</div></div>`;
-  const kpis=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
-      ${kpi('👥','Tổng Người Theo Dõi',num(tFollowers),'so tháng trước','g-blue',tFollowers,pFollowers)}
-      ${kpi('📈','Tăng Ròng Trong Tháng',(netNew>=0?'+':'')+num(netNew),`+${num(tNew)} mới / -${num(tLost)} huỷ`,'g-green',netNew,pNetNew)}
-      ${kpi('👁️','Hiển Thị Bài Viết',num(tImp),'tự nhiên','g-teal',tImp,pImp)}
-      ${kpi('🔎','Lượt Xem Trang',num(tVisits),'profile visits','g-purple',tVisits,pVisits)}
-    </div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:10px">
-      ${kpi('💚','Tổng Tương Tác',num(tEng),'cảm xúc + bình luận + chia sẻ','g-yellow',tEng,pEng)}
-      ${kpi('🎯','Tương Tác TB / Bài',engRate!=null?num(Math.round(engRate)):'—','trung bình mỗi bài đăng','g-green',engRate,pEngRate)}
-      ${kpi('📝','Số Bài Đăng',num(tPosts),'trong tháng','g-blue',tPosts,pPosts)}
-      ${kpi('💬','Hội Thoại Mới',rowsCur.some(r=>r.new_conversations!=null)?num(tConv):'—','nguồn Pancake','g-teal',tConv,pConv)}
-    </div>`;
-  const cell=(v,extra)=>`<td style="padding:9px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;${extra||''}">${v==null?'<span style="color:var(--muted)">—</span>':num(v)}</td>`;
-  const mkRow=(r)=>{
-    const pv=prevByPage[r.page_id]||{};
-    const eng=socEngage(r),pe=socEngage(pv);
-    const er=SOC_N(r.posts_count)>0?eng/SOC_N(r.posts_count):null;
-    const net=(SOC_N(r.followers_new)||0)-(SOC_N(r.followers_lost)||0);
-    const pnet=(SOC_N(pv.followers_new)||0)-(SOC_N(pv.followers_lost)||0);
-    return`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 10px;font-size:12.5px"><div style="font-weight:700;white-space:normal;word-break:break-word">${r.page_name}</div><div style="font-size:11px;color:var(--muted)">${SRV_BRANDS[r.brand]||r.brand||''}</div></td>
-      ${cell(SOC_N(r.followers_total))}
-      <td style="padding:9px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;font-weight:700;color:${net>0?'var(--green)':net<0?'#e11d48':'var(--muted)'}">${net>0?'+':''}${num(net)}<div style="font-weight:400">${socDelta(net,pnet)}</div></td>
-      ${cell(SOC_N(r.impressions))}
-      ${cell(SOC_N(r.profile_visits))}
-      ${cell(eng)}
-      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">${er!=null?num(Math.round(er)):'<span style="color:var(--muted)">—</span>'}</td>
-      ${cell(SOC_N(r.posts_count))}
-      ${cell(SOC_N(r.new_conversations))}
-    </tr>`;
+  const i0=months.indexOf(cur), prev=(i0>=0&&i0+1<months.length)?months[i0+1]:null;
+  const allCur=socialRows.filter(r=>String(r.stat_month).slice(0,10)===cur);
+  const allPrev=prev?socialRows.filter(r=>String(r.stat_month).slice(0,10)===prev):[];
+  // Bộ lọc thương hiệu — áp cho toàn bộ trang (thẻ chỉ số, điểm nhấn, page card, bảng).
+  // Riêng "So Sánh Thương Hiệu" luôn vẽ trên allCur để vẫn thấy được tỷ trọng giữa các brand.
+  const brandsAvail=[...new Set(allCur.map(r=>r.brand||'Khác'))];
+  let fBrand=window._socialBrand||'all';
+  if(fBrand!=='all'&&!brandsAvail.includes(fBrand)){fBrand='all';window._socialBrand='all';}
+  const rowsCur=fBrand==='all'?allCur:allCur.filter(r=>(r.brand||'Khác')===fBrand);
+  const rowsPrev=fBrand==='all'?allPrev:allPrev.filter(r=>(r.brand||'Khác')===fBrand);
+  const prevBy={};rowsPrev.forEach(r=>prevBy[r.page_id]=r);
+  const S=(l,f)=>l.reduce((s,r)=>s+(SOC_N(f(r))||0),0);
+
+  const tFol=S(rowsCur,r=>r.followers_total), pFol=S(rowsPrev,r=>r.followers_total);
+  const tNew=S(rowsCur,r=>r.followers_new),   pNew=S(rowsPrev,r=>r.followers_new);
+  const tLost=S(rowsCur,r=>r.followers_lost), pLost=S(rowsPrev,r=>r.followers_lost);
+  const tImp=S(rowsCur,r=>r.impressions),     pImp=S(rowsPrev,r=>r.impressions);
+  const tEng=rowsCur.reduce((s,r)=>s+socEngage(r),0), pEng=rowsPrev.reduce((s,r)=>s+socEngage(r),0);
+  const tPost=S(rowsCur,r=>r.posts_count),    pPost=S(rowsPrev,r=>r.posts_count);
+  const tView=S(rowsCur,r=>r.profile_visits), pView=S(rowsPrev,r=>r.profile_visits);
+  const tVid=S(rowsCur,r=>r.video_views),     pVid=S(rowsPrev,r=>r.video_views);
+  const net=tNew-tLost, pnet=pNew-pLost;
+  const perPost=tPost>0?tEng/tPost:null, pPerPost=pPost>0?pEng/pPost:null;
+
+  // ── Thẻ chỉ số kiểu scorecard (số lớn + delta chip), thay cho ô gradient ──
+  const chipDelta=(c,p,lower)=>{
+    const g=socGrowth(c,p);
+    if(g===null)return `<span style="font-size:11px;color:var(--muted);font-weight:700">— chưa có kỳ trước</span>`;
+    const up=g>=0, good=lower?!up:up;
+    const col=good?'var(--green)':'#e11d48', bg=good?'var(--green-l)':'#fee2e2';
+    return `<span style="display:inline-flex;align-items:center;gap:3px;background:${bg};color:${col};font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;
   };
-  const byBrand={};rowsCur.forEach(r=>{const b=r.brand||'Khác';(byBrand[b]=byBrand[b]||[]).push(r);});
-  const brandRows=Object.entries(byBrand).sort((a,b)=>sum(b[1],r=>r.followers_total)-sum(a[1],r=>r.followers_total)).map(([b,list])=>{
-    const eng=list.reduce((s,r)=>s+socEngage(r),0),rch=sum(list,r=>r.impressions);
-    const net=sum(list,r=>r.followers_new)-sum(list,r=>r.followers_lost);
+  const card=(label,val,sub,c,p,lower,accent)=>`
+    <div class="tov-card" style="padding:15px 17px;display:flex;flex-direction:column;gap:7px;border-left:3px solid ${accent}">
+      <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">${label}</div>
+      <div style="font-size:25px;font-weight:900;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums">${val}</div>
+      <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">${chipDelta(c,p,lower)}<span style="font-size:11px;color:var(--muted)">${sub}</span></div>
+    </div>`;
+  const scorecards=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      ${card('Người theo dõi',num(tFol),'toàn bộ '+rowsCur.length+' page',tFol,pFol,false,'var(--accent)')}
+      ${card('Tăng ròng',(net>=0?'+':'')+num(net),`+${num(tNew)} mới · -${num(tLost)} huỷ`,net,pnet,false,'var(--green)')}
+      ${card('Hiển thị bài viết',num(tImp),'tự nhiên',tImp,pImp,false,'#7c3aed')}
+      ${card('Tương tác',num(tEng),'cảm xúc·bình luận·chia sẻ',tEng,pEng,false,'#f59e0b')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px">
+      ${card('Bài đăng',num(tPost),'trong tháng',tPost,pPost,false,'#0891b2')}
+      ${card('Tương tác TB/bài',perPost!=null?num(Math.round(perPost)):'—','hiệu quả nội dung',perPost,pPerPost,false,'#ec4899')}
+      ${card('Lượt xem trang',num(tView),'profile visits',tView,pView,false,'#64748b')}
+      ${card('Lượt xem video',num(tVid),'tổng video',tVid,pVid,false,'#ef4444')}
+    </div>`;
+
+  // ── Thẻ từng Page (kiểu profile card của tool social) ──
+  const initials=n=>(n||'?').replace(/[^\p{L}\s]/gu,'').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const sorted=[...rowsCur].sort((a,b)=>(SOC_N(b.followers_total)||0)-(SOC_N(a.followers_total)||0));
+  const maxEng=Math.max(...rowsCur.map(r=>socEngage(r)),1);
+  const pageCards=sorted.map(r=>{
+    const pv=prevBy[r.page_id]||{};
+    const n=(SOC_N(r.followers_new)||0)-(SOC_N(r.followers_lost)||0);
+    const pn=(SOC_N(pv.followers_new)||0)-(SOC_N(pv.followers_lost)||0);
+    const eng=socEngage(r), pe=socEngage(pv);
+    const pp=SOC_N(r.posts_count)>0?eng/SOC_N(r.posts_count):null;
+    const mini=(k,v)=>`<div style="flex:1;min-width:0"><div style="font-size:9.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">${k}</div><div style="font-size:14px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums">${v}</div></div>`;
+    return`<div class="tov-card" style="padding:16px 17px">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:13px">
+        <img src="https://graph.facebook.com/${r.page_id}/picture?type=square&width=96" referrerpolicy="no-referrer"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+             style="width:42px;height:42px;border-radius:11px;object-fit:cover;flex-shrink:0;border:1.5px solid var(--border)">
+        <div style="width:42px;height:42px;border-radius:11px;background:var(--accent-l);color:var(--accent);font-weight:900;font-size:14px;display:none;align-items:center;justify-content:center;flex-shrink:0">${initials(r.page_name)}</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.page_name}</div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600">${SRV_BRANDS[r.brand]||r.brand||''}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:9px;margin-bottom:4px">
+        <span style="font-size:23px;font-weight:900;letter-spacing:-.03em;font-variant-numeric:tabular-nums">${num(SOC_N(r.followers_total)||0)}</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:700">người theo dõi</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:14px">
+        <span style="font-size:12.5px;font-weight:800;color:${n>0?'var(--green)':n<0?'#e11d48':'var(--muted)'}">${n>0?'+':''}${num(n)}</span>
+        ${chipDelta(n,pn,false)}
+      </div>
+      <div style="height:5px;background:var(--bg2);border-radius:4px;overflow:hidden;margin-bottom:12px">
+        <div style="height:100%;width:${(eng/maxEng*100).toFixed(1)}%;background:linear-gradient(90deg,var(--accent),#7c3aed);border-radius:4px"></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        ${mini('Bài',num(SOC_N(r.posts_count)||0))}
+        ${mini('Tương tác',num(eng))}
+        ${mini('TB/bài',pp!=null?num(Math.round(pp)):'—')}
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── So sánh thương hiệu bằng thanh ngang (share of voice) ──
+  const byBrand={};allCur.forEach(r=>{const b=r.brand||'Khác';(byBrand[b]=byBrand[b]||[]).push(r);});
+  const BC={CT:'#4361ee',HT:'#0891b2',TTV:'#0abf7a',Shidai:'#7c3aed',['Khác']:'#94a3b8'};
+  const bars=(title,valOf,fmt)=>{
+    const ent=Object.entries(byBrand).map(([b,l])=>({b,v:valOf(l)})).sort((a,b)=>b.v-a.v);
+    const tot=ent.reduce((s,x)=>s+x.v,0)||1, mx=Math.max(...ent.map(x=>x.v),1);
+    return`<div class="tov-card" style="padding:16px 18px">
+      <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">${title}</div>
+      ${ent.map(x=>`<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+          <span style="font-size:12.5px;font-weight:700">${SRV_BRANDS[x.b]||x.b}</span>
+          <span style="font-size:12px;font-weight:800;font-variant-numeric:tabular-nums">${fmt(x.v)} <span style="color:var(--muted);font-weight:600;font-size:11px">${(x.v/tot*100).toFixed(1)}%</span></span>
+        </div>
+        <div style="height:8px;background:var(--bg2);border-radius:5px;overflow:hidden">
+          <div style="height:100%;width:${(x.v/mx*100).toFixed(1)}%;background:${BC[x.b]||'#94a3b8'};border-radius:5px"></div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  };
+
+  // ── Bảng chi tiết, có thanh nền trong ô để so sánh nhanh ──
+  const mxImp=Math.max(...rowsCur.map(r=>SOC_N(r.impressions)||0),1);
+  const mxEng=Math.max(...rowsCur.map(r=>socEngage(r)),1);
+  const barCell=(v,mx,col)=>`<td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;position:relative">
+      <div style="position:absolute;right:10px;top:50%;transform:translateY(-50%);height:18px;width:${(v/mx*72).toFixed(1)}%;background:${col};opacity:.13;border-radius:4px"></div>
+      <span style="position:relative">${num(v)}</span></td>`;
+  const tblRows=sorted.map(r=>{
+    const pv=prevBy[r.page_id]||{};
+    const n=(SOC_N(r.followers_new)||0)-(SOC_N(r.followers_lost)||0);
+    const pn=(SOC_N(pv.followers_new)||0)-(SOC_N(pv.followers_lost)||0);
+    const eng=socEngage(r), imp=SOC_N(r.impressions)||0;
+    const pp=SOC_N(r.posts_count)>0?eng/SOC_N(r.posts_count):null;
     return`<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:9px 10px;font-weight:700;font-size:12.5px">${SRV_BRANDS[b]||b}</td>
-      <td style="padding:9px 10px;font-size:11.5px;color:var(--muted);white-space:normal">${list.map(r=>r.page_name).join(' · ')}</td>
-      ${cell(sum(list,r=>r.followers_total))}
-      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;color:${net>0?'var(--green)':net<0?'#e11d48':'var(--muted)'}">${net>0?'+':''}${num(net)}</td>
-      ${cell(rch)}
-      ${cell(eng)}
-      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700">${(()=>{const pc=sum(list,r=>r.posts_count);return pc>0?num(Math.round(eng/pc)):'<span style="color:var(--muted)">—</span>';})()}</td>
+      <td style="padding:8px 10px">
+        <div style="display:flex;align-items:center;gap:9px">
+          <span style="width:8px;height:8px;border-radius:50%;background:${BC[r.brand]||'#94a3b8'};flex-shrink:0"></span>
+          <div style="min-width:0"><div style="font-size:12.5px;font-weight:700;white-space:normal;word-break:break-word">${r.page_name}</div>
+          <div style="font-size:10.5px;color:var(--muted)">${SRV_BRANDS[r.brand]||r.brand||''}</div></div>
+        </div></td>
+      <td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">${num(SOC_N(r.followers_total)||0)}</td>
+      <td style="padding:8px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums">
+        <div style="font-weight:800;color:${n>0?'var(--green)':n<0?'#e11d48':'var(--muted)'}">${n>0?'+':''}${num(n)}</div>
+        <div>${chipDelta(n,pn,false)}</div></td>
+      ${barCell(imp,mxImp,'#7c3aed')}
+      ${barCell(eng,mxEng,'#f59e0b')}
+      <td style="padding:8px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums">${num(SOC_N(r.posts_count)||0)}</td>
+      <td style="padding:8px 10px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">${pp!=null?num(Math.round(pp)):'—'}</td>
+      <td style="padding:8px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums">${num(SOC_N(r.profile_visits)||0)}</td>
     </tr>`;
   }).join('');
-  const th=(arr)=>arr.map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('');
+
+  // ── Điểm nhấn: page tăng tốt nhất / nội dung hiệu quả nhất / cần chú ý ──
+  const best=[...sorted].sort((a,b)=>((SOC_N(b.followers_new)||0)-(SOC_N(b.followers_lost)||0))-((SOC_N(a.followers_new)||0)-(SOC_N(a.followers_lost)||0)))[0];
+  const bestPP=[...sorted].filter(r=>SOC_N(r.posts_count)>0).sort((a,b)=>socEngage(b)/SOC_N(b.posts_count)-socEngage(a)/SOC_N(a.posts_count))[0];
+  const drop=[...sorted].filter(r=>prevBy[r.page_id]).map(r=>({r,g:socGrowth(socEngage(r),socEngage(prevBy[r.page_id]))})).filter(x=>x.g!=null).sort((a,b)=>a.g-b.g)[0];
+  const hl=(icon,title,body,col)=>`<div class="tov-card" style="padding:14px 16px;border-left:3px solid ${col}">
+      <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">${icon} ${title}</div>
+      <div style="font-size:12.5px;line-height:1.6;color:var(--text)">${body}</div></div>`;
+  const highlights=`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    ${best?hl('🚀','Tăng trưởng tốt nhất',`<b>${best.page_name}</b> — thêm <b style="color:var(--green)">+${num((SOC_N(best.followers_new)||0)-(SOC_N(best.followers_lost)||0))}</b> người theo dõi trong tháng`,'var(--green)'):''}
+    ${bestPP?hl('🎯','Nội dung hiệu quả nhất',`<b>${bestPP.page_name}</b> — trung bình <b>${num(Math.round(socEngage(bestPP)/SOC_N(bestPP.posts_count)))}</b> tương tác mỗi bài (${num(SOC_N(bestPP.posts_count))} bài)`,'#f59e0b'):''}
+    ${drop&&drop.g<0?hl('⚠️','Cần chú ý',`<b>${drop.r.page_name}</b> — tương tác giảm <b style="color:#e11d48">${Math.abs(drop.g).toFixed(1)}%</b> so với ${socMonthLabel(prev)}`,'#e11d48'):''}
+  </div>`;
+
   el.innerHTML=`
     <div class="page-title">Báo Cáo Social</div>
-    <div class="page-sub">Tổng hợp số liệu tăng trưởng các Page · chốt theo tháng · ${rowsCur.length} page${prev?` · so với ${socMonthLabel(prev)}`:''}<br><span style="font-size:11px">Hiển thị = lượt hiển thị bài viết <b>tự nhiên</b> (Meta đã ngừng cung cấp chỉ số tiếp cận cấp Page qua API); tương tác gồm cả bài có chạy quảng cáo.</span></div>
+    <div class="page-sub">Theo dõi tăng trưởng ${rowsCur.length} Page${fBrand!=='all'?` · lọc: <b>${SRV_BRANDS[fBrand]||fBrand}</b>`:' chính'} · chốt theo tháng${prev?` · so sánh với ${socMonthLabel(prev)}`:''}</div>
     <div class="period-bar">
       <div class="date-filter">
-        <label>Tháng báo cáo</label>
-        <select onchange="setSocialMonth(this.value)" style="padding:4px 8px;border:none;background:transparent;color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+        <label>Kỳ báo cáo</label>
+        <select onchange="setSocialMonth(this.value)" style="padding:4px 8px;border:none;background:transparent;color:var(--text);font-size:12.5px;font-weight:800;font-family:var(--font);cursor:pointer">
           ${months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${socMonthLabel(m)}</option>`).join('')}
         </select>
       </div>
+      <select onchange="setSocialBrand(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+        <option value="all"${fBrand==='all'?' selected':''}>🏷️ Tất cả thương hiệu (${allCur.length} page)</option>
+        ${brandsAvail.map(b=>`<option value="${b}"${fBrand===b?' selected':''}>${SRV_BRANDS[b]||b} (${allCur.filter(r=>(r.brand||'Khác')===b).length} page)</option>`).join('')}
+      </select>
+      <div style="font-size:11px;color:var(--muted);max-width:470px;line-height:1.5">Hiển thị = lượt hiển thị bài viết <b>tự nhiên</b> (Meta đã ngừng cấp chỉ số tiếp cận cấp Page qua API) · tương tác gồm cả bài có chạy quảng cáo</div>
     </div>
-    ${kpis}
-    <div class="sec-label" style="margin-top:20px">I. Tổng Hợp Theo Thương Hiệu</div>
+    ${scorecards}
+    <div class="sec-label">Điểm Nhấn Trong Kỳ</div>
+    ${highlights}
+    <div class="sec-label">Hiệu Suất Từng Page</div>
+    <div style="display:grid;grid-template-columns:repeat(${Math.min(4,Math.max(rowsCur.length,1))},1fr);gap:12px">${pageCards}</div>
+    <div class="sec-label">So Sánh Thương Hiệu</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${bars('Tỷ trọng hiển thị',l=>S(l,r=>r.impressions),num)}
+      ${bars('Tỷ trọng tương tác',l=>l.reduce((s,r)=>s+socEngage(r),0),num)}
+    </div>
+    <div class="sec-label">Bảng Chi Tiết</div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
-      <colgroup>${['13%','25%','12%','12%','13%','13%','12%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <colgroup>${['24%','12%','13%','13%','13%','8%','9%','8%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${th([['THƯƠNG HIỆU','left'],['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['HIỂN THỊ','right'],['TƯƠNG TÁC','right'],['TT TB/BÀI','right']])}
-      </tr></thead><tbody>${brandRows}</tbody>
-    </table></div></div>
-    <div class="sec-label" style="margin-top:20px">II. Chi Tiết Từng Page</div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
-      <colgroup>${['20%','11%','11%','11%','11%','11%','9%','8%','8%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
-      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${th([['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['HIỂN THỊ','right'],['XEM TRANG','right'],['TƯƠNG TÁC','right'],['TT TB/BÀI','right'],['BÀI ĐĂNG','right'],['HỘI THOẠI','right']])}
-      </tr></thead><tbody>${rowsCur.map(mkRow).join('')}</tbody>
+        ${[['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['HIỂN THỊ','right'],['TƯƠNG TÁC','right'],['BÀI','right'],['TB/BÀI','right'],['XEM TRANG','right']]
+          .map(([c,a])=>`<th style="padding:9px 10px;text-align:${a};font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;white-space:nowrap">${c}</th>`).join('')}
+      </tr></thead><tbody>${tblRows}</tbody>
     </table></div></div>`;
 }
+
 function parseMktCsv(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
