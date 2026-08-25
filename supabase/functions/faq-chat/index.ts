@@ -75,7 +75,11 @@ Deno.serve(async (req: Request) => {
     `- Nếu KHÔNG có dữ liệu: nói đúng 1 câu ngắn là chưa có thông tin về mục đó, rồi DỪNG. ` +
     `Không suy đoán sang chủ đề gần giống, không nêu nguyên tắc chung chung để lấp chỗ trống.\n` +
     `- Chỉ hỏi lại khi thực sự cần để trả lời đúng, và tối đa 1 câu hỏi.\n` +
-    `- Dùng gạch đầu dòng khi liệt kê. Hạn chế in đậm, chỉ bôi đậm con số/kích thước/giá quan trọng.\n\n` +
+    `- Viết như nhân viên tư vấn đang nhắn tin cho khách: câu chữ tự nhiên, xưng "em", gọi khách là "mình"/"anh/chị".\n` +
+    `- TUYỆT ĐỐI KHÔNG dùng ký hiệu định dạng Markdown: không dùng ** để in đậm, không dùng *, __, #, \`. ` +
+    `Viết chữ thường bình thường. Muốn nhấn mạnh con số thì cứ viết thẳng ra, không bôi đậm.\n` +
+    `- Khi liệt kê thì mỗi ý xuống dòng, bắt đầu bằng dấu gạch ngang "- ".\n` +
+    `- Luôn viết hoa đầu câu và viết hoa tên riêng cho đúng chính tả, kể cả khi khách gõ tắt hoặc gõ thường.\n\n` +
     `=== KIẾN THỨC SẢN PHẨM ===\n${context}`;
 
   const history = Array.isArray(body.history) ? body.history.slice(-6) : [];

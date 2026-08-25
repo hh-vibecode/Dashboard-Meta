@@ -5,6 +5,8 @@
 // trên server. Người dùng thường (sales) chỉ hỏi qua faq-chat — hàm đó không ghi gì vào product_faq,
 // nên dù họ nói gì với bot cũng KHÔNG thể thêm/sửa kiến thức.
 //
+// Mật khẩu huấn luyện = ĐÚNG mật khẩu đăng nhập của nick tester (user muốn dùng chung 1 mật khẩu cho dễ nhớ).
+// Nếu đổi mật khẩu nick tester trong AUTH_USERS thì nhớ đổi cả secret này cho khớp.
 // Deploy: supabase functions deploy faq-admin --project-ref bcrpxfvvjsjpvbksqzls --no-verify-jwt
 // Secret : supabase secrets set FAQ_ADMIN_PASS=... --project-ref bcrpxfvvjsjpvbksqzls
 

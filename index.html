@@ -1122,6 +1122,17 @@ function faqChatKeydown(ev){
   if(ev.isComposing||ev.keyCode===229)return;
   if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();sendFaqQuestion();}
 }
+// Model thỉnh thoảng vẫn lỡ trả về Markdown dù prompt đã cấm -> dọn ở client cho chắc.
+// **đậm** -> <b>, còn lại các ký hiệu thừa thì bỏ đi để chat đọc như tin nhắn người thật.
+function faqText(t){
+  let x=String(t||'')
+    .replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/(^|\s)\*(?!\s)([^*\n]+?)\*(?=\s|$|[.,!?;:])/g,'$1$2')
+    .replace(/^\s*#{1,6}\s*/gm,'')
+    .replace(/`([^`]+)`/g,'$1');
+  return x;
+}
 function faqChatBubble(m,i){
   if(m.role==='user')return`<div style="align-self:flex-end;max-width:78%;background:var(--accent);color:#fff;padding:10px 14px;border-radius:14px 14px 3px 14px;font-size:13.5px;line-height:1.55;white-space:pre-line">${m.content}</div>`;
   if(m.role==='error')return`<div style="align-self:flex-start;max-width:78%;background:var(--bad-l,#fee2e2);color:#b91c1c;padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13px;line-height:1.55">⚠️ ${m.content}</div>`;
@@ -1134,7 +1145,7 @@ function faqChatBubble(m,i){
       ${m.flagged?'<span style="font-size:11.5px;color:#b45309;font-weight:700">🚩 Đã ghi nhận</span>':''}
     </div>`:'';
   return`<div style="align-self:flex-start;max-width:82%">
-    <div style="background:var(--bg2);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13.5px;line-height:1.65;white-space:pre-line">${m.content}</div>
+    <div style="background:var(--bg2);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13.5px;line-height:1.65;white-space:pre-line">${faqText(m.content)}</div>
     ${tools}
     <div id="faqFixBox${i}"></div>
   </div>`;
@@ -1350,9 +1361,9 @@ function renderFaqTrainTab(){
   if(!faqPass()){
     return`<div class="tov-card" style="padding:30px;max-width:520px">
       <div style="font-size:14px;font-weight:800;margin-bottom:6px">🔒 Nhập mật khẩu huấn luyện</div>
-      <div style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:14px">Chỉ người có mật khẩu mới được thêm/sửa kiến thức của bot.
+      <div style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:14px">Nhập <b>mật khẩu của chính tài khoản tester</b> (mật khẩu đăng nhập) để mở khoá.
       Sales hỏi bot bình thường sẽ <b>không</b> thay đổi được gì trong bộ nhớ.</div>
-      <input id="faqPassInput" type="password" placeholder="Mật khẩu huấn luyện" onkeydown="if(event.key==='Enter')faqSavePass()"
+      <input id="faqPassInput" type="password" placeholder="Mật khẩu tài khoản tester" onkeydown="if(event.key==='Enter')faqSavePass()"
         style="width:100%;padding:9px 13px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;font-family:var(--font);margin-bottom:10px">
       <button onclick="faqSavePass()" style="padding:9px 20px;border:none;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font)">Mở khoá</button>
     </div>`;
