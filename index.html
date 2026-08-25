@@ -652,7 +652,11 @@ async function sbFetchAll(table,query){
   return out;
 }
 async function loadMktFromSupabase(){
-  const rows=await sbFetchAll('mkt_spend','select=*');
+  let rows=await sbFetchAll('mkt_spend','select=*');
+  // Loại camp nội bộ (tuyển dụng, quảng bá thương hiệu THT...) khỏi mọi số liệu dashboard — không phải camp bán
+  // hàng nên tính vào sẽ làm sai lệch chi phí/hiệu suất. Lọc ngay tại nguồn để mọi hàm downstream tự động sạch.
+  const isInternalCamp=n=>/tuyển dụng|tuyen dung|\bTHT\b/i.test(n||'');
+  rows=rows.filter(r=>!isInternalCamp(r.campaign_name));
   COL.CAMPAIGN=0;COL.AD_ID=1;COL.DATE=2;COL.ADSET_NAME=3;COL.AD_NAME=4;
   COL.REACH=5;COL.IMPRESSIONS=6;COL.SPEND=7;COL.MESSAGES=8;COL.CTR=9;COL.CPC=10;COL.COMMENTS=11;
   window.allRowsRaw=rows.map(r=>{
