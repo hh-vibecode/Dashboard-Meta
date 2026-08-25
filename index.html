@@ -694,12 +694,79 @@ function faqNorm(s){return(s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g
 function setFaqSearch(v){window._faqSearch=v;window._faqSearchFocus=true;renderFaq();}
 function setFaqCat(v){window._faqCat=v;renderFaq();}
 function toggleFaqItem(i){const d=document.getElementById('faq-a-'+i),a=document.getElementById('faq-arrow-'+i);if(!d)return;const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}
+function setFaqTab(t){window._faqTab=t;renderFaq();}
+
+// ── QnA: chat hỏi-đáp dựa trên product_faq, gọi qua Supabase Edge Function "faq-chat" (proxy tới OpenAI,
+// key OpenAI chỉ nằm trên server — xem supabase/functions/faq-chat/index.ts). Lịch sử chat chỉ lưu tạm trong
+// phiên (window._faqChat), không lưu DB.
+function faqChatUrl(){return SUPABASE_URL+'/functions/v1/faq-chat';}
+async function sendFaqQuestion(){
+  const inp=document.getElementById('faqChatInput');if(!inp)return;
+  const question=(inp.value||'').trim();if(!question)return;
+  window._faqChat=window._faqChat||[];
+  window._faqChat.push({role:'user',content:question});
+  window._faqChatLoading=true;
+  inp.value='';
+  renderFaqChatArea();
+  try{
+    const history=window._faqChat.slice(0,-1).slice(-6).map(m=>({role:m.role,content:m.content}));
+    const res=await fetch(faqChatUrl(),{
+      method:'POST',
+      headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY},
+      body:JSON.stringify({question,history})
+    });
+    const data=await res.json();
+    if(!res.ok||data.error)window._faqChat.push({role:'error',content:data.error||('Lỗi '+res.status)});
+    else window._faqChat.push({role:'assistant',content:data.answer});
+  }catch(e){
+    window._faqChat.push({role:'error',content:'Không gọi được server: '+e.message});
+  }
+  window._faqChatLoading=false;
+  renderFaqChatArea();
+}
+function faqChatKeydown(ev){if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();sendFaqQuestion();}}
+function faqChatBubble(m){
+  if(m.role==='user')return`<div style="align-self:flex-end;max-width:78%;background:var(--accent);color:#fff;padding:10px 14px;border-radius:14px 14px 3px 14px;font-size:13.5px;line-height:1.55;white-space:pre-line">${m.content}</div>`;
+  if(m.role==='error')return`<div style="align-self:flex-start;max-width:78%;background:var(--bad-l,#fee2e2);color:#b91c1c;padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13px;line-height:1.55">⚠️ ${m.content}</div>`;
+  return`<div style="align-self:flex-start;max-width:78%;background:var(--bg2);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13.5px;line-height:1.65;white-space:pre-line">${m.content}</div>`;
+}
+function renderFaqChatArea(){
+  const box=document.getElementById('faqChatMsgs');if(!box)return;
+  const chat=window._faqChat||[];
+  box.innerHTML=chat.length?chat.map(faqChatBubble).join(''):`<div style="color:var(--muted);font-size:13px;text-align:center;padding:30px 10px">Hỏi thử VD: "Ban thờ Thần Tài nên chọn size nào?" — trả lời dựa trên đúng ${productFaqRows.length} câu kiến thức sản phẩm đã nạp, không bịa ngoài phạm vi đó.</div>`;
+  if(window._faqChatLoading)box.innerHTML+=`<div style="align-self:flex-start;color:var(--muted);font-size:13px;padding:6px 14px">Đang trả lời…</div>`;
+  box.scrollTop=box.scrollHeight;
+  const btn=document.getElementById('faqChatSendBtn');if(btn)btn.disabled=!!window._faqChatLoading;
+}
+function renderFaqQnaTab(){
+  return`
+    <div style="border:1px solid var(--border);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;height:60vh;background:var(--surface)">
+      <div id="faqChatMsgs" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px"></div>
+      <div style="border-top:1px solid var(--border);padding:12px 14px;display:flex;gap:8px">
+        <textarea id="faqChatInput" onkeydown="faqChatKeydown(event)" rows="1" placeholder="Nhập câu hỏi... (Enter để gửi)"
+          style="flex:1;resize:none;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg2);color:var(--text);font-size:13.5px;font-family:var(--font)"></textarea>
+        <button id="faqChatSendBtn" onclick="sendFaqQuestion()" style="padding:9px 18px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font)">Gửi</button>
+      </div>
+    </div>`;
+}
 async function renderFaq(){
   const el=document.getElementById('page-faq');
   if(!el)return;
   if(!productFaqRows.length){
     el.innerHTML=`<div class="page-title">FAQ Sản Phẩm</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang tải FAQ...</div>`;
     try{await loadFaqFromSupabase();}catch(e){el.innerHTML=`<div class="page-title">FAQ Sản Phẩm</div><div class="err-box">❌ Không tải được FAQ: ${e.message}</div>`;return;}
+  }
+  const tab=window._faqTab||'qna';
+  const tabBtn=(t,label)=>`<span onclick="setFaqTab('${t}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px 10px 0 0;font-size:13px;font-weight:700;border:1.5px solid ${tab===t?'var(--border)':'transparent'};border-bottom:1.5px solid ${tab===t?'var(--surface)':'var(--border)'};background:${tab===t?'var(--surface)':'transparent'};color:${tab===t?'var(--text)':'var(--muted)'};margin-bottom:-1.5px">${label}</span>`;
+  const tabsHtml=`<div style="display:flex;border-bottom:1.5px solid var(--border);margin-bottom:16px">${tabBtn('qna','💬 QnA')}${tabBtn('list','📋 Danh Sách FAQ')}</div>`;
+  if(tab==='qna'){
+    el.innerHTML=`
+      <div class="page-title">FAQ Sản Phẩm</div>
+      <div class="page-sub">Hỏi đáp dựa trên ${productFaqRows.length} câu kiến thức sản phẩm — closed-book QA, không dùng kiến thức ngoài phạm vi đã nạp</div>
+      ${tabsHtml}
+      ${renderFaqQnaTab()}`;
+    renderFaqChatArea();
+    return;
   }
   const q=faqNorm(window._faqSearch||'');
   const cat=window._faqCat||'all';
@@ -737,6 +804,7 @@ async function renderFaq(){
   el.innerHTML=`
     <div class="page-title">FAQ Sản Phẩm</div>
     <div class="page-sub">Tổng hợp từ SOP nhóm sản phẩm — ${productFaqRows.length} câu hỏi · dữ liệu lưu ở Supabase (bảng product_faq)</div>
+    ${tabsHtml}
     <input type="text" id="faqSearchInput" placeholder="🔍 Tìm câu hỏi, từ khoá..." value="${(window._faqSearch||'').replace(/"/g,'&quot;')}" oninput="setFaqSearch(this.value)"
       style="width:100%;max-width:420px;padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font);margin-bottom:14px">
     <div>${catChips}</div>
