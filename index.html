@@ -827,8 +827,18 @@ async function loadSaleReviewFromSupabase(){
   saleReviewRows=await sbFetchAll('sale_response_review','select=*&order=conv_date.desc,id.asc');
   console.log('[SALE-REVIEW] rows:',saleReviewRows.length);
 }
-function setSrvFilter(k,v){window['_srv'+k]=v;renderSaleReview();}
+function setSrvFilter(k,v){window['_srv'+k]=v;if(k==='Search')window._srvSearchFocus=true;renderSaleReview();}
 function toggleSrvItem(i){const d=document.getElementById('srv-d-'+i),a=document.getElementById('srv-arrow-'+i);if(!d)return;const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}
+// Page Facebook -> thương hiệu (dùng chung quy ước CT/HT/Shidai/TTV với toàn dashboard, xem detectBrand)
+const SRV_BRANDS={CT:'Chánh Tâm',HT:'Hiền Thuỷ',Shidai:'Shidai',TTV:'Tự Tại Viên'};
+function srvBrandOf(pageName){
+  const n=(pageName||'');
+  if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
+  if(/hiền thu[ỷy]|hien thuy/i.test(n))return'HT';
+  if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
+  if(/chánh tâm|chanh tam/i.test(n))return'CT';
+  return'Khác';
+}
 const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'}};
 const SRV_SEV={cao:{label:'Nghiêm trọng',fg:'#e11d48'},trung:{label:'Trung bình',fg:'#b45309'},thap:{label:'Nhẹ',fg:'#6b7280'}};
 async function renderSaleReview(){
@@ -844,68 +854,114 @@ async function renderSaleReview(){
       <div style="padding:60px;text-align:center;color:var(--muted)">Chưa có dữ liệu đánh giá nào.</div>`;
     return;
   }
-  const fV=window._srvVerdict||'all',fS=window._srvSale||'all';
-  const sales=[...new Set(saleReviewRows.map(r=>r.sale_name).filter(Boolean))].sort();
-  const rows=saleReviewRows.filter(r=>(fV==='all'||r.verdict===fV)&&(fS==='all'||r.sale_name===fS));
-  const cnt=v=>saleReviewRows.filter(r=>r.verdict===v).length;
-  const total=saleReviewRows.length,ok=cnt('dung');
+  // Lọc theo khoảng ngày trên topbar (dùng chung với mọi trang khác), rồi tới brand/verdict/sale/tìm kiếm
+  const inRange=saleRangePred(r=>parseDate(r.conv_date));
+  const dated=saleReviewRows.filter(inRange);
+  const fB=window._srvBrand||'all',fV=window._srvVerdict||'all',fS=window._srvSale||'all',q=faqNorm(window._srvSearch||'');
+  const sales=[...new Set(dated.map(r=>r.sale_name).filter(Boolean))].sort();
+  const rows=dated.filter(r=>{
+    if(fB!=='all'&&srvBrandOf(r.page_name)!==fB)return false;
+    if(fV!=='all'&&r.verdict!==fV)return false;
+    if(fS!=='all'&&r.sale_name!==fS)return false;
+    if(q){const hay=faqNorm([r.customer_name,r.phone,r.sale_name,r.customer_ask,r.sale_reply,r.issue].join(' '));if(!hay.includes(q))return false;}
+    return true;
+  });
+  const cnt=(list,v)=>list.filter(r=>r.verdict===v).length;
+  const total=dated.length,ok=cnt(dated,'dung');
   const kpi=`<div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
-    ${mkKpi('📋','Lượt Đã Chấm',num(total),'phản hồi của sale','g-blue')}
+    ${mkKpi('📋','Lượt Đã Chấm',num(total),'khách có nhu cầu thật','g-blue')}
     ${mkKpi('✅','Đúng',num(ok),pct(total?ok/total*100:0)+' tổng lượt','g-green')}
-    ${mkKpi('⚠️','Thiếu Ý',num(cnt('thieu')),'trả lời chưa đủ','g-yellow')}
-    ${mkKpi('❌','Sai Kiến Thức',num(cnt('sai')),'cần chấn chỉnh ngay','g-red')}
-    ${mkKpi('🚫','Không Trả Lời',num(cnt('khong_tra_loi')),'khách hỏi bị bỏ qua','g-purple')}
+    ${mkKpi('⚠️','Thiếu Ý',num(cnt(dated,'thieu')),'trả lời chưa đủ','g-yellow')}
+    ${mkKpi('❌','Sai Kiến Thức',num(cnt(dated,'sai')),'cần chấn chỉnh ngay','g-red')}
+    ${mkKpi('🚫','Không Trả Lời',num(cnt(dated,'khong_tra_loi')),'khách hỏi bị bỏ qua','g-purple')}
   </div>`;
-  const chip=(k,label,active,onclick)=>`<span onclick="${onclick}" style="cursor:pointer;display:inline-block;padding:5px 13px;border-radius:999px;margin:0 6px 6px 0;font-size:12px;font-weight:700;border:1.5px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent)':'var(--surface)'};color:${active?'#fff':'var(--text2)'}">${label}</span>`;
-  const vChips=chip('all','Tất cả ('+total+')',fV==='all',`setSrvFilter('Verdict','all')`)+
-    Object.entries(SRV_VERDICT).map(([k,v])=>chip(k,`${v.icon} ${v.label} (${cnt(k)})`,fV===k,`setSrvFilter('Verdict','${k}')`)).join('');
-  const sChips=chip('all','Tất cả sale',fS==='all',`setSrvFilter('Sale','all')`)+
-    sales.map(s=>chip(s,s+' ('+saleReviewRows.filter(r=>r.sale_name===s).length+')',fS===s,`setSrvFilter('Sale','${s.replace(/'/g,"\\'")}')`)).join('');
-  const list=rows.map(r=>{
+  // ── Bảng tổng hợp theo thương hiệu ──
+  const brandKeys=[...new Set(dated.map(r=>srvBrandOf(r.page_name)))].sort((a,b)=>dated.filter(x=>srvBrandOf(x.page_name)===b).length-dated.filter(x=>srvBrandOf(x.page_name)===a).length);
+  const brandRows=brandKeys.map(b=>{
+    const list=dated.filter(r=>srvBrandOf(r.page_name)===b);
+    const d=cnt(list,'dung'),t=cnt(list,'thieu'),s=cnt(list,'sai'),k=cnt(list,'khong_tra_loi');
+    const rate=list.length?d/list.length*100:0;
+    const pages=[...new Set(list.map(r=>r.page_name))];
+    return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="setSrvFilter('Brand','${b}')" title="Bấm để lọc riêng thương hiệu này">
+      <td style="padding:9px 12px;font-weight:700;font-size:12.5px;white-space:nowrap">${SRV_BRANDS[b]||b}</td>
+      <td style="padding:9px 12px;font-size:11.5px;color:var(--muted);white-space:normal">${pages.join(' · ')}</td>
+      <td style="padding:9px 12px;text-align:center;font-weight:700;font-size:12.5px">${num(list.length)}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:var(--green);font-weight:700">${num(d)}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#b45309;font-weight:700">${num(t)}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#e11d48;font-weight:700">${num(s)}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#6b7280;font-weight:700">${num(k)}</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:800;font-size:12.5px;color:${rate>=70?'var(--green)':rate>=50?'#b45309':'#e11d48'}">${rate.toFixed(1)}%</td>
+    </tr>`;
+  }).join('');
+  const brandTable=`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+    <colgroup>${['14%','26%','9%','9%','9%','9%','12%','12%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+    <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+      ${[['THƯƠNG HIỆU','left'],['PAGE','left'],['TỔNG LƯỢT','center'],['ĐÚNG','center','var(--green)'],['THIẾU Ý','center','#b45309'],['SAI','center','#e11d48'],['KHÔNG TRẢ LỜI','center','#6b7280'],['TỶ LỆ ĐÚNG','right']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+    </tr></thead><tbody>${brandRows}</tbody>
+  </table></div></div>`;
+  // ── Bảng chi tiết kiểu Excel, bấm 1 dòng để xổ đầy đủ nội dung ──
+  const cut=(s,n)=>{s=(s||'').toString().trim();return s.length>n?s.slice(0,n)+'…':s;};
+  const esc=s=>(s||'').toString().replace(/"/g,'&quot;');
+  const bodyRows=rows.map(r=>{
     const v=SRV_VERDICT[r.verdict]||{label:r.verdict,bg:'#e5e7eb',fg:'#6b7280',icon:'•'};
     const sev=SRV_SEV[r.severity];
-    return`<div class="tov-card" style="padding:0;margin-bottom:8px">
-      <div onclick="toggleSrvItem(${r.id})" style="cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <span id="srv-arrow-${r.id}" style="font-size:10px;color:var(--muted)">▶</span>
-        <span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${v.bg};color:${v.fg};font-size:11.5px;font-weight:700;white-space:nowrap">${v.icon} ${v.label}</span>
-        <span style="font-weight:700;font-size:13px;flex:1;min-width:180px">${r.customer_name||'(khách chưa rõ tên)'}${r.phone?` <span style="color:var(--muted);font-weight:500">· ${r.phone}</span>`:''}</span>
-        <span style="font-size:11.5px;color:var(--text2);white-space:nowrap">👤 ${r.sale_name||'—'}</span>
-        <span style="font-size:11px;color:var(--muted);white-space:nowrap">${r.page_name||''} · ${r.conv_date||''}</span>
-        ${sev?`<span style="font-size:11px;font-weight:700;color:${sev.fg};white-space:nowrap">${sev.label}</span>`:''}
+    const b=srvBrandOf(r.page_name);
+    return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="toggleSrvItem(${r.id})">
+      <td style="padding:9px 10px;font-size:11.5px;color:var(--muted);white-space:nowrap"><span id="srv-arrow-${r.id}" style="font-size:9px;margin-right:5px">▶</span>${r.conv_date||''}</td>
+      <td style="padding:9px 10px;font-size:11.5px;font-weight:700;white-space:nowrap">${SRV_BRANDS[b]||b}</td>
+      <td style="padding:9px 10px;font-size:12px"><div style="font-weight:700;white-space:normal;word-break:break-word">${r.customer_name||'—'}</div>${r.phone?`<div style="font-size:11px;color:var(--muted)">${r.phone}</div>`:''}</td>
+      <td style="padding:9px 10px;font-size:11.5px;white-space:normal">${r.sale_name||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:9px 10px;font-size:11.5px;color:var(--text2);white-space:normal;word-break:break-word" title="${esc(r.customer_ask)}">${cut(r.customer_ask,90)}</td>
+      <td style="padding:9px 10px;font-size:11.5px;color:var(--text2);white-space:normal;word-break:break-word" title="${esc(r.sale_reply)}">${r.sale_reply?cut(r.sale_reply,90):'<i style="color:#e11d48">(không trả lời)</i>'}</td>
+      <td style="padding:9px 10px;white-space:nowrap"><span style="display:inline-block;padding:3px 9px;border-radius:6px;background:${v.bg};color:${v.fg};font-size:11px;font-weight:700">${v.icon} ${v.label}</span></td>
+      <td style="padding:9px 10px;font-size:11px;font-weight:700;color:${sev?sev.fg:'var(--muted)'};white-space:nowrap">${sev?sev.label:'—'}</td>
+    </tr>
+    <tr id="srv-d-${r.id}" style="display:none;background:var(--bg2)"><td colspan="8" style="padding:14px 18px 16px 34px">
+      <div style="border-left:3px solid var(--border);padding-left:12px;margin-bottom:10px">
+        <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Khách hỏi</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-line">${r.customer_ask||'—'}</div>
       </div>
-      <div id="srv-d-${r.id}" style="display:none;padding:0 16px 16px 34px">
-        <div style="border-left:3px solid var(--border);padding-left:12px;margin-bottom:10px">
-          <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Khách hỏi</div>
-          <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-line">${r.customer_ask||'—'}</div>
-        </div>
-        <div style="border-left:3px solid var(--accent);padding-left:12px;margin-bottom:10px">
-          <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Sale trả lời</div>
-          <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-line">${r.sale_reply||'<i style="color:var(--muted)">(không có phản hồi)</i>'}</div>
-        </div>
-        ${r.issue?`<div style="background:${v.bg};border-radius:10px;padding:11px 14px;margin-bottom:10px">
-          <div style="font-size:10.5px;font-weight:700;color:${v.fg};text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Vấn đề</div>
-          <div style="font-size:12.5px;color:var(--text);line-height:1.6;white-space:pre-line">${r.issue}</div>
-        </div>`:''}
-        ${r.suggestion?`<div style="background:var(--bg2);border-radius:10px;padding:11px 14px">
-          <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Nên trả lời</div>
-          <div style="font-size:12.5px;color:var(--text2);line-height:1.65;white-space:pre-line">${r.suggestion}</div>
-          ${r.source_faq?`<div style="font-size:10.5px;color:var(--muted);margin-top:7px">📄 Căn cứ: ${r.source_faq}</div>`:''}
-        </div>`:''}
+      <div style="border-left:3px solid var(--accent);padding-left:12px;margin-bottom:10px">
+        <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Sale trả lời</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-line">${r.sale_reply||'<i style="color:var(--muted)">(không có phản hồi)</i>'}</div>
       </div>
-    </div>`;
-  }).join('')||`<div style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</div>`;
-  const dates=[...new Set(saleReviewRows.map(r=>r.conv_date))].sort();
+      ${r.issue?`<div style="background:${v.bg};border-radius:10px;padding:11px 14px;margin-bottom:10px">
+        <div style="font-size:10.5px;font-weight:700;color:${v.fg};text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Vấn đề</div>
+        <div style="font-size:12.5px;color:var(--text);line-height:1.6;white-space:pre-line">${r.issue}</div>
+      </div>`:''}
+      ${r.suggestion?`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:11px 14px">
+        <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Nên trả lời</div>
+        <div style="font-size:12.5px;color:var(--text2);line-height:1.65;white-space:pre-line">${r.suggestion}</div>
+        ${r.source_faq?`<div style="font-size:10.5px;color:var(--muted);margin-top:7px">📄 Căn cứ: ${r.source_faq}</div>`:''}
+      </div>`:''}
+    </td></tr>`;
+  }).join('')||`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
+  const sel=(onchange,cur,opts)=>`<select onchange="${onchange}" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+    ${opts.map(([v,l])=>`<option value="${esc(v)}"${cur===v?' selected':''}>${l}</option>`).join('')}</select>`;
   el.innerHTML=`
     <div class="page-title">Chất Lượng Phản Hồi Sale</div>
-    <div class="page-sub">Tự động chấm phản hồi của sale với khách (nguồn: Pancake) dựa trên kiến thức ở FAQ Sản Phẩm · dữ liệu ${dates[0]||''} → ${dates[dates.length-1]||''}</div>
+    <div class="page-sub">Tự động chấm phản hồi của sale với khách (nguồn: Pancake) theo kiến thức ở FAQ Sản Phẩm · 📅 ${curPeriodLabel()}</div>
     ${kpi}
-    <div class="sec-label" style="margin-top:18px">Lọc theo kết quả</div>
-    <div>${vChips}</div>
-    <div class="sec-label" style="margin-top:10px">Lọc theo sale</div>
-    <div style="margin-bottom:14px">${sChips}</div>
-    <div class="sec-label">Chi tiết (${rows.length} lượt)</div>
-    ${list}`;
+    <div class="sec-label" style="margin-top:18px">I. Tổng Hợp Theo Thương Hiệu <span style="font-weight:400;text-transform:none;color:var(--muted)">(bấm 1 dòng để lọc riêng thương hiệu đó)</span></div>
+    ${brandTable}
+    <div class="tbl-head" style="margin-top:22px;flex-wrap:wrap;gap:8px">
+      <div class="sec-label" style="margin:0">II. Chi Tiết Từng Lượt <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(rows.length)} lượt · bấm 1 dòng để xem đầy đủ)</span></div>
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <input id="srvSearchBox" oninput="setSrvFilter('Search',this.value)" value="${esc(window._srvSearch||'')}" placeholder="🔎 Tìm khách / SĐT / nội dung…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:220px;outline:none">
+        ${sel("setSrvFilter('Brand',this.value)",fB,[['all','🏷️ Tất cả thương hiệu'],...brandKeys.map(b=>[b,(SRV_BRANDS[b]||b)+' ('+dated.filter(r=>srvBrandOf(r.page_name)===b).length+')'])])}
+        ${sel("setSrvFilter('Verdict',this.value)",fV,[['all','📋 Tất cả kết quả'],...Object.entries(SRV_VERDICT).map(([k,v])=>[k,v.icon+' '+v.label+' ('+cnt(dated,k)+')'])])}
+        ${sel("setSrvFilter('Sale',this.value)",fS,[['all','👤 Tất cả sale'],...sales.map(s=>[s,s+' ('+dated.filter(r=>r.sale_name===s).length+')'])])}
+      </div>
+    </div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+      <colgroup>${['9%','10%','13%','10%','22%','22%','9%','5%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+        ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KHÁCH HỎI','left'],['SALE TRẢ LỜI','left'],['KẾT QUẢ','left'],['MỨC ĐỘ','left']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
+      </tr></thead><tbody>${bodyRows}</tbody>
+    </table></div></div>`;
+  if(window._srvSearchFocus){window._srvSearchFocus=false;const sb=document.getElementById('srvSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
+
 function parseMktCsv(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
@@ -1578,7 +1634,7 @@ function clearFilter(){
   const saleFiltered=filterSaleRows('','');
   window._saleFiltered=saleFiltered;
   if(allRows.length)renderAll(allRows,saleFiltered);
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderSaleOnlData();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderSaleOnlData();renderQcDoiSoat();renderQcInvoice();renderQcCompare();if(saleReviewRows.length)renderSaleReview();
 }
 function localDate(str,end=false){
   const p=str.split('-');
@@ -1601,7 +1657,7 @@ function curPeriodLabel(){
 // Đổi ngày → re-render cả MKT lẫn các báo cáo Sale
 function onDateChange(){
   if(allRows.length)applyFilter();
-  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderSaleOnlData();renderQcDoiSoat();renderQcInvoice();renderQcCompare();
+  renderSaleOverview();renderSaleSi();renderSaleSiData();renderSaleOnl();renderSaleOnlData();renderQcDoiSoat();renderQcInvoice();renderQcCompare();if(saleReviewRows.length)renderSaleReview();
 }
 function applyQuickFilter(){
   const v=document.getElementById('quickFilter').value;
