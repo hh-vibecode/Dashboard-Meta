@@ -4972,10 +4972,191 @@ function dgConclusion(pipe,verify,rep){
   return grp('1. Việc cần xử lý trước cuộc họp',before)+grp('2. Việc cần đưa ra trao đổi trong cuộc họp',during)+grp('3. Việc cần theo dõi sau cuộc họp',after);
 }
 
+// ── Báo Cáo Đánh Giá — TAB THÁNG: phân tích toàn bộ số liệu tháng (kinh doanh + ads + social) và đưa ra
+// đánh giá + định hướng. Khác tab Tuần ở chỗ nhìn theo tháng và có gộp cả dữ liệu Social (social_page_stats).
+function dgSetTab(v){window._dgTab=v;renderDanhGia();}
+function dgSetMonth(v){window._dgMonth=v;renderDanhGia();}
+function dgMonthStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function dgMonthBounds(ym){
+  const [y,m]=ym.split('-').map(Number);
+  const from=new Date(y,m-1,1), to=new Date(y,m,0);
+  const pf=new Date(y,m-2,1), pt=new Date(y,m-1,0);
+  return {from:dgISO(from),to:dgISO(to),prevFrom:dgISO(pf),prevTo:dgISO(pt),prevYm:dgMonthStr(pf)};
+}
+function dgMonthOptions(){
+  const set=new Set();
+  (allRows||[]).forEach(r=>{const d=parseDate(r[COL.DATE]);if(d)set.add(dgMonthStr(d));});
+  (socialRows||[]).forEach(r=>set.add(String(r.stat_month).slice(0,7)));
+  return [...set].sort().reverse();
+}
+// Gom số liệu social của 1 tháng (mọi nền tảng), kèm tháng trước để so sánh
+function dgSocialMonth(ym){
+  const key=ym+'-01', rows=(socialRows||[]).filter(r=>String(r.stat_month).slice(0,10)===key);
+  const S=(l,f)=>l.reduce((s,r)=>s+(Number(f(r))||0),0);
+  const eng=l=>l.reduce((s,r)=>s+socEngage(r),0);
+  return {rows,
+    followers:S(rows,r=>r.followers_total), net:S(rows,r=>r.followers_new)-S(rows,r=>r.followers_lost),
+    imp:S(rows,r=>r.impressions), eng:eng(rows), posts:S(rows,r=>r.posts_count),
+    byPlat:{facebook:rows.filter(r=>(r.platform||'facebook')==='facebook'),tiktok:rows.filter(r=>r.platform==='tiktok')}};
+}
+function dgPct(cur,prev){ if(prev==null||prev===0||cur==null)return null; return (cur-prev)/Math.abs(prev)*100; }
+function dgArrow(g,lower,unit){
+  if(g===null)return '<span style="color:var(--muted);font-size:11px">—</span>';
+  const up=g>=0,good=lower?!up:up;
+  return `<span style="color:${good?'var(--green)':'#e11d48'};font-weight:800;font-size:11.5px">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}${unit||'%'}</span>`;
+}
+function dgCmpRow(label,cur,prev,type,lower){
+  const f=v=>v==null?'—':(type==='vnd'?vnd(v):type==='pct'?(v.toFixed(1)+'%'):type==='x'?(v.toFixed(2)+'x'):num(Math.round(v)));
+  // Chênh lệch của chỉ số vốn đã là % thì tính theo ĐIỂM phần trăm, không phải % tương đối
+  const delta=type==='pct'?(cur==null||prev==null?null:cur-prev):dgPct(cur,prev);
+  return`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:9px 13px;font-weight:700;font-size:12.5px;white-space:nowrap">${label}</td>
+    <td style="padding:9px 13px;text-align:right;font-weight:800;font-size:13px;font-variant-numeric:tabular-nums">${f(cur)}</td>
+    <td style="padding:9px 13px;text-align:right;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums">${f(prev)}</td>
+    <td style="padding:9px 13px;text-align:right">${dgArrow(delta,lower,type==='pct'?' điểm':'%')}</td>
+  </tr>`;
+}
+function dgMonthTab(){
+  const opts=dgMonthOptions();
+  if(!opts.length)return dgEmpty('Chưa có dữ liệu tháng nào.');
+  const ym=window._dgMonth&&opts.includes(window._dgMonth)?window._dgMonth:opts[0];
+  const b=dgMonthBounds(ym);
+  const m=mktMetricsForRange(b.from,b.to,[]), mp=mktMetricsForRange(b.prevFrom,b.prevTo,[]);
+  const q=dgQualityMetricsForRange(b.from,b.to,[]), qp=dgQualityMetricsForRange(b.prevFrom,b.prevTo,[]);
+  const lh=dgLeadHandling(b.from,b.to), lhp=dgLeadHandling(b.prevFrom,b.prevTo);
+  const so=dgSocialMonth(ym), sop=dgSocialMonth(b.prevYm);
+  const conv=lh.totalLead>0?m.combOrders/lh.totalLead*100:null, convP=lhp.totalLead>0?mp.combOrders/lhp.totalLead*100:null;
+  const cpo=m.combOrders>0?m.totalSpend/m.combOrders:null, cpoP=mp.combOrders>0?mp.totalSpend/mp.combOrders:null;
+  const roas=m.totalSpend>0?m.combRevenue/m.totalSpend:null, roasP=mp.totalSpend>0?mp.combRevenue/mp.totalSpend:null;
+
+  const monthLabel=y=>'Tháng '+(+y.split('-')[1])+'/'+y.split('-')[0];
+  const kpi=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    ${mkKpi('💰','Doanh Thu Tháng',vnd(m.combRevenue),dgArrow(dgPct(m.combRevenue,mp.combRevenue))+' so tháng trước','g-green')}
+    ${mkKpi('💸','Chi Phí Ads',vnd(m.totalSpend),dgArrow(dgPct(m.totalSpend,mp.totalSpend),true)+' so tháng trước','g-yellow')}
+    ${mkKpi('📊','ROAS',roas!=null?roas.toFixed(2)+'x':'—',dgArrow(dgPct(roas,roasP))+' doanh thu / chi phí','g-blue')}
+    ${mkKpi('👥','Follower Social',num(so.followers),dgArrow(dgPct(so.followers,sop.followers))+' '+so.rows.length+' kênh','g-purple')}
+  </div>`;
+
+  const bizTbl=`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+      ${[['CHỈ SỐ','left'],[monthLabel(ym).toUpperCase(),'right'],[monthLabel(b.prevYm).toUpperCase(),'right'],['BIẾN ĐỘNG','right']]
+        .map(([c,a])=>`<th style="padding:10px 13px;text-align:${a};font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;white-space:nowrap">${c}</th>`).join('')}
+    </tr></thead><tbody>
+      ${dgCmpRow('💰 Doanh thu',m.combRevenue,mp.combRevenue,'vnd')}
+      ${dgCmpRow('🧾 Số đơn',m.combOrders,mp.combOrders,'num')}
+      ${dgCmpRow('💳 Giá trị đơn TB',m.dsPerOrder,mp.dsPerOrder,'vnd')}
+      ${dgCmpRow('🆕 Tổng lead',lh.totalLead,lhp.totalLead,'num')}
+      ${dgCmpRow('🔁 Tỷ lệ Lead → Đơn',conv,convP,'pct')}
+      ${dgCmpRow('💸 Chi phí ads',m.totalSpend,mp.totalSpend,'vnd',true)}
+      ${dgCmpRow('🎯 Chi phí / đơn',cpo,cpoP,'vnd',true)}
+      ${dgCmpRow('📊 ROAS',roas,roasP,'x')}
+      ${dgCmpRow('💬 Tổng mess',q.totalMess,qp.totalMess,'num')}
+      ${dgCmpRow('📌 CP / mess',q.costPerMess,qp.costPerMess,'vnd',true)}
+      ${dgCmpRow('✅ Data đạt',q.nDat,qp.nDat,'num')}
+      ${dgCmpRow('🧲 CP / data tiềm năng',q.costPerTiem,qp.costPerTiem,'vnd',true)}
+    </tbody></table></div></div>`;
+
+  const socTbl=so.rows.length?`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+    <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+      ${[['CHỈ SỐ SOCIAL','left'],[monthLabel(ym).toUpperCase(),'right'],[monthLabel(b.prevYm).toUpperCase(),'right'],['BIẾN ĐỘNG','right']]
+        .map(([c,a])=>`<th style="padding:10px 13px;text-align:${a};font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.05em;white-space:nowrap">${c}</th>`).join('')}
+    </tr></thead><tbody>
+      ${dgCmpRow('👥 Tổng follower',so.followers,sop.followers,'num')}
+      ${dgCmpRow('📈 Follower tăng ròng',so.net,sop.net,'num')}
+      ${dgCmpRow('👁️ Hiển thị / lượt xem',so.imp,sop.imp,'num')}
+      ${dgCmpRow('💚 Tương tác',so.eng,sop.eng,'num')}
+      ${dgCmpRow('📝 Bài đăng',so.posts,sop.posts,'num')}
+      ${dgCmpRow('🎯 Tương tác TB / bài',so.posts>0?so.eng/so.posts:null,sop.posts>0?sop.eng/sop.posts:null,'num')}
+    </tbody></table></div></div>`:dgEmpty('Chưa có số liệu social cho '+monthLabel(ym)+' — xem trang Báo Cáo Social.');
+
+  // ── Đánh giá tự động: mỗi nhận định phải có số liệu kèm theo ──
+  const good=[],bad=[],watch=[];
+  const push=(arr,t,d)=>arr.push({t,d});
+  const gRev=dgPct(m.combRevenue,mp.combRevenue), gSpend=dgPct(m.totalSpend,mp.totalSpend);
+  if(gRev!=null){(gRev>=0?push(good,`Doanh thu tăng ${gRev.toFixed(1)}%`,`${vnd(mp.combRevenue)} → ${vnd(m.combRevenue)}`)
+                       :push(bad,`Doanh thu giảm ${Math.abs(gRev).toFixed(1)}%`,`${vnd(mp.combRevenue)} → ${vnd(m.combRevenue)}`));}
+  if(roas!=null&&roasP!=null){const g=dgPct(roas,roasP);
+    if(g<-10)push(bad,`ROAS giảm ${Math.abs(g).toFixed(1)}%`,`${roasP.toFixed(2)}x → ${roas.toFixed(2)}x — mỗi đồng ads đang mang về ít doanh thu hơn`);
+    else if(g>10)push(good,`ROAS cải thiện ${g.toFixed(1)}%`,`${roasP.toFixed(2)}x → ${roas.toFixed(2)}x`);}
+  if(gRev!=null&&gSpend!=null&&gSpend>0&&gRev<0)push(bad,'Chi phí tăng nhưng doanh thu giảm',`Ads ${gSpend>0?'+':''}${gSpend.toFixed(1)}% trong khi doanh thu ${gRev.toFixed(1)}%`);
+  if(cpo!=null&&cpoP!=null){const g=dgPct(cpo,cpoP);
+    if(g>15)push(bad,`Chi phí / đơn tăng ${g.toFixed(1)}%`,`${vnd(cpoP)} → ${vnd(cpo)}`);
+    else if(g<-15)push(good,`Chi phí / đơn giảm ${Math.abs(g).toFixed(1)}%`,`${vnd(cpoP)} → ${vnd(cpo)}`);}
+  if(conv!=null&&convP!=null){const d=conv-convP;
+    if(d<-3)push(bad,`Tỷ lệ Lead → Đơn giảm ${Math.abs(d).toFixed(1)} điểm`,`${convP.toFixed(1)}% → ${conv.toFixed(1)}% — lead về nhiều nhưng chốt kém hơn`);
+    else if(d>3)push(good,`Tỷ lệ Lead → Đơn tăng ${d.toFixed(1)} điểm`,`${convP.toFixed(1)}% → ${conv.toFixed(1)}%`);}
+  if(lh.notHandled>0)push(watch,`${num(lh.notHandled)} lead chưa xử lý`,`trên tổng ${num(lh.totalLead)} lead trong tháng`);
+  if(so.rows.length){
+    const gEng=dgPct(so.eng,sop.eng), gPost=dgPct(so.posts,sop.posts);
+    if(gEng!=null&&gEng<-25)push(bad,`Tương tác social giảm ${Math.abs(gEng).toFixed(1)}%`,`${num(sop.eng)} → ${num(so.eng)}${gPost!=null&&gPost<0?` (bài đăng cũng giảm ${Math.abs(gPost).toFixed(0)}%)`:''}`);
+    else if(gEng!=null&&gEng>25)push(good,`Tương tác social tăng ${gEng.toFixed(1)}%`,`${num(sop.eng)} → ${num(so.eng)}`);
+    if(so.net>0)push(good,`Social tăng ${num(so.net)} follower`,`tổng ${num(so.followers)} follower trên ${so.rows.length} kênh`);
+    const weak=[...so.rows].filter(r=>Number(r.posts_count)>0).sort((a,b)=>socEngage(a)/r_(a)-socEngage(b)/r_(b))[0];
+    function r_(x){return Number(x.posts_count)||1;}
+    if(weak)push(watch,`Kênh hiệu quả thấp nhất: ${weak.page_name}`,`${num(Math.round(socEngage(weak)/r_(weak)))} tương tác/bài · ${num(Number(weak.posts_count)||0)} bài`);
+  }
+  const box=(list,title,color,icon)=>list.length?`<div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${icon} ${title}</div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        ${list.map(x=>`<div style="border-left:3px solid ${color};background:var(--bg2);border-radius:9px;padding:10px 13px">
+          <div style="font-size:12.5px;font-weight:800;color:var(--text)">${x.t}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${x.d}</div></div>`).join('')}
+      </div></div>`:'';
+  const evalHtml=(good.length+bad.length+watch.length)
+    ? box(bad,'Điểm cần xử lý','#e11d48','⚠️')+box(good,'Điểm tích cực','var(--green)','✅')+box(watch,'Cần theo dõi','#b45309','🔎')
+    : dgEmpty('Chưa đủ dữ liệu 2 tháng liên tiếp để so sánh và đánh giá.');
+
+  // ── Định hướng tháng tới: bám đúng các vấn đề vừa nêu ──
+  const dirs=[];
+  if(roas!=null&&roasP!=null&&roas<roasP)dirs.push(['Rà soát lại phân bổ ngân sách ads',`ROAS giảm còn ${roas.toFixed(2)}x. Dồn ngân sách vào chiến dịch/brand đang có ROAS cao, cắt bớt nhóm kém hiệu quả (xem QC So Sánh Tháng để biết brand nào đang tụt).`]);
+  if(conv!=null&&convP!=null&&conv<convP)dirs.push(['Siết lại khâu chốt sale',`Tỷ lệ Lead → Đơn còn ${conv.toFixed(1)}%. Đối chiếu trang Chất Lượng Phản Hồi để xem lead rơi ở bước nào — trả lời chậm, thiếu ý hay sai kiến thức.`]);
+  if(lh.notHandled>0)dirs.push([`Xử lý dứt điểm ${num(lh.notHandled)} lead tồn`,`Phân công rõ người phụ trách và hạn xử lý; ưu tiên lead có giá trị dự kiến cao.`]);
+  if(so.rows.length&&dgPct(so.eng,sop.eng)!=null&&dgPct(so.eng,sop.eng)<0)dirs.push(['Chấn chỉnh nội dung social',`Tương tác giảm ${Math.abs(dgPct(so.eng,sop.eng)).toFixed(1)}%. Xem lại tần suất đăng và định dạng nội dung của kênh yếu nhất, học theo kênh đang có tương tác/bài cao nhất.`]);
+  if(so.rows.length&&so.posts>0&&sop.posts>0&&so.posts<sop.posts)dirs.push(['Giữ đều tần suất đăng bài',`Tháng này đăng ${num(so.posts)} bài, giảm so với ${num(sop.posts)} bài tháng trước — tần suất giảm thường kéo theo tương tác và follower giảm.`]);
+  if(m.combRevenue>mp.combRevenue&&roas!=null&&roasP!=null&&roas>=roasP)dirs.push(['Nhân rộng cách làm đang hiệu quả',`Cả doanh thu lẫn ROAS đều cải thiện — xác định chiến dịch/kênh đóng góp chính và tăng ngân sách có kiểm soát.`]);
+  if(!dirs.length)dirs.push(['Duy trì và theo dõi',`Các chỉ số chính không biến động bất thường trong ${monthLabel(ym)}. Tiếp tục theo dõi tỷ lệ chốt và chi phí/đơn.`]);
+  const dirHtml=`<div style="display:flex;flex-direction:column;gap:9px">
+    ${dirs.map((x,i)=>`<div class="tov-card" style="padding:13px 16px;border-left:3px solid var(--accent)">
+      <div style="font-size:12.5px;font-weight:800;color:var(--text)">${i+1}. ${x[0]}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:3px;line-height:1.6">${x[1]}</div></div>`).join('')}
+  </div>`;
+
+  return`
+    <div class="period-bar">
+      <div class="date-filter">
+        <label>Tháng báo cáo</label>
+        <select onchange="dgSetMonth(this.value)" style="padding:4px 8px;border:none;background:transparent;color:var(--text);font-size:12.5px;font-weight:800;font-family:var(--font);cursor:pointer">
+          ${opts.map(o=>`<option value="${o}"${o===ym?' selected':''}>${monthLabel(o)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted)">So với ${monthLabel(b.prevYm)} · gộp số liệu kinh doanh, quảng cáo và social</div>
+      <button class="refresh-btn" onclick="loadData()">↺ Cập Nhật</button>
+    </div>
+    ${kpi}
+    ${dgSecWrap('I','Đánh Giá Tổng Thể','Tự động rút ra từ biến động giữa 2 tháng',evalHtml)}
+    ${dgSecWrap('II','Kết Quả Kinh Doanh & Quảng Cáo','',bizTbl)}
+    ${dgSecWrap('III','Hiệu Suất Social','Facebook + TikTok',socTbl)}
+    ${dgSecWrap('IV','Định Hướng Tháng Tới','Đề xuất dựa trên các điểm vừa nêu ở Phần I',dirHtml)}`;
+}
 function renderDanhGia(){
   const el=document.getElementById('page-danhgia');
   if(!el)return;
   if(!allRows.length||!saleSiRows.length){el.innerHTML=`<div class="page-title">Báo Cáo Đánh Giá</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>`;return;}
+  const dgTab=window._dgTab||'tuan';
+  const dgTabBtn=(k,label)=>`<span onclick="dgSetTab('${k}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px 10px 0 0;font-size:13px;font-weight:800;border:1.5px solid ${dgTab===k?'var(--border)':'transparent'};border-bottom:1.5px solid ${dgTab===k?'var(--surface)':'var(--border)'};background:${dgTab===k?'var(--surface)':'transparent'};color:${dgTab===k?'var(--text)':'var(--muted)'};margin-bottom:-1.5px">${label}</span>`;
+  const dgTabsHtml=`<div style="display:flex;border-bottom:1.5px solid var(--border);margin:16px 0 18px">${dgTabBtn('tuan','🗓️ Theo Tuần')}${dgTabBtn('thang','📅 Theo Tháng')}</div>`;
+  if(dgTab==='thang'){
+    if(!socialRows.length&&!window._dgSocialTried){
+      window._dgSocialTried=true;
+      loadSocialFromSupabase().then(()=>renderDanhGia()).catch(()=>{});
+    }
+    el.innerHTML=`
+      <div class="page-title">Báo Cáo Đánh Giá</div>
+      <div class="page-sub">Đánh giá tháng · gộp kinh doanh + quảng cáo + social · kèm định hướng tháng tới</div>
+      ${dgTabsHtml}
+      ${dgMonthTab()}`;
+    return;
+  }
   const def=dgDefaultWeek();
   const fromStr=window._dgFrom||def.from,toStr=window._dgTo||def.to;
   const d=dgWeekData(fromStr,toStr);
@@ -4987,6 +5168,7 @@ function renderDanhGia(){
   el.innerHTML=`
     <div class="page-title">Báo Cáo Đánh Giá</div>
     <div class="page-sub">Báo cáo họp tuần Sales–Marketing · tính trực tiếp từ dữ liệu dashboard · Sỉ chỉ tính Bắc+Nam (chưa gộp Miền Trung)</div>
+    ${dgTabsHtml}
     <div class="period-bar">
       <div class="date-filter">
         <label>Tuần từ</label>
