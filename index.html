@@ -839,7 +839,7 @@ function srvBrandOf(pageName){
   if(/chánh tâm|chanh tam/i.test(n))return'CT';
   return'Khác';
 }
-const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'}};
+const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'}};
 const SRV_SEV={cao:{label:'Nghiêm trọng',fg:'#e11d48'},trung:{label:'Trung bình',fg:'#b45309'},thap:{label:'Nhẹ',fg:'#6b7280'}};
 async function renderSaleReview(){
   const el=document.getElementById('page-sale-review');
@@ -873,13 +873,13 @@ async function renderSaleReview(){
     ${mkKpi('✅','Đúng',num(ok),pct(total?ok/total*100:0)+' tổng lượt','g-green')}
     ${mkKpi('⚠️','Thiếu Ý',num(cnt(dated,'thieu')),'trả lời chưa đủ','g-yellow')}
     ${mkKpi('❌','Sai Kiến Thức',num(cnt(dated,'sai')),'cần chấn chỉnh ngay','g-red')}
-    ${mkKpi('🚫','Không Trả Lời',num(cnt(dated,'khong_tra_loi')),'khách hỏi bị bỏ qua','g-purple')}
+    ${mkKpi('🤖','Chưa Ai Tư Vấn',num(cnt(dated,'chi_bot')+cnt(dated,'khong_tra_loi')),'chỉ bot rep hoặc bị bỏ qua','g-purple')}
   </div>`;
   // ── Bảng tổng hợp theo thương hiệu ──
   const brandKeys=[...new Set(dated.map(r=>srvBrandOf(r.page_name)))].sort((a,b)=>dated.filter(x=>srvBrandOf(x.page_name)===b).length-dated.filter(x=>srvBrandOf(x.page_name)===a).length);
   const brandRows=brandKeys.map(b=>{
     const list=dated.filter(r=>srvBrandOf(r.page_name)===b);
-    const d=cnt(list,'dung'),t=cnt(list,'thieu'),s=cnt(list,'sai'),k=cnt(list,'khong_tra_loi');
+    const d=cnt(list,'dung'),t=cnt(list,'thieu'),s=cnt(list,'sai'),k=cnt(list,'chi_bot')+cnt(list,'khong_tra_loi');
     const rate=list.length?d/list.length*100:0;
     const pages=[...new Set(list.map(r=>r.page_name))];
     return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="setSrvFilter('Brand','${b}')" title="Bấm để lọc riêng thương hiệu này">
@@ -889,14 +889,14 @@ async function renderSaleReview(){
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:var(--green);font-weight:700">${num(d)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#b45309;font-weight:700">${num(t)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#e11d48;font-weight:700">${num(s)}</td>
-      <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#6b7280;font-weight:700">${num(k)}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#4338ca;font-weight:700">${num(k)}</td>
       <td style="padding:9px 12px;text-align:right;font-weight:800;font-size:12.5px;color:${rate>=70?'var(--green)':rate>=50?'#b45309':'#e11d48'}">${rate.toFixed(1)}%</td>
     </tr>`;
   }).join('');
   const brandTable=`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
     <colgroup>${['14%','26%','9%','9%','9%','9%','12%','12%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
     <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-      ${[['THƯƠNG HIỆU','left'],['PAGE','left'],['TỔNG LƯỢT','center'],['ĐÚNG','center','var(--green)'],['THIẾU Ý','center','#b45309'],['SAI','center','#e11d48'],['KHÔNG TRẢ LỜI','center','#6b7280'],['TỶ LỆ ĐÚNG','right']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
+      ${[['THƯƠNG HIỆU','left'],['PAGE','left'],['TỔNG LƯỢT','center'],['ĐÚNG','center','var(--green)'],['THIẾU Ý','center','#b45309'],['SAI','center','#e11d48'],['CHƯA AI TƯ VẤN','center','#4338ca'],['TỶ LỆ ĐÚNG','right']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
     </tr></thead><tbody>${brandRows}</tbody>
   </table></div></div>`;
   // ── Bảng chi tiết kiểu Excel, bấm 1 dòng để xổ đầy đủ nội dung ──
