@@ -1137,13 +1137,15 @@ function faqChatBubble(m,i){
   if(m.role==='user')return`<div style="align-self:flex-end;max-width:78%;background:var(--accent);color:#fff;padding:10px 14px;border-radius:14px 14px 3px 14px;font-size:13.5px;line-height:1.55;white-space:pre-line">${m.content}</div>`;
   if(m.role==='error')return`<div style="align-self:flex-start;max-width:78%;background:var(--bad-l,#fee2e2);color:#b91c1c;padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13px;line-height:1.55">⚠️ ${m.content}</div>`;
   // Chỉ tester đã mở khoá mới thấy nút sửa — sales dùng bot bình thường không đụng được vào bộ nhớ
+  // Báo sai: MỌI tài khoản đều dùng được (để sau này mở cho sales vẫn báo lỗi được).
+  // Sửa kiến thức: chỉ tester ĐÃ nhập mật khẩu.
   const canFix=(localStorage.getItem('dashRole')||'')==='tester'&&!!faqPass();
-  const tools=canFix?`<div style="display:flex;gap:12px;margin-top:6px;padding-left:2px">
-      <span onclick="faqFixAnswer(${i})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--accent)">✏️ Sửa câu này</span>
-      <span onclick="faqFlagAnswer(${i})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--muted)">👎 Báo sai để sửa sau</span>
+  const tools=`<div style="display:flex;gap:12px;margin-top:6px;padding-left:2px;flex-wrap:wrap">
+      ${canFix?`<span onclick="faqFixAnswer(${i})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--accent)">✏️ Sửa câu này</span>`:''}
+      <span onclick="faqFlagAnswer(${i})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--muted)">👎 Báo sai</span>
       ${m.fixed?'<span style="font-size:11.5px;color:var(--green);font-weight:700">✅ Đã dạy lại</span>':''}
       ${m.flagged?'<span style="font-size:11.5px;color:#b45309;font-weight:700">🚩 Đã ghi nhận</span>':''}
-    </div>`:'';
+    </div>`;
   return`<div style="align-self:flex-start;max-width:82%">
     <div style="background:var(--bg2);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13.5px;line-height:1.65;white-space:pre-line">${faqText(m.content)}</div>
     ${tools}
@@ -1160,16 +1162,32 @@ function faqFixAnswer(i){
   box.innerHTML=`<div class="tov-card" style="padding:13px 15px;margin-top:8px;border-color:var(--accent)">
     <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Dạy lại bot — câu hỏi</div>
     <input id="fxQ${i}" value="${(q||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-weight:600;font-family:var(--font);margin-bottom:8px">
-    <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Câu trả lời ĐÚNG</div>
-    <textarea id="fxA${i}" rows="4" placeholder="Viết câu trả lời đúng để bot học…" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6;resize:vertical"></textarea>
+    <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Câu trả lời đúng <span style="font-weight:600;text-transform:none;color:var(--muted)">— ghi đại ý cũng được, bấm ✨ để AI soạn lại</span></div>
+    <textarea id="fxA${i}" rows="4" placeholder="VD: đá cẩm thạch trắng, nặng bền hơn composite, dùng cho không gian cao cấp" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6;resize:vertical"></textarea>
     <div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap">
-      <input id="fxCat${i}" list="fxCatList${i}" placeholder="Nhóm sản phẩm (không bắt buộc)" style="flex:1;min-width:170px;padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;font-family:var(--font)">
+      <input id="fxCat${i}" list="fxCatList${i}" placeholder="Nhóm sản phẩm (không bắt buộc)" style="flex:1;min-width:150px;padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;font-family:var(--font)">
       <datalist id="fxCatList${i}">${cats.map(c=>`<option value="${c}">`).join('')}</datalist>
+      <button id="fxDraft${i}" onclick="faqDraftFromGist(${i})" title="Viết lại đại ý thành câu trả lời hoàn chỉnh" style="padding:8px 15px;border:1.5px solid var(--accent);border-radius:8px;background:var(--surface);color:var(--accent);font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">✨ Soạn lại từ đại ý</button>
       <button onclick="faqSubmitFix(${i})" style="padding:8px 17px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Lưu & dạy bot</button>
       <button onclick="document.getElementById('faqFixBox${i}').innerHTML=''" style="padding:8px 15px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Huỷ</button>
     </div>
+    <div id="fxHint${i}" style="font-size:11px;color:var(--muted);margin-top:7px;line-height:1.5">AI chỉ viết lại cho gọn gàng, <b>không tự thêm</b> số liệu/giá nào m không nêu. Soạn xong m đọc lại rồi mới Lưu.</div>
   </div>`;
   setTimeout(()=>{const e=document.getElementById('fxA'+i);if(e)e.focus();},60);
+}
+async function faqDraftFromGist(i){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const question=g('fxQ'+i).trim(), gist=g('fxA'+i).trim();
+  if(!question||!gist){alert('Ghi câu hỏi và đại ý trước đã');return;}
+  const btn=document.getElementById('fxDraft'+i), hint=document.getElementById('fxHint'+i);
+  if(btn){btn.disabled=true;btn.textContent='Đang soạn…';}
+  try{
+    const d=await faqAdminCall({action:'draft',question,gist});
+    const ta=document.getElementById('fxA'+i);
+    if(ta&&d.answer){ta.value=d.answer;ta.style.height='auto';ta.rows=Math.min(10,d.answer.split('\n').length+2);}
+    if(hint)hint.innerHTML='✅ Đã soạn lại. Đọc kỹ rồi bấm <b>Lưu & dạy bot</b>, hoặc sửa tay thêm.';
+  }catch(e){alert('Không soạn được: '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent='✨ Soạn lại từ đại ý';}}
 }
 async function faqSubmitFix(i){
   const g=id=>(document.getElementById(id)||{}).value||'';
@@ -1219,7 +1237,7 @@ function faqPass(){return localStorage.getItem('faqAdminPass')||'';}
 async function faqAdminCall(body){
   const res=await fetch(faqAdminUrl(),{method:'POST',
     headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY},
-    body:JSON.stringify({...body,passphrase:faqPass()})});
+    body:JSON.stringify({...body,passphrase:faqPass()})});   // báo sai thì server bỏ qua mật khẩu
   const d=await res.json().catch(()=>({error:'Lỗi '+res.status}));
   if(!res.ok||d.error)throw new Error(d.error||('Lỗi '+res.status));
   return d;
@@ -1270,6 +1288,14 @@ async function faqSaveEdit(id){
     if(i>=0&&d.item)productFaqRows[i]=d.item;
     window._faqEditId=null;setStatus('Đã cập nhật');renderFaqTrainList();
   }catch(e){alert('Không lưu được: '+e.message);}
+}
+function toggleFaqKnowledge(){
+  const b=document.getElementById('trKnBox'),a=document.getElementById('trKnArrow');
+  if(!b)return;
+  const open=b.style.display==='none';
+  b.style.display=open?'':'none';
+  if(a)a.textContent=open?'▼':'▶';
+  if(open)renderFaqTrainList();
 }
 function renderFaqTrainList(){
   const box=document.getElementById('faqTrainList');if(!box)return;
@@ -1331,14 +1357,27 @@ function faqFixFeedback(id){
   if(box.innerHTML){box.innerHTML='';return;}
   const cats=[...new Set(productFaqRows.map(r=>r.category))];
   box.innerHTML=`<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
-    <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Câu trả lời ĐÚNG</div>
-    <textarea id="fbA${id}" rows="4" placeholder="Viết câu trả lời đúng…" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6;resize:vertical"></textarea>
+    <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Câu trả lời đúng <span style="font-weight:600;text-transform:none">— ghi đại ý cũng được</span></div>
+    <textarea id="fbA${id}" rows="4" placeholder="Ghi đại ý rồi bấm ✨ để AI soạn lại…" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6;resize:vertical"></textarea>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
-      <input id="fbCat${id}" list="fbCatL${id}" placeholder="Nhóm sản phẩm" style="flex:1;min-width:160px;padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;font-family:var(--font)">
+      <input id="fbCat${id}" list="fbCatL${id}" placeholder="Nhóm sản phẩm" style="flex:1;min-width:140px;padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;font-family:var(--font)">
       <datalist id="fbCatL${id}">${cats.map(c=>`<option value="${c}">`).join('')}</datalist>
+      <button id="fbDraft${id}" onclick="faqDraftFeedback(${id})" style="padding:8px 15px;border:1.5px solid var(--accent);border-radius:8px;background:var(--surface);color:var(--accent);font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">✨ Soạn lại từ đại ý</button>
       <button onclick="faqSubmitFeedbackFix(${id})" style="padding:8px 17px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Lưu & dạy bot</button>
     </div></div>`;
   setTimeout(()=>{const e=document.getElementById('fbA'+id);if(e)e.focus();},60);
+}
+async function faqDraftFeedback(id){
+  const f=faqFeedbackRows.find(x=>x.id===id);if(!f)return;
+  const ta=document.getElementById('fbA'+id);const gist=(ta&&ta.value||'').trim();
+  if(!gist){alert('Ghi đại ý trước đã');return;}
+  const btn=document.getElementById('fbDraft'+id);
+  if(btn){btn.disabled=true;btn.textContent='Đang soạn…';}
+  try{
+    const d=await faqAdminCall({action:'draft',question:f.question,gist});
+    if(ta&&d.answer){ta.value=d.answer;ta.rows=Math.min(10,d.answer.split('\n').length+2);}
+  }catch(e){alert('Không soạn được: '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent='✨ Soạn lại từ đại ý';}}
 }
 async function faqSubmitFeedbackFix(id){
   const f=faqFeedbackRows.find(x=>x.id===id);if(!f)return;
@@ -1391,12 +1430,16 @@ function renderFaqTrainTab(){
       <div style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5">Thêm xong sang tab <b>💬 QnA</b> hỏi thử ngay để kiểm tra bot đã trả lời đúng chưa.</div>
     </div>
     <div id="faqFeedbackBox"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-      <div class="sec-label" style="margin:0">Kiến thức hiện có</div>
-      <input id="trSearch" oninput="setFaqTrainSearch(this.value)" value="${(window._faqTrainQ||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm để sửa / xoá…"
-        style="margin-left:auto;padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:240px">
+    <div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;flex-wrap:wrap">
+      <span onclick="toggleFaqKnowledge()" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--muted)">
+        <span id="trKnArrow">▶</span> Kiến thức hiện có (${num(productFaqRows.length)} mục) — bấm để xem / sửa
+      </span>
     </div>
-    <div id="faqTrainList"></div>`;
+    <div id="trKnBox" style="display:none">
+      <input id="trSearch" oninput="setFaqTrainSearch(this.value)" value="${(window._faqTrainQ||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm để sửa / xoá…"
+        style="width:100%;max-width:320px;padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);margin-bottom:10px">
+      <div id="faqTrainList"></div>
+    </div>`;
 }
 async function renderFaq(){
   const el=document.getElementById('page-faq');

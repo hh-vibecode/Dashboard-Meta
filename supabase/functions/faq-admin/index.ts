@@ -43,7 +43,10 @@ Deno.serve(async (req: Request) => {
   let b: any;
   try { b = await req.json(); } catch { return json({ error: "Body không hợp lệ" }, 400); }
 
-  if (!b.passphrase || b.passphrase !== ADMIN_PASS)
+  // "flag" = báo sai: MỌI tài khoản đều dùng được (chỉ ghi vào faq_feedback, không đụng tới kiến thức).
+  // Các hành động còn lại đều sửa bộ nhớ của bot nên bắt buộc mật khẩu.
+  const NEEDS_PASS = b.action !== "flag";
+  if (NEEDS_PASS && (!b.passphrase || b.passphrase !== ADMIN_PASS))
     return json({ error: "Sai mật khẩu huấn luyện — bạn không có quyền sửa kiến thức." }, 403);
 
   try {
@@ -100,6 +103,39 @@ Deno.serve(async (req: Request) => {
         }).catch(() => {});
       }
       return json({ ok: true, item: row?.[0] });
+    }
+    // Người dùng chỉ ghi ĐẠI Ý -> nhờ AI viết lại thành câu trả lời hoàn chỉnh. CHƯA lưu, trả về để duyệt trước.
+    if (b.action === "draft") {
+      const { question, gist } = b;
+      if (!question || !gist) return json({ error: "Cần câu hỏi và đại ý." }, 400);
+      const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+      if (!OPENAI_API_KEY) return json({ error: "Server chưa cấu hình OPENAI_API_KEY" }, 500);
+      const sys =
+        `Bạn giúp biên tập kiến thức sản phẩm đồ thờ cho chatbot nội bộ.\n` +
+        `Người quản lý đưa CÂU HỎI và ĐẠI Ý câu trả lời (viết vội, có thể gạch đầu dòng, viết tắt, thiếu dấu).\n` +
+        `Nhiệm vụ: viết lại thành câu trả lời hoàn chỉnh để chatbot dùng.\n` +
+        `QUY TẮC BẮT BUỘC:\n` +
+        `- CHỈ dùng thông tin có trong đại ý. TUYỆT ĐỐI không thêm số liệu, giá, kích thước, chính sách nào không được nêu.\n` +
+        `- Không suy đoán, không "làm đầy" bằng kiến thức chung về đồ thờ.\n` +
+        `- Viết tiếng Việt tự nhiên như nhân viên tư vấn, xưng "em", gọi khách là "mình".\n` +
+        `- Viết hoa đúng chính tả, sửa lỗi gõ tắt. KHÔNG dùng Markdown (không **, *, #).\n` +
+        `- Ngắn gọn 2-5 câu. Nhiều ý thì mỗi ý một dòng bắt đầu bằng "- ".\n` +
+        `- Chỉ trả về nội dung câu trả lời, không thêm lời dẫn.`;
+      const r = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: JSON.stringify({
+          model: "gpt-5.4-nano",
+          messages: [{ role: "system", content: sys },
+                     { role: "user", content: `CÂU HỎI: ${question}\n\nĐẠI Ý: ${gist}` }],
+          temperature: 0.3, max_completion_tokens: 700,
+        }),
+      });
+      const d = await r.json();
+      if (d.error) return json({ error: `OpenAI: ${d.error.message}` }, 502);
+      const answer = d?.choices?.[0]?.message?.content?.trim() || "";
+      if (!answer) return json({ error: "Không soạn được câu trả lời, thử viết đại ý rõ hơn." }, 502);
+      return json({ ok: true, answer });
     }
     if (b.action === "resolve") {
       if (!b.id) return json({ error: "Thiếu id" }, 400);
