@@ -7,7 +7,12 @@
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
-const OPENAI_MODEL = "gpt-4o-mini"; // rẻ, nhanh, đủ tốt cho closed-book QA -- đổi ở đây nếu sau muốn model khác
+// Đã đo thực tế trên chính bộ 263 FAQ (~68k token/câu hỏi vì nhét cả tài liệu vào prompt):
+//   gpt-5.4-nano ~30đ/câu · gpt-4.1-nano ~59đ · gpt-4o-mini ~89đ — nano mới nhất vừa rẻ nhất vừa trả lời đầy đủ nhất.
+// LƯU Ý: dòng gpt-5.x dùng "max_completion_tokens" (không phải "max_tokens") và cần đủ hạn mức token,
+// nếu đặt quá thấp model sẽ tiêu hết vào phần suy luận và trả về nội dung RỖNG.
+const OPENAI_MODEL = "gpt-5.4-nano";
+const IS_GPT5 = OPENAI_MODEL.startsWith("gpt-5");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,7 +74,12 @@ Deno.serve(async (req: Request) => {
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: OPENAI_MODEL, messages, temperature: 0.3, max_tokens: 700 }),
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages,
+        temperature: 0.3,
+        ...(IS_GPT5 ? { max_completion_tokens: 900 } : { max_tokens: 700 }),
+      }),
     });
     if (!aiRes.ok) {
       const errText = await aiRes.text();
