@@ -271,6 +271,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div class="nav-item" onclick="switchPage('danhgia')" id="nav-danhgia"><span class="nav-icon">🗓️</span><span class="nav-label">Báo Cáo Đánh Giá</span></div>
       <div class="nav-item" onclick="switchPage('faq')" id="nav-faq"><span class="nav-icon">💬</span><span class="nav-label">FAQ Sản Phẩm</span></div>
       <div class="nav-item" onclick="switchPage('sale-review')" id="nav-sale-review"><span class="nav-icon">🔍</span><span class="nav-label">Chất Lượng Phản Hồi</span></div>
+      <div class="nav-item" onclick="switchPage('social')" id="nav-social"><span class="nav-icon">📱</span><span class="nav-label">Báo Cáo Social</span></div>
     </nav>
     <div class="sb-section" id="sec-marketing-label">Marketing</div>
     <nav id="sec-marketing">
@@ -307,6 +308,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     </div>
     <div class="tab-page" id="page-sale-review">
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải đánh giá...</div>
+    </div>
+    <div class="tab-page" id="page-social">
+      <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải báo cáo social...</div>
     </div>
     <div class="tab-page active" id="page-overview">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
@@ -445,13 +449,14 @@ function initAuth(){
 }
 
 function switchPage(p){
-  ['danhgia','faq','sale-review','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
+  ['danhgia','faq','sale-review','social','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
   if(p==='danhgia')renderDanhGia();
   if(p==='faq')renderFaq();
   if(p==='sale-review')renderSaleReview();
+  if(p==='social')renderSocial();
   // Nhóm Báo Cáo Sỉ: sáng header + mở dropdown khi đang ở 1 trang con
   const grp=document.getElementById('nav-si-group');
   if(grp)grp.classList.toggle('active',p==='sale-si'||p==='sale-si-data');
@@ -962,6 +967,148 @@ async function renderSaleReview(){
   if(window._srvSearchFocus){window._srvSearchFocus=false;const sb=document.getElementById('srvSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
 
+// ── Báo Cáo Social — số liệu tăng trưởng Page theo tháng (bảng social_page_stats).
+// Bộ chỉ số dựng theo chuẩn các tool quản lý social (Meta Business Suite / Sprout / Buffer):
+// tăng trưởng follower, tiếp cận (organic/paid), hiển thị, tương tác + tỷ lệ tương tác, nội dung, tin nhắn.
+// Data do API bên ngoài đổ vào (chờ user cung cấp), trang này chỉ đọc & tổng hợp.
+let socialRows=[];
+async function loadSocialFromSupabase(){
+  socialRows=await sbFetchAll('social_page_stats','select=*&order=stat_month.desc,page_name.asc');
+  console.log('[SOCIAL] rows:',socialRows.length);
+}
+function setSocialMonth(v){window._socialMonth=v;renderSocial();}
+const SOC_N=v=>(v==null?null:Number(v));
+function socEngage(r){return (SOC_N(r.reactions)||0)+(SOC_N(r.comments)||0)+(SOC_N(r.shares)||0);}
+function socGrowth(cur,prev){if(prev==null||cur==null||prev===0)return null;return (cur-prev)/Math.abs(prev)*100;}
+function socDelta(cur,prev,lowerBetter){
+  const g=socGrowth(cur,prev);
+  if(g===null)return '<span style="color:var(--muted);font-size:10.5px">—</span>';
+  const up=g>=0,good=lowerBetter?!up:up;
+  return `<span style="color:${good?'var(--green)':'#e11d48'};font-size:10.5px;font-weight:800">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;
+}
+function socMonthLabel(m){if(!m)return'';const p=String(m).slice(0,7).split('-');return 'Tháng '+(+p[1])+'/'+p[0];}
+async function renderSocial(){
+  const el=document.getElementById('page-social');
+  if(!el)return;
+  if(!socialRows.length){
+    el.innerHTML=`<div class="page-title">Báo Cáo Social</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang tải báo cáo social...</div>`;
+    try{await loadSocialFromSupabase();}catch(e){el.innerHTML=`<div class="page-title">Báo Cáo Social</div><div class="err-box">❌ Không tải được: ${e.message}</div>`;return;}
+  }
+  if(!socialRows.length){
+    el.innerHTML=`<div class="page-title">Báo Cáo Social</div>
+      <div class="page-sub">Tổng hợp số liệu tăng trưởng các Page theo tháng · chốt vào ngày cuối tháng</div>
+      <div class="tov-card" style="padding:34px;text-align:center">
+        <div style="font-size:34px;margin-bottom:10px">📱</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:6px">Chưa có số liệu Page nào</div>
+        <div style="font-size:12.5px;color:var(--muted);line-height:1.7;max-width:640px;margin:0 auto">
+          Khung báo cáo đã sẵn sàng — chỉ còn chờ nguồn số liệu Page. Khi có API, dữ liệu sẽ tự đổ vào bảng
+          <code style="background:var(--bg2);padding:1px 6px;border-radius:5px">social_page_stats</code> và hiện đầy đủ ở đây.
+        </div>
+        <div style="margin-top:18px;text-align:left;max-width:640px;margin-left:auto;margin-right:auto">
+          <div class="sec-label" style="margin-bottom:8px">Bộ chỉ số sẽ theo dõi mỗi tháng</div>
+          <div style="font-size:12.5px;color:var(--text2);line-height:1.9">
+            👥 <b>Tăng trưởng:</b> tổng người theo dõi · theo dõi mới · huỷ theo dõi · tăng ròng · % tăng trưởng<br>
+            📡 <b>Tiếp cận:</b> người tiếp cận (tự nhiên / trả phí) · lượt hiển thị · lượt xem trang<br>
+            💚 <b>Tương tác:</b> cảm xúc · bình luận · chia sẻ · tỷ lệ tương tác · lượt click link · lượt xem video<br>
+            📝 <b>Nội dung:</b> số bài đăng · tương tác trung bình/bài<br>
+            💬 <b>Tin nhắn:</b> hội thoại mới (đối chiếu với Pancake)
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+  const months=[...new Set(socialRows.map(r=>String(r.stat_month).slice(0,10)))].sort().reverse();
+  const cur=window._socialMonth||months[0];
+  const idx=months.indexOf(cur);
+  const prev=idx>=0&&idx+1<months.length?months[idx+1]:null;
+  const rowsCur=socialRows.filter(r=>String(r.stat_month).slice(0,10)===cur);
+  const rowsPrev=prev?socialRows.filter(r=>String(r.stat_month).slice(0,10)===prev):[];
+  const prevByPage={};rowsPrev.forEach(r=>prevByPage[r.page_id]=r);
+  const sum=(list,f)=>list.reduce((s,r)=>s+(SOC_N(f(r))||0),0);
+  const tFollowers=sum(rowsCur,r=>r.followers_total),pFollowers=sum(rowsPrev,r=>r.followers_total);
+  const tNew=sum(rowsCur,r=>r.followers_new),pNew=sum(rowsPrev,r=>r.followers_new);
+  const tLost=sum(rowsCur,r=>r.followers_lost),pLost=sum(rowsPrev,r=>r.followers_lost);
+  const tReach=sum(rowsCur,r=>r.reach),pReach=sum(rowsPrev,r=>r.reach);
+  const tImp=sum(rowsCur,r=>r.impressions),pImp=sum(rowsPrev,r=>r.impressions);
+  const tEng=rowsCur.reduce((s,r)=>s+socEngage(r),0),pEng=rowsPrev.reduce((s,r)=>s+socEngage(r),0);
+  const tPosts=sum(rowsCur,r=>r.posts_count),pPosts=sum(rowsPrev,r=>r.posts_count);
+  const tConv=sum(rowsCur,r=>r.new_conversations),pConv=sum(rowsPrev,r=>r.new_conversations);
+  const engRate=tReach>0?tEng/tReach*100:null,pEngRate=pReach>0?pEng/pReach*100:null;
+  const netNew=tNew-tLost,pNetNew=pNew-pLost;
+  const kpi=(icon,label,val,sub,grad,c,p,lb)=>`<div class="kpi ${grad}"><div class="kpi-icon">${icon}</div><div class="kpi-lbl">${label}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${socDelta(c,p,lb)} ${sub}</div></div>`;
+  const kpis=`<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+      ${kpi('👥','Tổng Người Theo Dõi',num(tFollowers),'so tháng trước','g-blue',tFollowers,pFollowers)}
+      ${kpi('📈','Tăng Ròng Trong Tháng',(netNew>=0?'+':'')+num(netNew),`+${num(tNew)} mới / -${num(tLost)} huỷ`,'g-green',netNew,pNetNew)}
+      ${kpi('📡','Người Tiếp Cận',num(tReach),'so tháng trước','g-teal',tReach,pReach)}
+      ${kpi('👁️','Lượt Hiển Thị',num(tImp),'so tháng trước','g-purple',tImp,pImp)}
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:10px">
+      ${kpi('💚','Tổng Tương Tác',num(tEng),'cảm xúc + bình luận + chia sẻ','g-yellow',tEng,pEng)}
+      ${kpi('🎯','Tỷ Lệ Tương Tác',engRate!=null?engRate.toFixed(2)+'%':'—','tương tác / tiếp cận','g-green',engRate,pEngRate)}
+      ${kpi('📝','Số Bài Đăng',num(tPosts),'trong tháng','g-blue',tPosts,pPosts)}
+      ${kpi('💬','Hội Thoại Mới',num(tConv),'so tháng trước','g-teal',tConv,pConv)}
+    </div>`;
+  const cell=(v,extra)=>`<td style="padding:9px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;${extra||''}">${v==null?'<span style="color:var(--muted)">—</span>':num(v)}</td>`;
+  const mkRow=(r)=>{
+    const pv=prevByPage[r.page_id]||{};
+    const eng=socEngage(r),pe=socEngage(pv);
+    const er=SOC_N(r.reach)>0?eng/SOC_N(r.reach)*100:null;
+    const net=(SOC_N(r.followers_new)||0)-(SOC_N(r.followers_lost)||0);
+    const pnet=(SOC_N(pv.followers_new)||0)-(SOC_N(pv.followers_lost)||0);
+    return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:9px 10px;font-size:12.5px"><div style="font-weight:700;white-space:normal;word-break:break-word">${r.page_name}</div><div style="font-size:11px;color:var(--muted)">${SRV_BRANDS[r.brand]||r.brand||''}</div></td>
+      ${cell(SOC_N(r.followers_total))}
+      <td style="padding:9px 10px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;font-weight:700;color:${net>0?'var(--green)':net<0?'#e11d48':'var(--muted)'}">${net>0?'+':''}${num(net)}<div style="font-weight:400">${socDelta(net,pnet)}</div></td>
+      ${cell(SOC_N(r.reach))}
+      ${cell(SOC_N(r.impressions))}
+      ${cell(eng)}
+      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums">${er!=null?er.toFixed(2)+'%':'<span style="color:var(--muted)">—</span>'}</td>
+      ${cell(SOC_N(r.posts_count))}
+      ${cell(SOC_N(r.new_conversations))}
+    </tr>`;
+  };
+  const byBrand={};rowsCur.forEach(r=>{const b=r.brand||'Khác';(byBrand[b]=byBrand[b]||[]).push(r);});
+  const brandRows=Object.entries(byBrand).sort((a,b)=>sum(b[1],r=>r.followers_total)-sum(a[1],r=>r.followers_total)).map(([b,list])=>{
+    const eng=list.reduce((s,r)=>s+socEngage(r),0),rch=sum(list,r=>r.reach);
+    const net=sum(list,r=>r.followers_new)-sum(list,r=>r.followers_lost);
+    return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:9px 10px;font-weight:700;font-size:12.5px">${SRV_BRANDS[b]||b}</td>
+      <td style="padding:9px 10px;font-size:11.5px;color:var(--muted);white-space:normal">${list.map(r=>r.page_name).join(' · ')}</td>
+      ${cell(sum(list,r=>r.followers_total))}
+      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;color:${net>0?'var(--green)':net<0?'#e11d48':'var(--muted)'}">${net>0?'+':''}${num(net)}</td>
+      ${cell(rch)}
+      ${cell(eng)}
+      <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700">${rch>0?(eng/rch*100).toFixed(2)+'%':'<span style="color:var(--muted)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  const th=(arr)=>arr.map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('');
+  el.innerHTML=`
+    <div class="page-title">Báo Cáo Social</div>
+    <div class="page-sub">Tổng hợp số liệu tăng trưởng các Page · chốt theo tháng · ${rowsCur.length} page${prev?` · so với ${socMonthLabel(prev)}`:''}</div>
+    <div class="period-bar">
+      <div class="date-filter">
+        <label>Tháng báo cáo</label>
+        <select onchange="setSocialMonth(this.value)" style="padding:4px 8px;border:none;background:transparent;color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+          ${months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${socMonthLabel(m)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${kpis}
+    <div class="sec-label" style="margin-top:20px">I. Tổng Hợp Theo Thương Hiệu</div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+      <colgroup>${['13%','25%','12%','12%','13%','13%','12%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+        ${th([['THƯƠNG HIỆU','left'],['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['TIẾP CẬN','right'],['TƯƠNG TÁC','right'],['TỶ LỆ TT','right']])}
+      </tr></thead><tbody>${brandRows}</tbody>
+    </table></div></div>
+    <div class="sec-label" style="margin-top:20px">II. Chi Tiết Từng Page</div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+      <colgroup>${['20%','11%','11%','11%','11%','11%','9%','8%','8%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+        ${th([['PAGE','left'],['NGƯỜI THEO DÕI','right'],['TĂNG RÒNG','right'],['TIẾP CẬN','right'],['HIỂN THỊ','right'],['TƯƠNG TÁC','right'],['TỶ LỆ TT','right'],['BÀI ĐĂNG','right'],['HỘI THOẠI','right']])}
+      </tr></thead><tbody>${rowsCur.map(mkRow).join('')}</tbody>
+    </table></div></div>`;
+}
 function parseMktCsv(text){
   let parsed;
   Papa.parse(text,{skipEmptyLines:true,complete:r=>{parsed=r;}});
