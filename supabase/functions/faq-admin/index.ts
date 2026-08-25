@@ -87,6 +87,14 @@ Deno.serve(async (req: Request) => {
           reporter: b.reporter ? String(b.reporter).slice(0, 80) : null,   // tài khoản đã báo lỗi
         }),
       });
+      // Chỉ giữ 100 phiếu gần nhất — vượt thì xoá dần cái cũ nhất (chạy nền, lỗi cũng không chặn việc báo lỗi)
+      (async () => {
+        try {
+          const keep = await sb("faq_feedback?select=id&order=created_at.desc&offset=100&limit=200");
+          const olds = (keep || []).map((x: { id: number }) => x.id);
+          if (olds.length) await sb(`faq_feedback?id=in.(${olds.join(",")})`, { method: "DELETE" });
+        } catch { /* bỏ qua */ }
+      })();
       return json({ ok: true, item: row?.[0] });
     }
     // Sửa ngay từ khung chat: lưu câu trả lời đúng thành kiến thức mới, đồng thời đóng phiếu báo lỗi nếu có
@@ -106,7 +114,7 @@ Deno.serve(async (req: Request) => {
         await sb(`faq_feedback?id=eq.${encodeURIComponent(feedback_id)}`, {
           method: "PATCH",
           body: JSON.stringify({
-            status: "fixed", fixed_faq_id: row?.[0]?.id ?? null,
+            status: "taught", fixed_faq_id: row?.[0]?.id ?? null,   // taught = đã bổ sung kiến thức mới
             fixed_at: new Date().toISOString(), fixed_by: b.actor ? String(b.actor).slice(0, 80) : null,
           }),
         }).catch(() => {});
@@ -146,12 +154,21 @@ Deno.serve(async (req: Request) => {
       if (!answer) return json({ error: "Không soạn được câu trả lời, thử viết đại ý rõ hơn." }, 502);
       return json({ ok: true, answer });
     }
+    // Đóng phiếu mà KHÔNG thêm kiến thức: "skipped" = bỏ qua (bot trả lời vốn đã đúng),
+    // "test" = phiếu chỉ để thử tính năng, không phải lỗi thật.
     if (b.action === "resolve") {
       if (!b.id) return json({ error: "Thiếu id" }, 400);
+      const st = ["skipped", "test"].includes(b.status) ? b.status : "skipped";
       await sb(`faq_feedback?id=eq.${encodeURIComponent(b.id)}`, {
         method: "PATCH",
-        body: JSON.stringify({ status: "fixed", fixed_at: new Date().toISOString(), fixed_by: b.actor ? String(b.actor).slice(0, 80) : null }),
+        body: JSON.stringify({ status: st, fixed_at: new Date().toISOString(), fixed_by: b.actor ? String(b.actor).slice(0, 80) : null }),
       });
+      return json({ ok: true });
+    }
+    // Xoá hẳn 1 phiếu báo lỗi khỏi lịch sử
+    if (b.action === "purgeFeedback") {
+      if (!b.id) return json({ error: "Thiếu id" }, 400);
+      await sb(`faq_feedback?id=eq.${encodeURIComponent(b.id)}`, { method: "DELETE" });
       return json({ ok: true });
     }
     if (b.action === "check") return json({ ok: true });   // dùng để kiểm tra mật khẩu
