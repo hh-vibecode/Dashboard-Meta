@@ -288,7 +288,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div class="nav-item" onclick="toggleOnlGroup()" id="nav-onl-group"><span class="nav-icon">🌐</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Báo Cáo KH Lẻ<span id="onl-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
       <div id="onl-subnav">
         <div class="nav-item" onclick="switchPage('sale-onl')" id="nav-sale-onl" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">📊</span><span class="nav-label">Tổng Quan</span></div>
-        <div class="nav-item" onclick="switchPage('sale-onl-data')" id="nav-sale-onl-data" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">👤</span><span class="nav-label">Chi Tiết</span></div>
+        <div class="nav-item" onclick="switchPage('sale-onl-data')" id="nav-sale-onl-data" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">👤</span><span class="nav-label">CRM</span></div>
       </div>
     </nav>
     <div class="sb-section" id="sec-qc-label" style="margin-top:12px">QC</div>
@@ -3525,12 +3525,47 @@ function renderSaleOnl(){
 function chip(txt,bg,fg){return`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;}
 
 // ── Báo Cáo KH Lẻ — Chi Tiết: danh sách từng khách (tương tự CRM Sỉ nhưng theo dữ liệu Sale Online) ──
+// Lịch sử chăm sóc khách LẺ (từ sheet CRM Lẻ), keyed theo Lead ID + SĐT — cùng cách làm với getSiCrmHistory
+function getOnlCrmHistory(){
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const m={};
+  (saleOnlCrmRows||[]).forEach(r=>{
+    const id=norm(r[COL_SAONLCRM.LEAD_ID]),ph=last9(r[COL_SAONLCRM.PHONE]);
+    [id,ph?'PH:'+ph:''].forEach(k=>{if(k)(m[k]=m[k]||[]).push(r);});
+  });
+  Object.values(m).forEach(a=>a.sort((x,y)=>{const dx=parseDate(x[COL_SAONLCRM.DATE]),dy=parseDate(y[COL_SAONLCRM.DATE]);return(dy?dy:0)-(dx?dx:0);}));
+  return m;
+}
+function onlCareRecords(masterRow,histMap){
+  const norm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
+  const ph=last9(masterRow[COL_SAONL.PHONE]);
+  const keys=[norm(masterRow[COL_SAONL.LEAD_ID]),norm(masterRow[COL_SAONL.MA_KH]),ph?'PH:'+ph:''];
+  const seen=new Set(),out=[];
+  keys.forEach(k=>{if(!k)return;(histMap[k]||[]).forEach(r=>{if(!seen.has(r)){seen.add(r);out.push(r);}});});
+  out.sort((x,y)=>{const dx=parseDate(x[COL_SAONLCRM.DATE]),dy=parseDate(y[COL_SAONLCRM.DATE]);return(dy?dy:0)-(dx?dx:0);});
+  return out;
+}
+function onlContactInfo(masterRow,histMap){
+  const recs=onlCareRecords(masterRow,histMap);
+  const today=new Date();today.setHours(0,0,0,0);
+  let last=null,lastStr='',content='',form='';
+  recs.forEach(r=>{const d=parseDate(r[COL_SAONLCRM.DATE]);
+    if(d&&(!last||d>last)){last=d;lastStr=r[COL_SAONLCRM.DATE]||'';content=(r[COL_SAONLCRM.CONTENT]||'').trim();form=(r[COL_SAONLCRM.FORM]||'').trim();}});
+  let expected=0;for(const rec of recs){const e=vndNum(rec[COL_SAONLCRM.EXPECTED]);if(e>0){expected=e;break;}}
+  const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
+  return{days,lastStr,count:recs.length,content,form,expected};
+}
+function setSaonlFilter(v){window._saonlFilter=v;renderSaleOnlData();}
+function setSaonlCare(v){window._saonlCare=v;renderSaleOnlData();}
 function renderSaleOnlData(){
   const elp=document.getElementById('page-sale-onl-data');
   if(!elp)return;
   if(!saleOnlRows.length){elp.innerHTML='<div style="padding:60px;text-align:center;color:var(--muted)">Đang chờ tải dữ liệu...</div>';return;}
   const brSel=brandArr('_saonlBrands');
   const adCampMap=buildAdCampMap();
+  const nrm=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
   const brandText=s=>{const n=(s||'').toString();
     if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
     if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
@@ -3540,21 +3575,54 @@ function renderSaleOnlData(){
     if(txtBr==='TTV')return'TTV';
     if(a&&adCampMap[a])return brandText(adCampMap[a])||txtBr;
     return txtBr;};
-  let rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
-  if(brSel.length)rows=rows.filter(r=>brSel.includes(brandOf(r)));
+  // Lọc theo NGÀY CHĂM SÓC (giống CRM Sỉ): có lọc ngày → chỉ khách có lượt CS trong kỳ
+  const fv=document.getElementById('dateFrom'),tv=document.getElementById('dateTo');
+  const hasRange=(fv&&fv.value)||(tv&&tv.value);
+  const histMap=getOnlCrmHistory();
+  let base=saleOnlRows;
+  if(hasRange){
+    const cp=saleRangePred(r=>parseDate(r[COL_SAONLCRM.DATE]));
+    const keys=new Set();
+    (saleOnlCrmRows||[]).filter(cp).forEach(r=>{const id=nrm(r[COL_SAONLCRM.LEAD_ID]);if(id)keys.add(id);});
+    base=saleOnlRows.filter(r=>keys.has(nrm(r[COL_SAONL.LEAD_ID]))||keys.has(nrm(r[COL_SAONL.MA_KH])));
+  }
+  if(brSel.length)base=base.filter(r=>brSel.includes(brandOf(r)));
   const toN=vndNum;
+  const baseEnriched=base.map(r=>({r,ci:onlContactInfo(r,histMap),rev:toN(r[COL_SAONL.REVENUE])}))
+    .sort((a,b)=>b.rev-a.rev||((a.ci.days??9999)-(b.ci.days??9999)));
 
-  const srcF=window._saonlSrc||'all',sttF=window._saonlStt||'all';
+  // KPI hoạt động chăm sóc
+  const khTotal=baseEnriched.length;
+  const khDaCS=baseEnriched.filter(x=>x.ci.count>0).length;
+  const needCareCount=baseEnriched.filter(x=>x.ci.days===null||x.ci.days>=10).length;
+  const crmInRange=hasRange?(saleOnlCrmRows||[]).filter(saleRangePred(r=>parseDate(r[COL_SAONLCRM.DATE]))):(saleOnlCrmRows||[]);
+  const csTotal=crmInRange.length;
+  const csChot=crmInRange.filter(r=>/^chốt/i.test(r[COL_SAONLCRM.STATUS]||'')).length;
+  const csMat=crmInRange.filter(r=>/mất/i.test(r[COL_SAONLCRM.STATUS]||'')).length;
+
+  const F=window._saonlFilter||'all';
+  const srcF=window._saonlSrc||'all', sttF=window._saonlStt||'all', careF=window._saonlCare||'all';
   const q=(window._saonlSearch||'').trim().toLowerCase();
-  const sttOpts=[...new Set(rows.map(r=>(r[COL_SAONL.STATUS]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
-  const filtered=rows.filter(r=>{
+  const sttOpts=[...new Set(base.map(r=>(r[COL_SAONL.STATUS]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi'));
+  const enriched=baseEnriched.filter(({r,ci})=>{
+    if(F==='cared'&&ci.count===0)return false;
+    if(F==='needcare'&&!(ci.days===null||ci.days>=10))return false;
+    if(F==='chot'&&!/^chốt/i.test(r[COL_SAONL.STATUS]||''))return false;
+    if(F==='mat'&&!/mất/i.test(r[COL_SAONL.STATUS]||''))return false;
     if(srcF!=='all'&&(r[COL_SAONL.SOURCE]||'').trim().toLowerCase()!==srcF)return false;
     if(sttF!=='all'&&(r[COL_SAONL.STATUS]||'').trim()!==sttF)return false;
-    if(q){const hay=((r[COL_SAONL.NAME]||'')+' '+(r[COL_SAONL.PHONE]||'')+' '+(r[COL_SAONL.LEAD_ID]||'')).toLowerCase();if(!hay.includes(q))return false;}
+    if(careF==='never'&&ci.days!==null)return false;
+    if(careF==='over10'&&!(ci.days!==null&&ci.days>=10))return false;
+    if(q){const hay=((r[COL_SAONL.NAME]||'')+' '+(r[COL_SAONL.PHONE]||'')+' '+(r[COL_SAONL.LEAD_ID]||'')+' '+(r[COL_SAONL.MA_KH]||'')).toLowerCase();if(!hay.includes(q))return false;}
     return true;
-  }).sort((a,b)=>{const da=parseDate(a[COL_SAONL.DATE]),db=parseDate(b[COL_SAONL.DATE]);return(db?db:0)-(da?da:0);});
-  window._saonlProfiles=filtered;
+  });
+  const total=enriched.length;
+  window._saonlProfiles=enriched.map(x=>x.r);window._saonlHist=histMap;
 
+  const daysBadge=ci=>{if(ci.days===null)return'<span style="color:#dc2626;font-weight:800">Chưa CS</span>';
+    const c=ci.days>=20?'#ef4444':ci.days>=10?'#f59e0b':'#0abf7a';
+    return`<span style="color:${c};font-weight:800">${ci.days} ngày</span>`;};
+  const chip=(txt,bg,fg)=>`<span style="display:inline-block;padding:3px 10px;border-radius:6px;background:${bg};color:${fg};font-size:11px;font-weight:700;white-space:nowrap">${txt}</span>`;
   const srcChip=s=>{const t=(s||'').trim().toLowerCase();if(t==='online')return chip('Online','#dbeafe','#2563eb');if(t==='offline')return chip('Offline','#fef3c7','#b45309');return s?chip(s,'#e5e7eb','#6b7280'):'<span style="color:var(--muted)">—</span>';};
   const statusChip=s=>{const v=(s||'').trim();if(!v)return'<span style="color:var(--muted)">—</span>';const t=v.toLowerCase();
     if(t.includes('chốt'))return chip(v,'#dcfce7','#16a34a');
@@ -3562,25 +3630,39 @@ function renderSaleOnlData(){
     if(t.includes('dài hạn'))return chip(v,'#ede9fe','#7c3aed');
     if(t.includes('đang chăm sóc'))return chip(v,'#dbeafe','#2563eb');
     return chip(v,'#e5e7eb','#6b7280');};
+  const fc=(f,icon,label,val,sub,grad)=>`<div onclick="setSaonlFilter('${f}')" title="Bấm để lọc danh sách" style="cursor:pointer;border-radius:16px;outline:${F===f?'3px solid var(--accent)':'none'};outline-offset:2px">${mkKpi(icon,label,val,sub,grad)}</div>`;
+  const fbAvatar='<svg viewBox="0 0 40 40" width="30" height="30" style="display:block"><circle cx="20" cy="20" r="20" fill="#1f2937"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>';
 
-  const bodyRows=filtered.map((r,i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+  const bodyRows=enriched.map(({r,ci,rev},i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SAONL.DATE]||'—'}</td>
-      <td style="padding:9px 12px"><div style="font-size:13px;font-weight:700;white-space:normal;word-break:break-word">${r[COL_SAONL.NAME]||'—'}</div><div style="font-size:11px;color:var(--muted)">${r[COL_SAONL.PHONE]||''}</div></td>
+      <td style="padding:9px 12px"><div style="font-size:13px;font-weight:700;white-space:normal;word-break:break-word;line-height:1.35">${r[COL_SAONL.NAME]||'—'}</div>${(r[COL_SAONL.PHONE]||'').trim()?`<div style="font-size:11px;color:var(--muted)">${(r[COL_SAONL.PHONE]||'').trim()}</div>`:''}</td>
       <td style="padding:9px 12px">${srcChip(r[COL_SAONL.SOURCE])}</td>
-      <td style="padding:9px 12px;font-size:12px;color:var(--text2);white-space:normal;word-break:break-word">${r[COL_SAONL.CHANNEL]||'<span style="color:var(--muted)">—</span>'}</td>
-      <td style="padding:9px 12px;font-size:11.5px;white-space:normal;word-break:break-word">${adIdNote(r[COL_SAONL.AD_ID])}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--text2);white-space:normal;word-break:break-word;line-height:1.35">${(r[COL_SAONL.CHANNEL]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${ci.lastStr||'—'}</td>
+      <td style="padding:9px 12px;font-size:11px;color:var(--text2);line-height:1.45;white-space:pre-line;word-break:break-word">${ci.content||'<span style="color:var(--muted)">—</span>'}</td>
+      <td style="padding:9px 12px;text-align:center;white-space:nowrap">${daysBadge(ci)}</td>
       <td style="padding:9px 12px">${statusChip(r[COL_SAONL.STATUS])}</td>
-      <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${toN(r[COL_SAONL.POTENTIAL])>0?'#7c3aed':'var(--muted)'};white-space:nowrap">${toN(r[COL_SAONL.POTENTIAL])>0?vnd(toN(r[COL_SAONL.POTENTIAL])):'—'}</td>
-      <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${toN(r[COL_SAONL.REVENUE])>0?'var(--green)':'var(--muted)'};white-space:nowrap">${toN(r[COL_SAONL.REVENUE])>0?vnd(toN(r[COL_SAONL.REVENUE])):'—'}</td>
-      <td style="padding:9px 12px;text-align:center"><span onclick="openSaonlProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">👤<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
-    </tr>`).join('');
+      <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${rev>0?'var(--green)':'var(--muted)'};white-space:nowrap">${rev>0?vnd(rev):'—'}</td>
+      <td style="padding:9px 12px;text-align:center"><span onclick="openSaonlProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${fbAvatar}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
+    </tr>`).join('')||`<tr><td colspan="10" style="padding:40px;text-align:center;color:var(--muted)">Không có khách nào khớp bộ lọc</td></tr>`;
 
   elp.innerHTML=`
-    <div class="page-title">Báo Cáo KH Lẻ — Chi Tiết</div>
-    <div class="page-sub">Danh sách từng khách lẻ (Sale Online) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</div>
-    <div class="period-bar">${brandChips('_saonlBrands','renderSaleOnlData')}</div>
-    <div style="margin:14px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(filtered.length)} khách)</span></div>
+    <div class="page-title">CRM Khách Hàng Lẻ</div>
+    <div class="page-sub">Thông tin & chăm sóc khách lẻ (Master ⨝ CRM) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</div>
+    ${brandChips('_saonlBrands','renderSaleOnlData')}
+    <div class="sec-label">Hoạt Động Chăm Sóc <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm vào 1 ô để lọc danh sách bên dưới)</span></div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px">
+      ${fc('all','👥','Tổng Số KH',num(khTotal),'khách riêng biệt','g-blue')}
+      ${fc('cared','✅','KH Đã Chăm Sóc',num(khDaCS),pct(khTotal?khDaCS/khTotal*100:0)+' tổng KH','g-green')}
+      ${fc('needcare','🔔','KH Chưa / Lâu CS',num(needCareCount),'chưa CS hoặc >10 ngày','g-red')}
+    </div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px">
+      ${fc('all','📋','Tổng Lượt Chăm Sóc',num(csTotal),hasRange?'trong kỳ':'toàn bộ lịch sử','g-teal')}
+      ${fc('chot','✔️','Đã Chốt Đơn',num(csChot),pct(csTotal?csChot/csTotal*100:0)+' lượt','g-green')}
+      ${fc('mat','❌','Mất Lead',num(csMat),pct(csTotal?csMat/csTotal*100:0)+' lượt','g-yellow')}
+    </div>
+    <div style="margin:18px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',chot:' đã chốt',mat:' mất lead'})[F]||''} · sắp theo doanh thu)</span></div>
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
         <input id="saonlSearchBox" oninput="setSaonlSearch(this.value)" value="${(window._saonlSearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên khách / SĐT…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:200px;outline:none">
         <select onchange="setSaonlSrc(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
@@ -3592,12 +3674,17 @@ function renderSaleOnlData(){
           <option value="all"${sttF==='all'?' selected':''}>📋 Tất cả trạng thái</option>
           ${sttOpts.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${sttF===s?' selected':''}>${s}</option>`).join('')}
         </select>
+        <select onchange="setSaonlCare(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+          <option value="all"${careF==='all'?' selected':''}>🔔 Tất cả CS</option>
+          <option value="never"${careF==='never'?' selected':''}>Chưa CS</option>
+          <option value="over10"${careF==='over10'?' selected':''}>Trên 10 ngày</option>
+        </select>
       </div>
     </div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
-      <colgroup>${['7%','17%','6%','15%','17%','11%','10%','10%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <colgroup>${['7%','17%','6%','13%','9%','19%','7%','12%','10%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['KÊNH','left'],['ADS ID / TÊN QC','left'],['TRẠNG THÁI','left'],['GIÁ TRỊ TN','right'],['DOANH THU','right'],['HỒ SƠ','center']].map(([c,a])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['KÊNH','left'],['CS CUỐI','left'],['NỘI DUNG CS GẦN NHẤT','left'],['CHƯA LH','center','#dc2626'],['TRẠNG THÁI','left'],['DOANH THU','right'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
   if(window._saonlSearchFocus){window._saonlSearchFocus=false;const sb=document.getElementById('saonlSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
@@ -3615,9 +3702,26 @@ function openSaonlProfile(i){
   const chipf=(t,bg,fg)=>`<span style="display:inline-block;padding:3px 11px;border-radius:6px;background:${bg};color:${fg};font-size:12px;font-weight:700">${t}</span>`;
   const sttChip=!v?'':tl.includes('chốt')?chipf(v,'#dcfce7','#16a34a'):tl.includes('mất')?chipf(v,'#fee2e2','#e11d48'):tl.includes('dài hạn')?chipf(v,'#ede9fe','#7c3aed'):tl.includes('đang chăm sóc')?chipf(v,'#dbeafe','#2563eb'):chipf(v,'#e5e7eb','#6b7280');
   const isLost=tl.includes('mất');
+  // Lịch sử chăm sóc lấy từ sheet CRM Lẻ (khớp theo Lead ID/Mã KH/SĐT) — giống hồ sơ khách Sỉ
+  const recs=onlCareRecords(r,window._saonlHist||{});
+  const careTable=recs.length?`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1.5px solid var(--border);background:var(--bg2)">${['NGÀY CS','HÌNH THỨC','NỘI DUNG TRAO ĐỔI','TRẠNG THÁI','GIÁ TRỊ TN','NGÀY CHỐT','DOANH THU'].map(h=>`<th style="padding:8px 11px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap">${h}</th>`).join('')}</tr></thead>
+    <tbody>${recs.map(c=>{
+      const cv=vndNum(c[COL_SAONLCRM.CLOSE_VALUE]), ev=vndNum(c[COL_SAONLCRM.EXPECTED]);
+      const lost=(c[COL_SAONLCRM.LOST_GROUP]||c[COL_SAONLCRM.LOST_REASON]||'').trim();
+      return`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 11px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[COL_SAONLCRM.DATE]||'—'}</td>
+      <td style="padding:8px 11px;font-size:12px;white-space:nowrap">${c[COL_SAONLCRM.FORM]||'—'}</td>
+      <td style="padding:8px 11px;font-size:12px"><div style="min-width:220px;white-space:pre-line;line-height:1.45">${c[COL_SAONLCRM.CONTENT]||'—'}</div>${lost?`<div style="font-size:11px;color:#e11d48;margin-top:3px">Lý do mất: ${lost}</div>`:''}</td>
+      <td style="padding:8px 11px;font-size:11px;white-space:nowrap">${c[COL_SAONLCRM.STATUS]||'—'}</td>
+      <td style="padding:8px 11px;font-size:12px;text-align:right;white-space:nowrap;color:#7c3aed;font-weight:600">${ev>0?vnd(ev):'—'}</td>
+      <td style="padding:8px 11px;font-size:12px;white-space:nowrap;color:var(--muted)">${c[COL_SAONLCRM.CLOSE_DATE]||'—'}</td>
+      <td style="padding:8px 11px;font-size:12px;text-align:right;white-space:nowrap;font-weight:700;color:${cv>0?'var(--green)':'var(--muted)'}">${cv>0?vnd(cv):'—'}</td>
+    </tr>`;}).join('')}</tbody></table>`
+    :'<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center">Chưa có lịch sử chăm sóc trong CRM Lẻ</div>';
   let modal=document.getElementById('saonlProfileModal');if(!modal){modal=document.createElement('div');modal.id='saonlProfileModal';document.body.appendChild(modal);}
   modal.innerHTML=`<div onclick="closeSaonlProfile()" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:2000;display:flex;align-items:flex-start;justify-content:center;padding:36px 18px;overflow:auto">
-    <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:18px;max-width:820px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden">
+    <div onclick="event.stopPropagation()" style="background:var(--surface);border-radius:18px;max-width:1000px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden">
       <div style="background:linear-gradient(135deg,#4361ee,#7c3aed);padding:22px 26px;display:flex;align-items:center;gap:16px;color:#fff;position:relative">
         <svg viewBox="0 0 40 40" width="56" height="56"><circle cx="20" cy="20" r="20" fill="rgba(255,255,255,.25)"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>
         <div style="flex:1">
@@ -3647,6 +3751,8 @@ function openSaonlProfile(i){
           ${isLost?info('Nguyên nhân cụ thể',r[COL_SAONL.LOST_REASON]):''}
           ${info('Ghi chú',r[COL_SAONL.NOTE],true)}
         </div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Lịch sử chăm sóc ${recs.length?`<span style="font-weight:600;text-transform:none">· ${recs.length} lượt</span>`:''}</div>
+        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden">${careTable}</div>
       </div>
     </div></div>`;
 }
