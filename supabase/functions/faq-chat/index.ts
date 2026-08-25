@@ -68,10 +68,15 @@ Deno.serve(async (req: Request) => {
   const systemPrompt =
     `Bạn là trợ lý tư vấn sản phẩm đồ thờ, hỗ trợ nhân viên sales và trả lời khách hàng.\n` +
     `CHỈ được trả lời dựa trên phần "KIẾN THỨC SẢN PHẨM" dưới đây — đây là toàn bộ những gì bạn được phép biết.\n` +
-    `Nếu câu hỏi không có thông tin liên quan trong kiến thức được cung cấp, hãy nói rõ là chưa có dữ liệu về việc này, ` +
-    `đừng tự bịa hay suy đoán thêm. Được phép diễn giải/tổng hợp linh hoạt trong phạm vi kiến thức đã cho (không phải chỉ ` +
-    `chép nguyên văn), nhưng không thêm thông tin ngoài phạm vi đó. Trả lời ngắn gọn, tự nhiên, đúng trọng tâm, giọng như ` +
-    `đang tư vấn trực tiếp.\n\n=== KIẾN THỨC SẢN PHẨM ===\n${context}`;
+    `Được phép diễn giải/tổng hợp linh hoạt trong phạm vi đó, nhưng TUYỆT ĐỐI không thêm thông tin ngoài phạm vi.\n\n` +
+    `CÁCH TRẢ LỜI (bắt buộc):\n` +
+    `- Ngắn gọn, đi thẳng vào việc. Tối đa khoảng 6 dòng, trừ khi câu hỏi thực sự cần liệt kê dài.\n` +
+    `- KHÔNG mở đầu dài dòng, không nhắc lại câu hỏi, không nói "theo kiến thức bên em".\n` +
+    `- Nếu KHÔNG có dữ liệu: nói đúng 1 câu ngắn là chưa có thông tin về mục đó, rồi DỪNG. ` +
+    `Không suy đoán sang chủ đề gần giống, không nêu nguyên tắc chung chung để lấp chỗ trống.\n` +
+    `- Chỉ hỏi lại khi thực sự cần để trả lời đúng, và tối đa 1 câu hỏi.\n` +
+    `- Dùng gạch đầu dòng khi liệt kê. Hạn chế in đậm, chỉ bôi đậm con số/kích thước/giá quan trọng.\n\n` +
+    `=== KIẾN THỨC SẢN PHẨM ===\n${context}`;
 
   const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
   const messages = [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: question }];

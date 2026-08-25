@@ -1117,7 +1117,11 @@ async function sendFaqQuestion(){
   const ub=document.getElementById('faqUsageBox');
   if(ub)ub.outerHTML=`<div id="faqUsageBox">${faqUsageBox()}</div>`;
 }
-function faqChatKeydown(ev){if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();sendFaqQuestion();}}
+function faqChatKeydown(ev){
+  // ev.isComposing / keyCode 229 = bộ gõ tiếng Việt đang ghép chữ -> KHÔNG gửi, nếu không câu bị cắt đôi
+  if(ev.isComposing||ev.keyCode===229)return;
+  if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();sendFaqQuestion();}
+}
 function faqChatBubble(m){
   if(m.role==='user')return`<div style="align-self:flex-end;max-width:78%;background:var(--accent);color:#fff;padding:10px 14px;border-radius:14px 14px 3px 14px;font-size:13.5px;line-height:1.55;white-space:pre-line">${m.content}</div>`;
   if(m.role==='error')return`<div style="align-self:flex-start;max-width:78%;background:var(--bad-l,#fee2e2);color:#b91c1c;padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13px;line-height:1.55">⚠️ ${m.content}</div>`;
@@ -1142,6 +1146,135 @@ function renderFaqQnaTab(){
       </div>
     </div>`;
 }
+function faqAdminUrl(){return SUPABASE_URL+'/functions/v1/faq-admin';}
+function faqPass(){return localStorage.getItem('faqAdminPass')||'';}
+async function faqAdminCall(body){
+  const res=await fetch(faqAdminUrl(),{method:'POST',
+    headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY},
+    body:JSON.stringify({...body,passphrase:faqPass()})});
+  const d=await res.json().catch(()=>({error:'Lỗi '+res.status}));
+  if(!res.ok||d.error)throw new Error(d.error||('Lỗi '+res.status));
+  return d;
+}
+async function faqSavePass(){
+  const v=(document.getElementById('faqPassInput')||{}).value||'';
+  if(!v.trim()){alert('Nhập mật khẩu huấn luyện');return;}
+  localStorage.setItem('faqAdminPass',v.trim());
+  try{await faqAdminCall({action:'check'});setStatus('Mật khẩu huấn luyện hợp lệ');renderFaq();}
+  catch(e){localStorage.removeItem('faqAdminPass');alert(e.message);}
+}
+function faqLogoutTrain(){localStorage.removeItem('faqAdminPass');renderFaq();}
+function setFaqTrainSearch(v){window._faqTrainQ=v;window._faqTrainFocus=true;renderFaqTrainList();}
+async function faqAddItem(){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const item={category:g('trCat').trim(),subcategory:g('trSub').trim(),question:g('trQ').trim(),answer:g('trA').trim()};
+  if(!item.category||!item.question||!item.answer){alert('Cần đủ: Nhóm sản phẩm, Câu hỏi, Câu trả lời');return;}
+  const btn=document.getElementById('trAddBtn');if(btn){btn.disabled=true;btn.textContent='Đang lưu…';}
+  try{
+    const d=await faqAdminCall({action:'add',item});
+    if(d.item)productFaqRows.push(d.item);
+    ['trQ','trA','trSub'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    setStatus('Đã thêm kiến thức mới');
+    renderFaqTrainList();
+  }catch(e){alert('Không lưu được: '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent='➕ Thêm kiến thức';}}
+}
+async function faqDeleteItem(id){
+  if(!confirm('Xoá kiến thức này khỏi bộ nhớ của bot?'))return;
+  try{
+    await faqAdminCall({action:'delete',id});
+    productFaqRows=productFaqRows.filter(r=>r.id!==id);
+    setStatus('Đã xoá');renderFaqTrainList();
+  }catch(e){alert('Không xoá được: '+e.message);}
+}
+function faqEditItem(id){
+  const r=productFaqRows.find(x=>x.id===id);if(!r)return;
+  window._faqEditId=id;renderFaqTrainList();
+  setTimeout(()=>{const e=document.getElementById('edA'+id);if(e)e.focus();},50);
+}
+async function faqSaveEdit(id){
+  const g=i=>(document.getElementById(i)||{}).value||'';
+  const item={question:g('edQ'+id).trim(),answer:g('edA'+id).trim()};
+  if(!item.question||!item.answer){alert('Câu hỏi và câu trả lời không được để trống');return;}
+  try{
+    const d=await faqAdminCall({action:'update',id,item});
+    const i=productFaqRows.findIndex(x=>x.id===id);
+    if(i>=0&&d.item)productFaqRows[i]=d.item;
+    window._faqEditId=null;setStatus('Đã cập nhật');renderFaqTrainList();
+  }catch(e){alert('Không lưu được: '+e.message);}
+}
+function renderFaqTrainList(){
+  const box=document.getElementById('faqTrainList');if(!box)return;
+  const q=faqNorm(window._faqTrainQ||'');
+  const rows=productFaqRows.filter(r=>!q||faqNorm(r.question+' '+r.answer+' '+r.category).includes(q))
+    .slice().sort((a,b)=>b.id-a.id);
+  const ed=window._faqEditId;
+  box.innerHTML=`<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${num(rows.length)} kiến thức${q?' khớp tìm kiếm':''} · mới thêm nằm trên cùng</div>`+
+   (rows.slice(0,60).map(r=>ed===r.id?`
+    <div class="tov-card" style="padding:14px 16px;margin-bottom:8px;border-color:var(--accent)">
+      <input id="edQ${r.id}" value="${(r.question||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:13px;font-weight:700;font-family:var(--font);margin-bottom:8px">
+      <textarea id="edA${r.id}" rows="4" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6">${r.answer||''}</textarea>
+      <div style="display:flex;gap:8px;margin-top:9px">
+        <button onclick="faqSaveEdit(${r.id})" style="padding:7px 15px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Lưu</button>
+        <button onclick="window._faqEditId=null;renderFaqTrainList()" style="padding:7px 15px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Huỷ</button>
+      </div>
+    </div>`:`
+    <div class="tov-card" style="padding:13px 16px;margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">${r.category}${r.subcategory?' · '+r.subcategory:''}</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">${r.question}</div>
+          <div style="font-size:12.5px;color:var(--text2);line-height:1.6;white-space:pre-line">${r.answer}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <span onclick="faqEditItem(${r.id})" title="Sửa" style="cursor:pointer;font-size:15px">✏️</span>
+          <span onclick="faqDeleteItem(${r.id})" title="Xoá" style="cursor:pointer;font-size:15px">🗑️</span>
+        </div>
+      </div>
+    </div>`).join('')||'<div style="padding:30px;text-align:center;color:var(--muted)">Không tìm thấy kiến thức nào</div>');
+  if(rows.length>60)box.innerHTML+=`<div style="font-size:11.5px;color:var(--muted);text-align:center;padding:8px">Hiện 60/${num(rows.length)} — dùng ô tìm kiếm để lọc</div>`;
+  if(window._faqTrainFocus){window._faqTrainFocus=false;const sb=document.getElementById('trSearch');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
+}
+function renderFaqTrainTab(){
+  if(!faqPass()){
+    return`<div class="tov-card" style="padding:30px;max-width:520px">
+      <div style="font-size:14px;font-weight:800;margin-bottom:6px">🔒 Nhập mật khẩu huấn luyện</div>
+      <div style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:14px">Chỉ người có mật khẩu mới được thêm/sửa kiến thức của bot.
+      Sales hỏi bot bình thường sẽ <b>không</b> thay đổi được gì trong bộ nhớ.</div>
+      <input id="faqPassInput" type="password" placeholder="Mật khẩu huấn luyện" onkeydown="if(event.key==='Enter')faqSavePass()"
+        style="width:100%;padding:9px 13px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;font-family:var(--font);margin-bottom:10px">
+      <button onclick="faqSavePass()" style="padding:9px 20px;border:none;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font)">Mở khoá</button>
+    </div>`;
+  }
+  const cats=[...new Set(productFaqRows.map(r=>r.category))];
+  const inp='width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;background:var(--bg2);color:var(--text);font-size:13px;font-family:var(--font)';
+  return`
+    <div class="tov-card" style="padding:18px 20px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div class="sec-label" style="margin:0">Thêm kiến thức mới</div>
+        <span onclick="faqLogoutTrain()" style="margin-left:auto;cursor:pointer;font-size:11.5px;color:var(--muted);text-decoration:underline">Khoá lại</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div><div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Nhóm sản phẩm *</div>
+          <input id="trCat" list="trCatList" placeholder="VD: Tượng Thờ" style="${inp}">
+          <datalist id="trCatList">${cats.map(c=>`<option value="${c}">`).join('')}</datalist></div>
+        <div><div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Nhóm nhỏ (không bắt buộc)</div>
+          <input id="trSub" placeholder="VD: Chất liệu & giá" style="${inp}"></div>
+      </div>
+      <div style="margin-bottom:10px"><div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Câu hỏi *</div>
+        <input id="trQ" placeholder="VD: Tượng Hán Bạch Ngọc là chất liệu gì?" style="${inp}"></div>
+      <div style="margin-bottom:12px"><div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Câu trả lời *</div>
+        <textarea id="trA" rows="5" placeholder="Viết câu trả lời đúng để bot học theo…" style="${inp};line-height:1.6;resize:vertical"></textarea></div>
+      <button id="trAddBtn" onclick="faqAddItem()" style="padding:10px 22px;border:none;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font)">➕ Thêm kiến thức</button>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5">Thêm xong sang tab <b>💬 QnA</b> hỏi thử ngay để kiểm tra bot đã trả lời đúng chưa.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <div class="sec-label" style="margin:0">Kiến thức hiện có</div>
+      <input id="trSearch" oninput="setFaqTrainSearch(this.value)" value="${(window._faqTrainQ||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm để sửa / xoá…"
+        style="margin-left:auto;padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:240px">
+    </div>
+    <div id="faqTrainList"></div>`;
+}
 async function renderFaq(){
   const el=document.getElementById('page-faq');
   if(!el)return;
@@ -1151,7 +1284,17 @@ async function renderFaq(){
   }
   const tab=window._faqTab||'qna';
   const tabBtn=(t,label)=>`<span onclick="setFaqTab('${t}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px 10px 0 0;font-size:13px;font-weight:700;border:1.5px solid ${tab===t?'var(--border)':'transparent'};border-bottom:1.5px solid ${tab===t?'var(--surface)':'var(--border)'};background:${tab===t?'var(--surface)':'transparent'};color:${tab===t?'var(--text)':'var(--muted)'};margin-bottom:-1.5px">${label}</span>`;
-  const tabsHtml=`<div style="display:flex;border-bottom:1.5px solid var(--border);margin-bottom:16px">${tabBtn('qna','💬 QnA')}${tabBtn('list','📋 Danh Sách FAQ')}</div>`;
+  const isTester=(localStorage.getItem('dashRole')||'')==='tester';
+  const tabsHtml=`<div style="display:flex;border-bottom:1.5px solid var(--border);margin-bottom:16px">${tabBtn('qna','💬 QnA')}${tabBtn('list','📋 Danh Sách FAQ')}${isTester?tabBtn('train','🎓 Huấn Luyện'):''}</div>`;
+  if(tab==='train'&&isTester){
+    el.innerHTML=`
+      <div class="page-title">FAQ Sản Phẩm</div>
+      <div class="page-sub">Huấn luyện bot — thêm/sửa kiến thức sản phẩm · chỉ tài khoản tester dùng được</div>
+      ${tabsHtml}
+      ${renderFaqTrainTab()}`;
+    renderFaqTrainList();
+    return;
+  }
   if(tab==='qna'){
     el.innerHTML=`
       <div class="page-title">FAQ Sản Phẩm</div>
