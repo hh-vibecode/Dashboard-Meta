@@ -1700,7 +1700,7 @@ function srvBrandOf(pageName){
   if(/chánh tâm|chanh tam/i.test(n))return'CT';
   return'Khác';
 }
-const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'},tra_loi_inbox:{label:'Bình luận → đã tư vấn ở tin nhắn',bg:'#cffafe',fg:'#0891b2',icon:'📩'}};
+const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'},tra_loi_inbox:{label:'Bình luận → đã tư vấn ở tin nhắn',bg:'#cffafe',fg:'#0891b2',icon:'📩'},chua_cham:{label:'Chưa đánh giá',bg:'#fef9c3',fg:'#a16207',icon:'⏳'}};
 const SRV_SEV={cao:{label:'Nghiêm trọng',fg:'#e11d48'},trung:{label:'Trung bình',fg:'#b45309'},thap:{label:'Nhẹ',fg:'#6b7280'}};
 async function renderSaleReview(){
   const el=document.getElementById('page-sale-review');
@@ -1730,15 +1730,18 @@ async function renderSaleReview(){
   const cnt=(list,v)=>list.filter(r=>r.verdict===v).length;
   // Nhóm "bình luận → đã tư vấn ở tin nhắn" KHÔNG phải lỗi và cũng không phải lượt được chấm chất lượng
   // (nội dung tư vấn thật nằm ở hội thoại inbox riêng) → tách khỏi mẫu số tỷ lệ đúng.
-  const inbox=cnt(dated,'tra_loi_inbox');
-  const total=dated.length-inbox,ok=cnt(dated,'dung');
+  const inbox=cnt(dated,'tra_loi_inbox'),pend=cnt(dated,'chua_cham');
+  const total=dated.length-inbox-pend,ok=cnt(dated,'dung');
   const kpi=`<div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
-    ${mkKpi('📋','Lượt Đã Chấm',num(total),'khách có nhu cầu thật','g-blue')}
+    ${mkKpi('📋','Lượt Đã Chấm',num(total),pend?num(pend)+' lượt đang chờ chấm':'khách có nhu cầu thật','g-blue')}
     ${mkKpi('✅','Đúng',num(ok),pct(total?ok/total*100:0)+' tổng lượt','g-green')}
     ${mkKpi('⚠️','Thiếu Ý',num(cnt(dated,'thieu')),'trả lời chưa đủ','g-yellow')}
     ${mkKpi('❌','Sai Kiến Thức',num(cnt(dated,'sai')),'cần chấn chỉnh ngay','g-red')}
     ${mkKpi('🤖','Chưa Ai Tư Vấn',num(cnt(dated,'chi_bot')+cnt(dated,'khong_tra_loi')),'chỉ bot rep hoặc bị bỏ qua','g-purple')}
   </div>
+  ${pend?`<div onclick="setSrvFilter('Verdict','chua_cham')" title="Bấm để xem danh sách chờ chấm" style="cursor:pointer;margin-top:-4px;padding:9px 13px;background:#fef9c3;color:#854d0e;border-radius:9px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:8px">
+    ⏳ ${num(pend)} lượt CHƯA ĐÁNH GIÁ — job 7h sáng đã kéo về nhưng chưa chấm đúng/sai.
+    <span style="margin-left:auto;font-weight:500;font-size:11.5px">Mở Claude Code bảo chấm khi rảnh →</span></div>`:''}
   ${inbox?`<div style="margin-top:-4px;padding:8px 13px;background:#cffafe;color:#0e7490;border-radius:9px;font-size:12px;font-weight:600">
     📩 ${num(inbox)} bình luận được bot điều hướng sang tin nhắn và sale đã tư vấn ở đó — không tính là lỗi, không tính vào tỷ lệ đúng.</div>`:''}`;
   // ── Bảng tổng hợp theo thương hiệu ──
@@ -1746,7 +1749,7 @@ async function renderSaleReview(){
   const brandRows=brandKeys.map(b=>{
     const list=dated.filter(r=>srvBrandOf(r.page_name)===b);
     const d=cnt(list,'dung'),t=cnt(list,'thieu'),s=cnt(list,'sai'),k=cnt(list,'chi_bot')+cnt(list,'khong_tra_loi');
-    const den=list.length-cnt(list,'tra_loi_inbox');
+    const den=list.length-cnt(list,'tra_loi_inbox')-cnt(list,'chua_cham');
     const rate=den?d/den*100:0;
     const pages=[...new Set(list.map(r=>r.page_name))];
     return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="setSrvFilter('Brand','${b}')" title="Bấm để lọc riêng thương hiệu này">
