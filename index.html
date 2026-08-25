@@ -257,7 +257,6 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="toggle-track"><div class="toggle-thumb"></div></div>
     <span id="themeLabel">Tối</span>
   </button>
-  <button class="settings-btn" onclick="exportCurrentPage()" title="Xuất số liệu trang này ra Excel/CSV">⬇</button>
   <button class="settings-btn" id="settingsBtn" onclick="loadData()" title="Tải lại dữ liệu">↺</button>
   <button class="settings-btn" onclick="logout()" title="Đăng xuất">⎋</button>
   </div>
@@ -376,107 +375,354 @@ let allRows=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleOnlC
   document.documentElement.setAttribute('data-theme',s);
   window.addEventListener('DOMContentLoaded',()=>{document.getElementById('themeLabel').textContent=s==='dark'?'Sáng':'Tối';});
 })();
-// ── Xuất số liệu trang đang mở ra CSV (mở được bằng Excel) ──────────────────────────
-// Quét thẳng DOM của trang: lấy các thẻ KPI + mọi bảng đang hiển thị, nên số xuất ra LUÔN khớp
-// đúng bộ lọc/tab người dùng đang chọn, và tự hoạt động với trang mới mà không phải sửa gì thêm.
-const EXPORT_PAGE_NAMES={overview:'MKT Tong Quan',detail:'MKT Chi Tiet','sale-si':'Bao Cao KH Si','sale-si-data':'CRM KH Si',
-  'sale-onl':'Bao Cao KH Le','sale-onl-data':'Chi Tiet KH Le','qc-doisoat':'QC Bao Cao Chung','qc-invoice':'QC Doi Soat Don Hang',
-  'qc-compare':'QC So Sanh Thang',danhgia:'Bao Cao Danh Gia',faq:'FAQ San Pham','sale-review':'Chat Luong Phan Hoi',social:'Bao Cao Social'};
-function expClean(t){return (t||'').replace(/\s+/g,' ').trim();}
-function expCsvCell(v){
-  v=expClean(v);
-  return /[",;\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+// ══ XUẤT BÁO CÁO (Marketing & Social) ═══════════════════════════════════════════════
+// Không phải bản chụp màn hình dashboard: đây là báo cáo tự dựng riêng — có phần diễn giải
+// logic từng mục, so sánh với kỳ trước, và nhận định/khuyến nghị ở cuối. Xuất ra file HTML
+// mở bằng trình duyệt, xem trên máy/điện thoại đều được, bấm Ctrl+P là ra PDF gửi sếp.
+const RP_CSS=`
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;background:#eef1f6;color:#1e2430;line-height:1.6;padding:28px 16px}
+.wrap{max-width:1000px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 6px 28px rgba(20,30,60,.10)}
+.hd{background:linear-gradient(120deg,#1f3a8a,#4361ee 55%,#7c3aed);color:#fff;padding:30px 34px}
+.hd h1{font-size:25px;font-weight:800;letter-spacing:-.4px}
+.hd .co{font-size:12px;text-transform:uppercase;letter-spacing:2.4px;opacity:.85;margin-bottom:9px;font-weight:700}
+.hd .meta{margin-top:14px;display:flex;gap:26px;flex-wrap:wrap;font-size:12.5px;opacity:.95}
+.hd .meta b{display:block;font-size:15px;font-weight:700;margin-top:2px}
+.bd{padding:30px 34px 40px}
+h2{font-size:15px;font-weight:800;color:#1f3a8a;margin:32px 0 4px;padding-bottom:9px;border-bottom:2px solid #e3e8f2;display:flex;align-items:center;gap:9px}
+h2:first-of-type{margin-top:0}
+h2 .n{background:#1f3a8a;color:#fff;width:23px;height:23px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto}
+.note{font-size:12.5px;color:#5d6779;margin:9px 0 15px;padding:9px 13px;background:#f5f7fb;border-left:3px solid #b9c4d9;border-radius:0 7px 7px 0}
+.grid{display:grid;gap:11px;margin-bottom:15px}
+.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.kc{border:1px solid #e3e8f2;border-radius:10px;padding:13px 15px;background:#fbfcfe}
+.kc .l{font-size:10px;font-weight:800;color:#77839a;text-transform:uppercase;letter-spacing:.7px}
+.kc .v{font-size:21px;font-weight:800;margin:5px 0 3px;letter-spacing:-.5px}
+.kc .d{font-size:11.5px;font-weight:700}
+.up{color:#0a8f5d}.dn{color:#d4344a}.flat{color:#77839a;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px}
+th{background:#f0f3f9;text-align:left;padding:9px 11px;font-size:10px;font-weight:800;color:#5d6779;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid #dde3ee}
+td{padding:9px 11px;border-bottom:1px solid #eef1f6}
+tr:last-child td{border-bottom:none}
+.r{text-align:right}.b{font-weight:700}
+tr.tot td{background:#f5f7fb;font-weight:800;border-top:2px solid #dde3ee}
+.fn{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.fn .bar{height:26px;border-radius:5px;background:linear-gradient(90deg,#4361ee,#7c3aed);min-width:3px}
+.fn .tx{font-size:12.5px}.fn .tx b{font-size:14px}
+.ins{border-radius:9px;padding:12px 15px;margin-bottom:9px;font-size:12.5px;border-left:3px solid}
+.ins .t{font-weight:800;margin-bottom:2px}
+.i-bad{background:#fdf2f4;border-color:#d4344a}.i-good{background:#f0faf5;border-color:#0a8f5d}.i-warn{background:#fdf8ec;border-color:#c98a12}
+ol.rec{margin:0;padding-left:19px}
+ol.rec li{margin-bottom:10px;font-size:12.5px}
+ol.rec b{color:#1f3a8a}
+.ft{margin-top:30px;padding-top:15px;border-top:1px solid #e3e8f2;font-size:11px;color:#8a94a6;text-align:center}
+@media print{body{background:#fff;padding:0}.wrap{box-shadow:none;border-radius:0}h2{break-after:avoid}table,.ins,.kc{break-inside:avoid}}
+@media(max-width:760px){.g4,.g3,.g2{grid-template-columns:1fr 1fr}.bd,.hd{padding:20px}}
+`;
+function rpPct(c,p){ if(p==null||p===0||c==null)return null; return (c-p)/Math.abs(p)*100; }
+function rpDelta(c,p,lower){
+  const g=rpPct(c,p);
+  if(g===null)return '<span class="flat">— không có kỳ trước</span>';
+  const up=g>=0, good=lower?!up:up;
+  return `<span class="${Math.abs(g)<0.05?'flat':(good?'up':'dn')}">${up?'▲':'▼'} ${Math.abs(g).toFixed(1)}% so kỳ trước</span>`;
 }
-// 1 ô có thể chứa nhiều dòng (VD tên khách + SĐT) -> gộp bằng " | " cho gọn 1 ô Excel
-function expCellText(td){
-  const parts=[];
-  td.querySelectorAll('div,span').forEach(()=>{});
-  const raw=td.innerText||td.textContent||'';
-  raw.split('\n').map(x=>expClean(x)).filter(Boolean).forEach(x=>{if(!parts.includes(x))parts.push(x);});
-  return parts.join(' | ');
+function rpCard(l,v,c,p,lower){return `<div class="kc"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${rpDelta(c,p,lower)}</div></div>`;}
+function rpRow(label,cur,prev,fmt,lower){
+  const g=rpPct(cur,prev);
+  const d=g===null?'<span class="flat">—</span>':`<span class="${(lower?g<=0:g>=0)?'up':'dn'}">${g>=0?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;
+  return `<tr><td>${label}</td><td class="r b">${fmt(cur)}</td><td class="r" style="color:#77839a">${fmt(prev)}</td><td class="r">${d}</td></tr>`;
 }
-function expTableRows(tbl){
-  const out=[];
-  tbl.querySelectorAll('tr').forEach(tr=>{
-    if(tr.offsetParent===null&&tr.style.display==='none')return;   // bỏ hàng đang ẩn (chi tiết chưa xổ)
-    const cells=[...tr.children].filter(c=>c.tagName==='TD'||c.tagName==='TH');
-    if(!cells.length)return;
-    out.push(cells.map(expCellText));
-  });
-  return out;
+function rpIns(type,title,body){return `<div class="ins i-${type}"><div class="t">${title}</div><div>${body}</div></div>`;}
+function rpDownload(html,name){
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  setStatus('Đã xuất báo cáo: '+name);
 }
-function expSectionTitleFor(el,pageEl){
-  // tìm .sec-label / .tbl-title gần nhất phía trên để đặt tên bảng
-  let n=el, guard=0;
-  while(n&&n!==pageEl&&guard++<40){
-    let p=n.previousElementSibling;
-    while(p){
-      const lab=p.classList&&(p.classList.contains('sec-label')||p.classList.contains('tbl-title'))?p:
-                (p.querySelector?p.querySelector('.sec-label,.tbl-title'):null);
-      if(lab)return expClean(lab.innerText);
-      p=p.previousElementSibling;
-    }
-    n=n.parentElement;
-  }
-  return '';
+function rpShell(title,sub,metaPairs,body){
+  const d=new Date();
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title><style>${RP_CSS}</style></head><body><div class="wrap">
+<div class="hd"><div class="co">Tân Hưng Thịnh Holding</div><h1>${title}</h1>
+<div style="font-size:13px;opacity:.9;margin-top:5px">${sub}</div>
+<div class="meta">${metaPairs.map(([k,v])=>`<div>${k}<b>${v}</b></div>`).join('')}</div></div>
+<div class="bd">${body}
+<div class="ft">Báo cáo tạo tự động từ Dashboard · ${d.toLocaleString('vi-VN')} · Số liệu theo bộ lọc đang chọn</div>
+</div></div></body></html>`;
 }
-function exportCurrentPage(){
-  const key=window._curPage||'overview';
-  const pageEl=document.getElementById('page-'+key);
-  if(!pageEl){alert('Không tìm thấy trang để xuất.');return;}
-  const lines=[];
-  const title=expClean((pageEl.querySelector('.page-title')||{}).innerText||EXPORT_PAGE_NAMES[key]||key);
-  const sub=expClean((pageEl.querySelector('.page-sub')||{}).innerText||'');
-  lines.push([title]);
-  if(sub)lines.push([sub]);
-  lines.push(['Xuất lúc', new Date().toLocaleString('vi-VN')]);
-  lines.push([]);
+function rpFileName(prefix){
+  const d=new Date(),p=x=>String(x).padStart(2,'0');
+  return `${prefix}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.html`;
+}
+// Khoảng ngày đang chọn trên topbar; nếu để trống thì lấy 30 ngày gần nhất có dữ liệu
+function rpRange(){
+  const f=(document.getElementById('dateFrom')||{}).value||'', t=(document.getElementById('dateTo')||{}).value||'';
+  if(f&&t)return{from:f,to:t,label:fmtDate(localDate(f))+' – '+fmtDate(localDate(t)),custom:true};
+  const ds=(allRows||[]).map(r=>parseDate(r[COL.DATE])).filter(Boolean).sort((a,b)=>a-b);
+  if(!ds.length)return{from:'',to:'',label:'Toàn bộ',custom:false};
+  const to=ds[ds.length-1], from=new Date(to); from.setDate(from.getDate()-29);
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return{from:iso(from),to:iso(to),label:fmtDate(from)+' – '+fmtDate(to)+' (30 ngày gần nhất)',custom:false};
+}
+function rpPrevRange(from,to){
+  const f=localDate(from),t=localDate(to);
+  const days=Math.round((t-f)/86400000)+1;
+  const pt=new Date(f);pt.setDate(pt.getDate()-1);
+  const pf=new Date(pt);pf.setDate(pf.getDate()-(days-1));
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return{from:iso(pf),to:iso(pt),label:fmtDate(pf)+' – '+fmtDate(pt)};
+}
 
-  // KPI cards
-  const kpis=[...pageEl.querySelectorAll('.kpi')].filter(k=>k.offsetParent!==null);
-  if(kpis.length){
-    lines.push(['CHỈ SỐ TỔNG QUAN']);
-    lines.push(['Chỉ số','Giá trị','Ghi chú']);
-    kpis.forEach(k=>lines.push([
-      expClean((k.querySelector('.kpi-lbl')||{}).innerText||''),
-      expClean((k.querySelector('.kpi-val')||{}).innerText||''),
-      expClean((k.querySelector('.kpi-sub')||{}).innerText||'')
-    ]));
-    lines.push([]);
-  }
-  // Thẻ scorecard kiểu trang Social (không dùng class .kpi)
-  if(!kpis.length){
-    const cards=[...pageEl.querySelectorAll('.tov-card')].filter(c=>c.offsetParent!==null&&!c.querySelector('table')&&c.children.length===3);
-    if(cards.length>=3){
-      lines.push(['CHỈ SỐ TỔNG QUAN']);
-      lines.push(['Chỉ số','Giá trị','Ghi chú']);
-      cards.forEach(c=>{const t=[...c.children].map(x=>expClean(x.innerText));lines.push([t[0]||'',t[1]||'',t[2]||'']);});
-      lines.push([]);
-    }
-  }
-  // Bảng
-  let n=0;
-  [...pageEl.querySelectorAll('table')].forEach(tbl=>{
-    if(tbl.offsetParent===null)return;
-    const rows=expTableRows(tbl);
-    if(rows.length<2)return;
-    n++;
-    const st=expSectionTitleFor(tbl,pageEl);
-    lines.push([st||('BẢNG '+n)]);
-    rows.forEach(r=>lines.push(r));
-    lines.push([]);
-  });
+// ─────────────────── BÁO CÁO MARKETING ───────────────────
+// Trình bày dữ liệu từ tổng quan -> chi tiết, đầy đủ thông số trong kỳ. KHÔNG kèm nhận định/khuyến nghị —
+// báo cáo này để gửi cho người phân tích tự đọc, nên chỉ có số liệu + ghi chú định nghĩa chỉ số.
+function exportMktReport(){
+  if(!allRows.length){alert('Chưa có dữ liệu Marketing để xuất.');return;}
+  const R=rpRange(), P=rpPrevRange(R.from||R.to,R.to||R.from);
+  const br=brandArr('_mktBrands');
+  const m=mktMetricsForRange(R.from,R.to,br), mp=mktMetricsForRange(P.from,P.to,br);
+  const q=dgQualityMetricsForRange(R.from,R.to,br), qp=dgQualityMetricsForRange(P.from,P.to,br);
+  const roas=m.totalSpend>0?m.combRevenue/m.totalSpend:null, roasP=mp.totalSpend>0?mp.combRevenue/mp.totalSpend:null;
+  const cpo=m.combOrders>0?m.totalSpend/m.combOrders:null, cpoP=mp.combOrders>0?mp.totalSpend/mp.combOrders:null;
+  const BR=[['CT','Chánh Tâm'],['HT','Hiền Thuỷ'],['Shidai','Shidai'],['TTV','Tự Tại Viên']];
+  const fromD=R.from?localDate(R.from):null, toD=R.to?localDate(R.to,true):null;
+  const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
 
-  if(!kpis.length&&!n){alert('Trang này chưa có số liệu để xuất.');return;}
-  const csv='﻿'+lines.map(r=>r.map(expCsvCell).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const d=new Date(),pad=x=>String(x).padStart(2,'0');
-  const name=`${EXPORT_PAGE_NAMES[key]||key}_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=name;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);
-  setStatus(`Đã xuất: ${name}`);
+  // I. Tổng quan
+  const s1=`<div class="grid g4">
+    ${rpCard('Chi phí quảng cáo',vnd(m.totalSpend),m.totalSpend,mp.totalSpend,true)}
+    ${rpCard('Doanh số (Sỉ+Lẻ)',vnd(m.combRevenue),m.combRevenue,mp.combRevenue)}
+    ${rpCard('ROAS',roas!=null?roas.toFixed(2)+'x':'—',roas,roasP)}
+    ${rpCard('Ads / Doanh số',m.adsDs!=null?m.adsDs.toFixed(2)+'%':'—',m.adsDs,mp.adsDs,true)}
+  </div>
+  <div class="grid g4">
+    ${rpCard('Tổng tin nhắn',num(q.totalMess),q.totalMess,qp.totalMess)}
+    ${rpCard('Data đạt',num(q.nDat),q.nDat,qp.nDat)}
+    ${rpCard('Data tiềm năng',num(q.nTiem),q.nTiem,qp.nTiem)}
+    ${rpCard('Đơn chốt',num(m.combOrders),m.combOrders,mp.combOrders)}
+  </div>
+  <div class="note"><b>Định nghĩa:</b> ROAS = doanh số ÷ chi phí quảng cáo. Ads/Doanh số = chi phí ÷ doanh số (%).
+  Data đạt = lead đủ thông tin khai thác; Data tiềm năng = lead có nhu cầu thật (tập con của data đạt).
+  Doanh số gồm cả Lẻ (Sale Online) và Sỉ nguồn Online, tính theo ngày chốt đơn.</div>`;
+
+  // II. Toàn bộ chỉ số
+  const pctF=v=>v==null?'—':v.toFixed(2)+'%';
+  const s2=`<table><tr><th>Chỉ số</th><th class="r">Kỳ này</th><th class="r">Kỳ trước</th><th class="r">Biến động</th></tr>
+    ${rpRow('Chi phí quảng cáo',m.totalSpend,mp.totalSpend,vnd,true)}
+    ${rpRow('Tổng tin nhắn (mess)',q.totalMess,qp.totalMess,num)}
+    ${rpRow('Chi phí / mess',q.costPerMess,qp.costPerMess,vnd,true)}
+    ${rpRow('Data đạt',q.nDat,qp.nDat,num)}
+    ${rpRow('Tỷ lệ mess → data đạt',q.datRate,qp.datRate,pctF)}
+    ${rpRow('Chi phí / data đạt',q.costPerDat,qp.costPerDat,vnd,true)}
+    ${rpRow('Data tiềm năng',q.nTiem,qp.nTiem,num)}
+    ${rpRow('Tỷ lệ mess → tiềm năng',q.tiemRate,qp.tiemRate,pctF)}
+    ${rpRow('Chi phí / data tiềm năng',q.costPerTiem,qp.costPerTiem,vnd,true)}
+    ${rpRow('Đơn chốt',m.combOrders,mp.combOrders,num)}
+    ${rpRow('Chi phí / đơn chốt',cpo,cpoP,vnd,true)}
+    ${rpRow('Tỷ lệ chốt / tổng mess',m.closeRate,mp.closeRate,pctF)}
+    ${rpRow('Doanh số Lẻ',m.leRevenue,mp.leRevenue,vnd)}
+    ${rpRow('Doanh số Sỉ (nguồn Online)',m.siRevenue,mp.siRevenue,vnd)}
+    ${rpRow('Tổng doanh số',m.combRevenue,mp.combRevenue,vnd)}
+    ${rpRow('Số đơn Lẻ',m.leOrders,mp.leOrders,num)}
+    ${rpRow('Số đơn Sỉ',m.siOrders,mp.siOrders,num)}
+    ${rpRow('Giá trị đơn trung bình',m.dsPerOrder,mp.dsPerOrder,vnd)}
+    ${rpRow('ROAS',roas,roasP,v=>v==null?'—':v.toFixed(2)+'x')}
+    ${rpRow('Ads / Doanh số',m.adsDs,mp.adsDs,pctF,true)}
+  </table>`;
+
+  // III. Phễu
+  const fun=[['Tin nhắn (mess)',q.totalMess,null],['Data đạt',q.nDat,q.totalMess>0?(q.nDat/q.totalMess*100):null],
+             ['Data tiềm năng',q.nTiem,q.nDat>0?(q.nTiem/q.nDat*100):null],['Đơn chốt',m.combOrders,q.nTiem>0?(m.combOrders/q.nTiem*100):null]];
+  const mx=Math.max(...fun.map(f=>f[1]||0),1);
+  const s3=`<div>${fun.map(([l,v,r])=>`<div class="fn">
+      <div class="bar" style="width:${Math.max((v||0)/mx*62,3)}%"></div>
+      <div class="tx"><b>${num(v||0)}</b> ${l}${r!=null?` <span style="color:#77839a">— ${r.toFixed(1)}% từ bước trước</span>`:''}</div>
+    </div>`).join('')}</div>`;
+
+  // IV. Theo thương hiệu
+  const rows=BR.map(([k,label])=>{
+    const mk=mktMetricsForRange(R.from,R.to,[k]), mkp=mktMetricsForRange(P.from,P.to,[k]);
+    const qk=dgQualityMetricsForRange(R.from,R.to,[k]);
+    return {k,label,spend:mk.totalSpend,mess:qk.totalMess,dat:qk.nDat,tiem:qk.nTiem,
+            orders:mk.combOrders,rev:mk.combRevenue,prev:mkp.combRevenue,
+            roas:mk.totalSpend>0?mk.combRevenue/mk.totalSpend:null,
+            cpo:mk.combOrders>0?mk.totalSpend/mk.combOrders:null};
+  }).filter(x=>x.rev>0||x.spend>0);
+  const T=f=>rows.reduce((s,x)=>s+(f(x)||0),0);
+  const s4=rows.length?`<table>
+    <tr><th>Thương hiệu</th><th class="r">Chi phí</th><th class="r">Mess</th><th class="r">Data đạt</th><th class="r">Tiềm năng</th><th class="r">Đơn</th><th class="r">Doanh số</th><th class="r">Tỷ trọng</th><th class="r">ROAS</th><th class="r">CP/đơn</th></tr>
+    ${[...rows].sort((a,b)=>b.rev-a.rev).map(x=>`<tr>
+      <td class="b">${x.label}</td><td class="r">${vnd(x.spend)}</td><td class="r">${num(x.mess)}</td>
+      <td class="r">${num(x.dat)}</td><td class="r">${num(x.tiem)}</td><td class="r">${num(x.orders)}</td>
+      <td class="r b">${vnd(x.rev)}</td><td class="r">${T(y=>y.rev)>0?(x.rev/T(y=>y.rev)*100).toFixed(1)+'%':'—'}</td>
+      <td class="r b">${x.roas!=null?x.roas.toFixed(2)+'x':'—'}</td><td class="r">${x.cpo!=null?vnd(x.cpo):'—'}</td></tr>`).join('')}
+    <tr class="tot"><td>TỔNG</td><td class="r">${vnd(T(x=>x.spend))}</td><td class="r">${num(T(x=>x.mess))}</td>
+      <td class="r">${num(T(x=>x.dat))}</td><td class="r">${num(T(x=>x.tiem))}</td><td class="r">${num(T(x=>x.orders))}</td>
+      <td class="r">${vnd(T(x=>x.rev))}</td><td class="r">100%</td>
+      <td class="r">${T(x=>x.spend)>0?(T(x=>x.rev)/T(x=>x.spend)).toFixed(2)+'x':'—'}</td>
+      <td class="r">${T(x=>x.orders)>0?vnd(T(x=>x.spend)/T(x=>x.orders)):'—'}</td></tr>
+  </table>`:'<div class="note">Chưa có số liệu theo thương hiệu trong kỳ.</div>';
+
+  // V. Theo chiến dịch
+  const camp={};
+  (allRows||[]).forEach(r=>{
+    const d=parseDate(r[COL.DATE]); if(!inR(d))return;
+    const b=detectBrand(r[COL.CAMPAIGN]); if(br.length&&!br.includes(b))return;
+    const nm=(r[COL.CAMPAIGN]||'(không rõ)').trim();
+    const c=camp[nm]||(camp[nm]={brand:b,spend:0,mess:0,reach:0,imp:0,cmt:0});
+    c.spend+=toNum(r[COL.SPEND]); c.mess+=toNum(r[COL.MESSAGES]);
+    c.reach+=toNum(r[COL.REACH]); c.imp+=toNum(r[COL.IMPRESSIONS]); c.cmt+=toNum(r[COL.COMMENTS]);
+  });
+  const cl=Object.entries(camp).map(([nm,c])=>({nm,...c,cpm:c.mess>0?c.spend/c.mess:null})).sort((a,b)=>b.spend-a.spend);
+  const s5=cl.length?`<table>
+    <tr><th>Chiến dịch</th><th>Thương hiệu</th><th class="r">Chi phí</th><th class="r">Mess</th><th class="r">CP/mess</th><th class="r">Tiếp cận</th><th class="r">Hiển thị</th><th class="r">Bình luận</th></tr>
+    ${cl.map(c=>`<tr><td>${c.nm}</td><td>${({CT:'Chánh Tâm',HT:'Hiền Thuỷ',Shidai:'Shidai',TTV:'Tự Tại Viên'})[c.brand]||c.brand||'—'}</td>
+      <td class="r b">${vnd(c.spend)}</td><td class="r">${num(c.mess)}</td><td class="r">${c.cpm!=null?vnd(c.cpm):'—'}</td>
+      <td class="r">${num(c.reach)}</td><td class="r">${num(c.imp)}</td><td class="r">${num(c.cmt)}</td></tr>`).join('')}
+    <tr class="tot"><td>TỔNG ${cl.length} chiến dịch</td><td></td>
+      <td class="r">${vnd(cl.reduce((s,c)=>s+c.spend,0))}</td><td class="r">${num(cl.reduce((s,c)=>s+c.mess,0))}</td><td></td>
+      <td class="r">${num(cl.reduce((s,c)=>s+c.reach,0))}</td><td class="r">${num(cl.reduce((s,c)=>s+c.imp,0))}</td>
+      <td class="r">${num(cl.reduce((s,c)=>s+c.cmt,0))}</td></tr>
+  </table>
+  <div class="note">Tiếp cận ở cấp chiến dịch là tổng cộng dồn theo từng quảng cáo, có thể trùng người xem giữa các quảng cáo trong cùng chiến dịch.</div>`
+  :'<div class="note">Không có chiến dịch nào trong kỳ.</div>';
+
+  // VI. Theo ngày
+  const day={};
+  (allRows||[]).forEach(r=>{
+    const d=parseDate(r[COL.DATE]); if(!inR(d))return;
+    const b=detectBrand(r[COL.CAMPAIGN]); if(br.length&&!br.includes(b))return;
+    const k=r[COL.DATE];
+    const o=day[k]||(day[k]={d,spend:0,mess:0,reach:0,imp:0});
+    o.spend+=toNum(r[COL.SPEND]); o.mess+=toNum(r[COL.MESSAGES]);
+    o.reach+=toNum(r[COL.REACH]); o.imp+=toNum(r[COL.IMPRESSIONS]);
+  });
+  const dl=Object.values(day).sort((a,b)=>a.d-b.d);
+  const s6=dl.length?`<table>
+    <tr><th>Ngày</th><th class="r">Chi phí</th><th class="r">Mess</th><th class="r">CP/mess</th><th class="r">Tiếp cận</th><th class="r">Hiển thị</th></tr>
+    ${dl.map(o=>`<tr><td>${fmtDate(o.d)}</td><td class="r">${vnd(o.spend)}</td><td class="r">${num(o.mess)}</td>
+      <td class="r">${o.mess>0?vnd(o.spend/o.mess):'—'}</td><td class="r">${num(o.reach)}</td><td class="r">${num(o.imp)}</td></tr>`).join('')}
+    <tr class="tot"><td>TỔNG ${dl.length} ngày</td><td class="r">${vnd(dl.reduce((s,o)=>s+o.spend,0))}</td>
+      <td class="r">${num(dl.reduce((s,o)=>s+o.mess,0))}</td><td></td>
+      <td class="r">${num(dl.reduce((s,o)=>s+o.reach,0))}</td><td class="r">${num(dl.reduce((s,o)=>s+o.imp,0))}</td></tr>
+  </table>`:'<div class="note">Không có dữ liệu theo ngày trong kỳ.</div>';
+
+  const S=(n,t,body)=>`<h2><span class="n">${n}</span>${t}</h2>${body}`;
+  rpDownload(rpShell('Báo Cáo Marketing','Chi phí quảng cáo · chất lượng data · kết quả kinh doanh',
+    [['Kỳ báo cáo',R.label],['So sánh với',P.label],['Thương hiệu',br.length?br.join(', '):'Tất cả']],
+    S('I','Tổng Quan Kỳ Báo Cáo',s1)+S('II','Toàn Bộ Chỉ Số',s2)+S('III','Phễu Chuyển Đổi',s3)+
+    S('IV','Theo Thương Hiệu',s4)+S('V','Theo Chiến Dịch',s5)+S('VI','Theo Ngày',s6)),
+    rpFileName('BaoCao_Marketing'));
+}
+
+// ─────────────────── BÁO CÁO SOCIAL ───────────────────
+async function exportSocialReport(){
+  if(!socialRows.length){try{await loadSocialFromSupabase();}catch(e){alert('Không tải được số liệu social: '+e.message);return;}}
+  if(!socialRows.length){alert('Chưa có số liệu social để xuất.');return;}
+  const months=[...new Set(socialRows.map(r=>String(r.stat_month).slice(0,10)))].sort().reverse();
+  const cur=window._socialMonth||months[0], i0=months.indexOf(cur), prev=(i0>=0&&i0+1<months.length)?months[i0+1]:null;
+  const C=socialRows.filter(r=>String(r.stat_month).slice(0,10)===cur);
+  const P=prev?socialRows.filter(r=>String(r.stat_month).slice(0,10)===prev):[];
+  const ml=m=>'Tháng '+(+String(m).slice(5,7))+'/'+String(m).slice(0,4);
+  const S_=(l,f)=>l.reduce((s,r)=>s+(Number(f(r))||0),0);
+  const E=l=>l.reduce((s,r)=>s+socEngage(r),0);
+  const plat=r=>r.platform||'facebook', PL={facebook:'Facebook',tiktok:'TikTok'};
+  const N=v=>Number(v)||0;
+
+  const tF=S_(C,r=>r.followers_total),pF=S_(P,r=>r.followers_total);
+  const tNew=S_(C,r=>r.followers_new),tLost=S_(C,r=>r.followers_lost);
+  const pNew=S_(P,r=>r.followers_new),pLost=S_(P,r=>r.followers_lost);
+  const tN=tNew-tLost,pN=pNew-pLost;
+  const tI=S_(C,r=>r.impressions),pI=S_(P,r=>r.impressions);
+  const tE=E(C),pE=E(P), tP=S_(C,r=>r.posts_count),pP=S_(P,r=>r.posts_count);
+  const tV=S_(C,r=>r.video_views),pV=S_(P,r=>r.video_views);
+  const tPV=S_(C,r=>r.profile_visits),pPV=S_(P,r=>r.profile_visits);
+
+  const s1=`<div class="grid g4">
+    ${rpCard('Tổng người theo dõi',num(tF),tF,pF)}
+    ${rpCard('Tăng ròng',(tN>=0?'+':'')+num(tN),tN,pN)}
+    ${rpCard('Hiển thị / lượt xem',num(tI),tI,pI)}
+    ${rpCard('Tổng tương tác',num(tE),tE,pE)}
+  </div>
+  <div class="grid g4">
+    ${rpCard('Theo dõi mới',num(tNew),tNew,pNew)}
+    ${rpCard('Huỷ theo dõi',num(tLost),tLost,pLost,true)}
+    ${rpCard('Số bài đăng',num(tP),tP,pP)}
+    ${rpCard('Lượt xem video',num(tV),tV,pV)}
+  </div>
+  <div class="note"><b>Định nghĩa:</b> Tăng ròng = theo dõi mới − huỷ theo dõi. Tương tác = cảm xúc + bình luận + chia sẻ.
+  Với Facebook, "hiển thị" là lượt hiển thị bài viết <b>tự nhiên</b> (Meta đã ngừng cấp chỉ số tiếp cận cấp Page qua API);
+  với TikTok là tổng lượt xem video — hai nền tảng không so trực tiếp với nhau được.</div>`;
+
+  const s2=`<table><tr><th>Chỉ số</th><th class="r">${ml(cur)}</th><th class="r">${prev?ml(prev):'—'}</th><th class="r">Biến động</th></tr>
+    ${rpRow('Tổng người theo dõi',tF,pF,num)}
+    ${rpRow('Theo dõi mới',tNew,pNew,num)}
+    ${rpRow('Huỷ theo dõi',tLost,pLost,num,true)}
+    ${rpRow('Tăng ròng',tN,pN,num)}
+    ${rpRow('Hiển thị / lượt xem',tI,pI,num)}
+    ${rpRow('Lượt xem trang',tPV,pPV,num)}
+    ${rpRow('Lượt xem video',tV,pV,num)}
+    ${rpRow('Cảm xúc',S_(C,r=>r.reactions),S_(P,r=>r.reactions),num)}
+    ${rpRow('Bình luận',S_(C,r=>r.comments),S_(P,r=>r.comments),num)}
+    ${rpRow('Chia sẻ',S_(C,r=>r.shares),S_(P,r=>r.shares),num)}
+    ${rpRow('Tổng tương tác',tE,pE,num)}
+    ${rpRow('Số bài đăng',tP,pP,num)}
+    ${rpRow('Tương tác TB / bài',tP>0?tE/tP:null,pP>0?pE/pP:null,v=>v==null?'—':num(Math.round(v)))}
+  </table>`;
+
+  const s3=`<table><tr><th>Nền tảng</th><th class="r">Kênh</th><th class="r">Người theo dõi</th><th class="r">Mới</th><th class="r">Huỷ</th><th class="r">Tăng ròng</th><th class="r">Hiển thị</th><th class="r">Tương tác</th><th class="r">Bài</th></tr>
+    ${['facebook','tiktok'].map(k=>{
+      const l=C.filter(r=>plat(r)===k); if(!l.length)return'';
+      const n=S_(l,r=>r.followers_new)-S_(l,r=>r.followers_lost);
+      return `<tr><td class="b">${PL[k]}</td><td class="r">${l.length}</td><td class="r b">${num(S_(l,r=>r.followers_total))}</td>
+        <td class="r">${num(S_(l,r=>r.followers_new))}</td><td class="r">${num(S_(l,r=>r.followers_lost))}</td>
+        <td class="r ${n>=0?'up':'dn'}">${n>=0?'+':''}${num(n)}</td>
+        <td class="r">${num(S_(l,r=>r.impressions))}</td><td class="r">${num(E(l))}</td><td class="r">${num(S_(l,r=>r.posts_count))}</td></tr>`;
+    }).join('')}
+    <tr class="tot"><td>TỔNG</td><td class="r">${C.length}</td><td class="r">${num(tF)}</td><td class="r">${num(tNew)}</td>
+      <td class="r">${num(tLost)}</td><td class="r">${num(tN)}</td><td class="r">${num(tI)}</td><td class="r">${num(tE)}</td><td class="r">${num(tP)}</td></tr>
+  </table>`;
+
+  const byB={};C.forEach(r=>{const b=r.brand||'Khác';(byB[b]=byB[b]||[]).push(r);});
+  const s4=`<table><tr><th>Thương hiệu</th><th class="r">Kênh</th><th class="r">Người theo dõi</th><th class="r">Tăng ròng</th><th class="r">Hiển thị</th><th class="r">Tương tác</th><th class="r">Tỷ trọng TT</th><th class="r">Bài</th></tr>
+    ${Object.entries(byB).sort((a,b)=>E(b[1])-E(a[1])).map(([b,l])=>`<tr>
+      <td class="b">${SRV_BRANDS[b]||b}</td><td class="r">${l.length}</td><td class="r">${num(S_(l,r=>r.followers_total))}</td>
+      <td class="r">${num(S_(l,r=>r.followers_new)-S_(l,r=>r.followers_lost))}</td>
+      <td class="r">${num(S_(l,r=>r.impressions))}</td><td class="r b">${num(E(l))}</td>
+      <td class="r">${tE>0?(E(l)/tE*100).toFixed(1)+'%':'—'}</td><td class="r">${num(S_(l,r=>r.posts_count))}</td></tr>`).join('')}
+  </table>`;
+
+  const prevBy={};P.forEach(r=>prevBy[r.page_id]=r);
+  const s5=`<table><tr><th>Kênh</th><th>Nền tảng</th><th>Thương hiệu</th><th class="r">Người theo dõi</th><th class="r">Mới</th><th class="r">Huỷ</th><th class="r">Tăng ròng</th><th class="r">Hiển thị</th><th class="r">Xem trang</th><th class="r">Cảm xúc</th><th class="r">B.luận</th><th class="r">Chia sẻ</th><th class="r">Tương tác</th><th class="r">Bài</th><th class="r">TB/bài</th></tr>
+    ${[...C].sort((a,b)=>N(b.followers_total)-N(a.followers_total)).map(r=>{
+      const n=N(r.followers_new)-N(r.followers_lost), e=socEngage(r), pc=N(r.posts_count);
+      return `<tr><td class="b">${r.page_name}</td><td>${PL[plat(r)]}</td><td>${SRV_BRANDS[r.brand]||r.brand||'—'}</td>
+        <td class="r b">${num(N(r.followers_total))}</td><td class="r">${num(N(r.followers_new))}</td><td class="r">${num(N(r.followers_lost))}</td>
+        <td class="r ${n>=0?'up':'dn'}">${n>=0?'+':''}${num(n)}</td>
+        <td class="r">${num(N(r.impressions))}</td><td class="r">${num(N(r.profile_visits))}</td>
+        <td class="r">${num(N(r.reactions))}</td><td class="r">${num(N(r.comments))}</td><td class="r">${num(N(r.shares))}</td>
+        <td class="r b">${num(e)}</td><td class="r">${num(pc)}</td><td class="r">${pc>0?num(Math.round(e/pc)):'—'}</td></tr>`;
+    }).join('')}
+  </table>`;
+
+  const s6=P.length?`<table><tr><th>Kênh</th><th class="r">Theo dõi ${ml(cur)}</th><th class="r">Theo dõi ${ml(prev)}</th><th class="r">±</th><th class="r">Tương tác ${ml(cur)}</th><th class="r">Tương tác ${ml(prev)}</th><th class="r">±</th></tr>
+    ${[...C].sort((a,b)=>N(b.followers_total)-N(a.followers_total)).map(r=>{
+      const pv=prevBy[r.page_id]||{}, e=socEngage(r), pe=socEngage(pv);
+      const gf=rpPct(N(r.followers_total),N(pv.followers_total)), ge=rpPct(e,pe);
+      const cell=g=>g===null?'<span class="flat">—</span>':`<span class="${g>=0?'up':'dn'}">${g>=0?'▲':'▼'} ${Math.abs(g).toFixed(1)}%</span>`;
+      return `<tr><td class="b">${r.page_name}</td>
+        <td class="r">${num(N(r.followers_total))}</td><td class="r" style="color:#77839a">${pv.followers_total!=null?num(N(pv.followers_total)):'—'}</td><td class="r">${cell(gf)}</td>
+        <td class="r">${num(e)}</td><td class="r" style="color:#77839a">${pv.page_id?num(pe):'—'}</td><td class="r">${cell(ge)}</td></tr>`;
+    }).join('')}
+  </table>`:'<div class="note">Chưa có dữ liệu kỳ trước để so sánh.</div>';
+
+  const SS=(n,t,body)=>`<h2><span class="n">${n}</span>${t}</h2>${body}`;
+  rpDownload(rpShell('Báo Cáo Social','Tăng trưởng kênh · Facebook & TikTok',
+    [['Kỳ báo cáo',ml(cur)],['So sánh với',prev?ml(prev):'—'],['Số kênh',C.length+' kênh']],
+    SS('I','Tổng Quan Kỳ Báo Cáo',s1)+SS('II','Toàn Bộ Chỉ Số',s2)+SS('III','Theo Nền Tảng',s3)+
+    SS('IV','Theo Thương Hiệu',s4)+SS('V','Chi Tiết Từng Kênh',s5)+SS('VI','So Sánh Từng Kênh Với Kỳ Trước',s6)),
+    rpFileName('BaoCao_Social'));
 }
 function toggleTheme(){
   const h=document.documentElement,dark=h.getAttribute('data-theme')==='dark';
@@ -1321,6 +1567,7 @@ async function renderSocial(){
           ${months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${socMonthLabel(m)}</option>`).join('')}
         </select>
       </div>
+      <button class="refresh-btn" onclick="exportSocialReport()" title="Xuất báo cáo Social đầy đủ" style="margin-left:0">📄 Xuất Báo Cáo</button>
       <select onchange="setSocialBrand(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
         <option value="all"${fBrand==='all'?' selected':''}>🏷️ Tất cả thương hiệu (${byTab(allCur).length} kênh)</option>
         ${[...new Set(byTab(allCur).map(r=>r.brand||'Khác'))].map(b=>`<option value="${b}"${fBrand===b?' selected':''}>${SRV_BRANDS[b]||b} (${byTab(allCur).filter(r=>(r.brand||'Khác')===b).length})</option>`).join('')}
@@ -2194,6 +2441,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
       <select class="top-select" id="prodFilter" onchange="applyFilter()" style="height:30px;font-size:11px;padding:3px 10px;min-width:130px;font-weight:600">
         <option value="all">Tất cả SP</option>
       </select>
+      <button class="refresh-btn" onclick="exportMktReport()" title="Xuất báo cáo Marketing đầy đủ">📄 Xuất Báo Cáo</button>
       <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
     </div>
 
