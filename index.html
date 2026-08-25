@@ -1122,15 +1122,72 @@ function faqChatKeydown(ev){
   if(ev.isComposing||ev.keyCode===229)return;
   if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();sendFaqQuestion();}
 }
-function faqChatBubble(m){
+function faqChatBubble(m,i){
   if(m.role==='user')return`<div style="align-self:flex-end;max-width:78%;background:var(--accent);color:#fff;padding:10px 14px;border-radius:14px 14px 3px 14px;font-size:13.5px;line-height:1.55;white-space:pre-line">${m.content}</div>`;
   if(m.role==='error')return`<div style="align-self:flex-start;max-width:78%;background:var(--bad-l,#fee2e2);color:#b91c1c;padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13px;line-height:1.55">⚠️ ${m.content}</div>`;
-  return`<div style="align-self:flex-start;max-width:78%;background:var(--bg2);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13.5px;line-height:1.65;white-space:pre-line">${m.content}</div>`;
+  // Chỉ tester đã mở khoá mới thấy nút sửa — sales dùng bot bình thường không đụng được vào bộ nhớ
+  const canFix=(localStorage.getItem('dashRole')||'')==='tester'&&!!faqPass();
+  const tools=canFix?`<div style="display:flex;gap:12px;margin-top:6px;padding-left:2px">
+      <span onclick="faqFixAnswer(${i})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--accent)">✏️ Sửa câu này</span>
+      <span onclick="faqFlagAnswer(${i})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--muted)">👎 Báo sai để sửa sau</span>
+      ${m.fixed?'<span style="font-size:11.5px;color:var(--green);font-weight:700">✅ Đã dạy lại</span>':''}
+      ${m.flagged?'<span style="font-size:11.5px;color:#b45309;font-weight:700">🚩 Đã ghi nhận</span>':''}
+    </div>`:'';
+  return`<div style="align-self:flex-start;max-width:82%">
+    <div style="background:var(--bg2);color:var(--text);padding:10px 14px;border-radius:14px 14px 14px 3px;font-size:13.5px;line-height:1.65;white-space:pre-line">${m.content}</div>
+    ${tools}
+    <div id="faqFixBox${i}"></div>
+  </div>`;
+}
+// Mở ô sửa ngay dưới câu trả lời sai
+function faqFixAnswer(i){
+  const chat=window._faqChat||[];
+  const q=(chat.slice(0,i).reverse().find(x=>x.role==='user')||{}).content||'';
+  const box=document.getElementById('faqFixBox'+i);if(!box)return;
+  if(box.innerHTML){box.innerHTML='';return;}
+  const cats=[...new Set(productFaqRows.map(r=>r.category))];
+  box.innerHTML=`<div class="tov-card" style="padding:13px 15px;margin-top:8px;border-color:var(--accent)">
+    <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Dạy lại bot — câu hỏi</div>
+    <input id="fxQ${i}" value="${(q||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-weight:600;font-family:var(--font);margin-bottom:8px">
+    <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Câu trả lời ĐÚNG</div>
+    <textarea id="fxA${i}" rows="4" placeholder="Viết câu trả lời đúng để bot học…" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap">
+      <input id="fxCat${i}" list="fxCatList${i}" placeholder="Nhóm sản phẩm (không bắt buộc)" style="flex:1;min-width:170px;padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;font-family:var(--font)">
+      <datalist id="fxCatList${i}">${cats.map(c=>`<option value="${c}">`).join('')}</datalist>
+      <button onclick="faqSubmitFix(${i})" style="padding:8px 17px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Lưu & dạy bot</button>
+      <button onclick="document.getElementById('faqFixBox${i}').innerHTML=''" style="padding:8px 15px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text2);font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Huỷ</button>
+    </div>
+  </div>`;
+  setTimeout(()=>{const e=document.getElementById('fxA'+i);if(e)e.focus();},60);
+}
+async function faqSubmitFix(i){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const question=g('fxQ'+i).trim(), answer=g('fxA'+i).trim(), category=g('fxCat'+i).trim();
+  if(!question||!answer){alert('Cần có câu hỏi và câu trả lời đúng');return;}
+  try{
+    const d=await faqAdminCall({action:'teach',question,answer,category,feedback_id:(window._faqChat[i]||{}).feedbackId});
+    if(d.item)productFaqRows.push(d.item);
+    window._faqChat[i].fixed=true;
+    const box=document.getElementById('faqFixBox'+i);if(box)box.innerHTML='';
+    setStatus('Đã dạy bot câu trả lời mới');
+    renderFaqChatArea();
+  }catch(e){alert('Không lưu được: '+e.message);}
+}
+async function faqFlagAnswer(i){
+  const chat=window._faqChat||[];
+  const q=(chat.slice(0,i).reverse().find(x=>x.role==='user')||{}).content||'';
+  const note=prompt('Sai chỗ nào? (ghi ngắn, để trống cũng được)')||'';
+  try{
+    const d=await faqAdminCall({action:'flag',question:q,bot_answer:chat[i].content,note});
+    chat[i].flagged=true; chat[i].feedbackId=d.item&&d.item.id;
+    setStatus('Đã ghi nhận lỗi — xem lại ở tab Huấn Luyện');
+    renderFaqChatArea();
+  }catch(e){alert('Không ghi được: '+e.message);}
 }
 function renderFaqChatArea(){
   const box=document.getElementById('faqChatMsgs');if(!box)return;
   const chat=window._faqChat||[];
-  box.innerHTML=chat.length?chat.map(faqChatBubble).join(''):`<div style="color:var(--muted);font-size:13px;text-align:center;padding:30px 10px">Hỏi thử VD: "Ban thờ Thần Tài nên chọn size nào?" — trả lời dựa trên đúng ${productFaqRows.length} câu kiến thức sản phẩm đã nạp, không bịa ngoài phạm vi đó.</div>`;
+  box.innerHTML=chat.length?chat.map((m,i)=>faqChatBubble(m,i)).join(''):`<div style="color:var(--muted);font-size:13px;text-align:center;padding:30px 10px">Hỏi thử VD: "Ban thờ Thần Tài nên chọn size nào?" — trả lời dựa trên đúng ${productFaqRows.length} câu kiến thức sản phẩm đã nạp, không bịa ngoài phạm vi đó.</div>`;
   if(window._faqChatLoading)box.innerHTML+=`<div style="align-self:flex-start;color:var(--muted);font-size:13px;padding:6px 14px">Đang trả lời…</div>`;
   box.scrollTop=box.scrollHeight;
   const btn=document.getElementById('faqChatSendBtn');if(btn)btn.disabled=!!window._faqChatLoading;
@@ -1235,6 +1292,60 @@ function renderFaqTrainList(){
   if(rows.length>60)box.innerHTML+=`<div style="font-size:11.5px;color:var(--muted);text-align:center;padding:8px">Hiện 60/${num(rows.length)} — dùng ô tìm kiếm để lọc</div>`;
   if(window._faqTrainFocus){window._faqTrainFocus=false;const sb=document.getElementById('trSearch');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
+let faqFeedbackRows=[];
+async function loadFaqFeedback(){
+  try{faqFeedbackRows=await sbFetchAll('faq_feedback','select=*&status=eq.open&order=created_at.desc');}
+  catch(e){faqFeedbackRows=[];}
+  renderFaqFeedbackBox();
+}
+function renderFaqFeedbackBox(){
+  const box=document.getElementById('faqFeedbackBox');if(!box)return;
+  if(!faqFeedbackRows.length){box.innerHTML='';return;}
+  box.innerHTML=`<div class="sec-label" style="margin-top:0">🚩 Lỗi đã báo, chưa sửa <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(${faqFeedbackRows.length} mục · bấm để dạy lại)</span></div>`+
+    faqFeedbackRows.map(f=>`<div class="tov-card" style="padding:13px 16px;margin-bottom:8px;border-left:3px solid #b45309">
+      <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Khách hỏi · ${String(f.created_at).slice(0,10)}</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:5px">${f.question}</div>
+      ${f.note?`<div style="font-size:12px;color:#b45309;margin-bottom:5px">Ghi chú: ${f.note}</div>`:''}
+      <div style="font-size:12px;color:var(--text2);line-height:1.55;white-space:pre-line;max-height:96px;overflow:auto;background:var(--bg2);border-radius:8px;padding:8px 11px">${f.bot_answer||''}</div>
+      <div id="fbFix${f.id}"></div>
+      <div style="display:flex;gap:12px;margin-top:9px">
+        <span onclick="faqFixFeedback(${f.id})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--accent)">✏️ Dạy lại câu này</span>
+        <span onclick="faqResolveFeedback(${f.id})" style="cursor:pointer;font-size:11.5px;font-weight:700;color:var(--muted)">✔️ Bỏ qua</span>
+      </div>
+    </div>`).join('');
+}
+function faqFixFeedback(id){
+  const f=faqFeedbackRows.find(x=>x.id===id);if(!f)return;
+  const box=document.getElementById('fbFix'+id);if(!box)return;
+  if(box.innerHTML){box.innerHTML='';return;}
+  const cats=[...new Set(productFaqRows.map(r=>r.category))];
+  box.innerHTML=`<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
+    <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Câu trả lời ĐÚNG</div>
+    <textarea id="fbA${id}" rows="4" placeholder="Viết câu trả lời đúng…" style="width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12.5px;font-family:var(--font);line-height:1.6;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <input id="fbCat${id}" list="fbCatL${id}" placeholder="Nhóm sản phẩm" style="flex:1;min-width:160px;padding:7px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--bg2);color:var(--text);font-size:12px;font-family:var(--font)">
+      <datalist id="fbCatL${id}">${cats.map(c=>`<option value="${c}">`).join('')}</datalist>
+      <button onclick="faqSubmitFeedbackFix(${id})" style="padding:8px 17px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;font-family:var(--font)">Lưu & dạy bot</button>
+    </div></div>`;
+  setTimeout(()=>{const e=document.getElementById('fbA'+id);if(e)e.focus();},60);
+}
+async function faqSubmitFeedbackFix(id){
+  const f=faqFeedbackRows.find(x=>x.id===id);if(!f)return;
+  const g=i=>(document.getElementById(i)||{}).value||'';
+  const answer=g('fbA'+id).trim();
+  if(!answer){alert('Nhập câu trả lời đúng');return;}
+  try{
+    const d=await faqAdminCall({action:'teach',question:f.question,answer,category:g('fbCat'+id).trim(),feedback_id:id});
+    if(d.item)productFaqRows.push(d.item);
+    faqFeedbackRows=faqFeedbackRows.filter(x=>x.id!==id);
+    setStatus('Đã dạy bot');renderFaqFeedbackBox();renderFaqTrainList();
+  }catch(e){alert('Không lưu được: '+e.message);}
+}
+async function faqResolveFeedback(id){
+  try{await faqAdminCall({action:'resolve',id});
+    faqFeedbackRows=faqFeedbackRows.filter(x=>x.id!==id);renderFaqFeedbackBox();}
+  catch(e){alert(e.message);}
+}
 function renderFaqTrainTab(){
   if(!faqPass()){
     return`<div class="tov-card" style="padding:30px;max-width:520px">
@@ -1268,6 +1379,7 @@ function renderFaqTrainTab(){
       <button id="trAddBtn" onclick="faqAddItem()" style="padding:10px 22px;border:none;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font)">➕ Thêm kiến thức</button>
       <div style="font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5">Thêm xong sang tab <b>💬 QnA</b> hỏi thử ngay để kiểm tra bot đã trả lời đúng chưa.</div>
     </div>
+    <div id="faqFeedbackBox"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
       <div class="sec-label" style="margin:0">Kiến thức hiện có</div>
       <input id="trSearch" oninput="setFaqTrainSearch(this.value)" value="${(window._faqTrainQ||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm để sửa / xoá…"
@@ -1293,6 +1405,7 @@ async function renderFaq(){
       ${tabsHtml}
       ${renderFaqTrainTab()}`;
     renderFaqTrainList();
+    loadFaqFeedback();
     return;
   }
   if(tab==='qna'){

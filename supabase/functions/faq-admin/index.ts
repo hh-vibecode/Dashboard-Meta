@@ -71,6 +71,39 @@ Deno.serve(async (req: Request) => {
       await sb(`product_faq?id=eq.${encodeURIComponent(b.id)}`, { method: "DELETE" });
       return json({ ok: true });
     }
+    // Báo lỗi: KHÔNG cần mật khẩu ở phía dưới đã chặn rồi, nhưng để tester ghi nhanh khi thấy bot sai
+    if (b.action === "flag") {
+      const row = await sb("faq_feedback", {
+        method: "POST",
+        body: JSON.stringify({ question: String(b.question || "").slice(0, 1000), bot_answer: String(b.bot_answer || "").slice(0, 4000), note: b.note ? String(b.note).slice(0, 500) : null }),
+      });
+      return json({ ok: true, item: row?.[0] });
+    }
+    // Sửa ngay từ khung chat: lưu câu trả lời đúng thành kiến thức mới, đồng thời đóng phiếu báo lỗi nếu có
+    if (b.action === "teach") {
+      const { question, answer, category, subcategory, feedback_id } = b;
+      if (!question || !answer) return json({ error: "Cần câu hỏi và câu trả lời đúng." }, 400);
+      const row = await sb("product_faq", {
+        method: "POST",
+        body: JSON.stringify({
+          category: (category && String(category).trim()) || "Bổ sung từ QnA",
+          subcategory: subcategory ? String(subcategory).trim() : null,
+          question: String(question).trim(), answer: String(answer).trim(),
+          source_doc: "Sửa trực tiếp khi bot trả lời sai",
+        }),
+      });
+      if (feedback_id) {
+        await sb(`faq_feedback?id=eq.${encodeURIComponent(feedback_id)}`, {
+          method: "PATCH", body: JSON.stringify({ status: "fixed", fixed_faq_id: row?.[0]?.id ?? null }),
+        }).catch(() => {});
+      }
+      return json({ ok: true, item: row?.[0] });
+    }
+    if (b.action === "resolve") {
+      if (!b.id) return json({ error: "Thiếu id" }, 400);
+      await sb(`faq_feedback?id=eq.${encodeURIComponent(b.id)}`, { method: "PATCH", body: JSON.stringify({ status: "fixed" }) });
+      return json({ ok: true });
+    }
     if (b.action === "check") return json({ ok: true });   // dùng để kiểm tra mật khẩu
     return json({ error: "action không hợp lệ" }, 400);
   } catch (e) {
