@@ -3663,7 +3663,7 @@ function renderSaleSiData(){
   const pendPanel=!csPending?'':`
     <div style="margin-top:12px">
       <div onclick="toggleSiPend()" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--surface);border:1.5px solid var(--border);border-radius:${pendOpen?'10px 10px 0 0':'10px'};font-size:12.5px;font-weight:700">
-        <span>${pendOpen?'▼':'▶'}</span> Tồn đọng cái gì? — bóc tách ${num(csPending)} lượt chăm sóc chưa đánh dấu "Đã xong"
+        <span>${pendOpen?'▼':'▶'}</span> Data Tồn Đọng — ${num(csPending)} dòng
         <span style="margin-left:auto;font-weight:500;font-size:11.5px;color:var(--muted)">${Object.entries(pendByReason).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${num(v)}`).join(' · ')}</span>
       </div>
       ${!pendOpen?'':`<div style="border:1.5px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:12px 13px;background:var(--surface)">
@@ -3673,18 +3673,15 @@ function renderSaleSiData(){
         </div>
         <div style="max-height:420px;overflow:auto"><table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border);position:sticky;top:0">
-            ${['NGÀY CS','MÃ KH','KHÁCH HÀNG','SALE','PHÂN LOẠI KH','NỘI DUNG CHĂM SÓC','VIỆC CẦN LÀM TIẾP','NGÀY HẸN','LÝ DO CÒN TỒN']
+            ${['NGÀY','MÃ KH','KHÁCH HÀNG','SĐT','SALE PHỤ TRÁCH','LÝ DO TỒN ĐỌNG']
               .map(c=>`<th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.04em;white-space:nowrap">${c}</th>`).join('')}
           </tr></thead><tbody>
           ${pendSorted.slice(0,300).map(r=>{const rs=pendReason(r);return`<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:7px 10px;font-size:11.5px;color:var(--muted);white-space:nowrap">${r[activeCOL_SICRM.DATE]||'—'}</td>
             <td style="padding:7px 10px;font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap">${r[activeCOL_SICRM.LEAD_ID]||'—'}</td>
             <td style="padding:7px 10px;font-size:12px;font-weight:600">${(r[activeCOL_SICRM.NAME]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
-            <td style="padding:7px 10px;font-size:11.5px;white-space:nowrap">${(r[activeCOL_SICRM.SALES]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
-            <td style="padding:7px 10px">${statusChip(activeCOL_SICRM.PHANLOAI>=0?r[activeCOL_SICRM.PHANLOAI]:'')}</td>
-            <td style="padding:7px 10px;font-size:11.5px;color:var(--text2);line-height:1.4;min-width:200px">${(r[activeCOL_SICRM.RESULT]||r[activeCOL_SICRM.CONTENT]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
-            <td style="padding:7px 10px;font-size:11.5px;color:var(--text2);line-height:1.4">${(r[activeCOL_SICRM.NEXT_ACTION]||'').trim()||'<span style="color:var(--muted)">—</span>'}</td>
-            <td style="padding:7px 10px;font-size:11.5px;color:#ca8a04;font-weight:600;white-space:nowrap">${(r[activeCOL_SICRM.NEXT_DATE]||'').trim()||'—'}</td>
+            <td style="padding:7px 10px;font-size:11.5px;color:var(--text2);white-space:nowrap">${(r[activeCOL_SICRM.PHONE]||'').trim()||'—'}</td>
+            <td style="padding:7px 10px;font-size:11.5px;white-space:nowrap">${(r[activeCOL_SICRM.SALES]||'').trim()||'<span style="color:#dc2626;font-weight:700">Chưa gán sale</span>'}</td>
             <td style="padding:7px 10px">${chip(rs.txt,rs.bg,rs.fg)}</td>
           </tr>`;}).join('')}
           </tbody></table></div>
@@ -4119,8 +4116,8 @@ function onlContactInfo(masterRow,histMap){
   const days=last?Math.max(0,Math.floor((today-last)/86400000)):null;
   return{days,lastStr,count:recs.length,content,form,expected};
 }
-function setSaonlFilter(v){window._saonlFilter=v;renderSaleOnlData();}
-function setSaonlCare(v){window._saonlCare=v;renderSaleOnlData();}
+function setSaonlFilter(v){window._saonlFilter=v;window._saonlPage=1;renderSaleOnlData();}
+function setSaonlCare(v){window._saonlCare=v;window._saonlPage=1;renderSaleOnlData();}
 function renderSaleOnlData(){
   const elp=document.getElementById('page-sale-onl-data');
   if(!elp)return;
@@ -4195,7 +4192,24 @@ function renderSaleOnlData(){
   const fc=(f,icon,label,val,sub,grad)=>`<div onclick="setSaonlFilter('${f}')" title="Bấm để lọc danh sách" style="cursor:pointer;border-radius:16px;outline:${F===f?'3px solid var(--accent)':'none'};outline-offset:2px">${mkKpi(icon,label,val,sub,grad)}</div>`;
   const fbAvatar='<svg viewBox="0 0 40 40" width="30" height="30" style="display:block"><circle cx="20" cy="20" r="20" fill="#1f2937"/><circle cx="20" cy="16" r="6.5" fill="#fff"/><path d="M8 34 a12 9 0 0 1 24 0 z" fill="#fff"/></svg>';
 
-  const bodyRows=enriched.map(({r,ci,rev},i)=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+  // PHÂN TRANG BẮT BUỘC: CRM Lẻ có ~6.4k khách, render 1 lượt ra ~14MB HTML làm trình duyệt treo cứng
+  // (trang "mãi không load được"). Chỉ dựng HTML cho 50 dòng của trang hiện tại; index gốc giữ nguyên
+  // để openSaonlProfile(i) vẫn trỏ đúng khách trong window._saonlProfiles.
+  const SO_PER=50, soPages=Math.max(1,Math.ceil(enriched.length/SO_PER));
+  let soPg=window._saonlPage||1; if(soPg>soPages)soPg=soPages; if(soPg<1)soPg=1; window._saonlPage=soPg;
+  const soView=[];for(let i=(soPg-1)*SO_PER;i<Math.min(soPg*SO_PER,enriched.length);i++)soView.push([enriched[i],i]);
+  const soBtn=(p2,label,dis)=>dis
+    ? `<span style="padding:6px 11px;font-size:12px;color:var(--muted);opacity:.45">${label}</span>`
+    : `<span onclick="setSaonlPage(${p2})" style="cursor:pointer;padding:6px 11px;border-radius:8px;font-size:12px;font-weight:700;color:${p2===soPg?'#fff':'var(--text2)'};background:${p2===soPg?'var(--accent)':'var(--surface)'};border:1.5px solid ${p2===soPg?'var(--accent)':'var(--border)'}">${label}</span>`;
+  let soPager='';
+  if(soPages>1){
+    const nums=[];let a=Math.max(1,soPg-3),b2=Math.min(soPages,a+6);a=Math.max(1,b2-6);
+    for(let i=a;i<=b2;i++)nums.push(soBtn(i,String(i),false));
+    soPager=`<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;padding:12px">
+      ${soBtn(1,'« Đầu',soPg<=1)}${soBtn(soPg-1,'‹ Trước',soPg<=1)}${nums.join('')}${soBtn(soPg+1,'Sau ›',soPg>=soPages)}${soBtn(soPages,'Cuối »',soPg>=soPages)}
+      <span style="margin-left:8px;font-size:11.5px;color:var(--muted)">Trang ${soPg}/${soPages} · ${num(enriched.length)} khách</span></div>`;
+  }
+  const bodyRows=soView.map(([{r,ci,rev},i])=>`<tr style="border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:9px 12px;font-size:12px;color:var(--muted);white-space:nowrap">${r[COL_SAONL.DATE]||'—'}</td>
       <td style="padding:9px 12px"><div style="font-size:13px;font-weight:700;white-space:normal;word-break:break-word;line-height:1.35">${r[COL_SAONL.NAME]||'—'}</div>${(r[COL_SAONL.PHONE]||'').trim()?`<div style="font-size:11px;color:var(--muted)">${(r[COL_SAONL.PHONE]||'').trim()}</div>`:''}</td>
       <td style="padding:9px 12px">${srcChip(r[COL_SAONL.SOURCE])}</td>
@@ -4248,12 +4262,13 @@ function renderSaleOnlData(){
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         ${[['NGÀY TẠO','left'],['TÊN KHÁCH','left'],['NGUỒN','left'],['KÊNH','left'],['CS CUỐI','left'],['NỘI DUNG CS GẦN NHẤT','left'],['CHƯA LH','center','#dc2626'],['TRẠNG THÁI','left'],['DOANH THU','right'],['HỒ SƠ','center']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
-    </table></div></div>`;
+    </table></div>${soPager}</div>`;
   if(window._saonlSearchFocus){window._saonlSearchFocus=false;const sb=document.getElementById('saonlSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
-function setSaonlSrc(v){window._saonlSrc=v;renderSaleOnlData();}
-function setSaonlStt(v){window._saonlStt=v;renderSaleOnlData();}
-function setSaonlSearch(v){window._saonlSearch=v;window._saonlSearchFocus=true;renderSaleOnlData();}
+function setSaonlPage(p){window._saonlPage=p;renderSaleOnlData();window.scrollTo({top:0,behavior:'smooth'});}
+function setSaonlSrc(v){window._saonlSrc=v;window._saonlPage=1;renderSaleOnlData();}
+function setSaonlStt(v){window._saonlStt=v;window._saonlPage=1;renderSaleOnlData();}
+function setSaonlSearch(v){window._saonlSearch=v;window._saonlPage=1;window._saonlSearchFocus=true;renderSaleOnlData();}
 function closeSaonlProfile(){const m=document.getElementById('saonlProfileModal');if(m)m.style.display='none';}
 function openSaonlProfile(i){
   const r=(window._saonlProfiles||[])[i];if(!r)return;
