@@ -257,6 +257,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="toggle-track"><div class="toggle-thumb"></div></div>
     <span id="themeLabel">Tối</span>
   </button>
+  <button class="settings-btn" onclick="exportCurrentPage()" title="Xuất số liệu trang này ra Excel/CSV">⬇</button>
   <button class="settings-btn" id="settingsBtn" onclick="loadData()" title="Tải lại dữ liệu">↺</button>
   <button class="settings-btn" onclick="logout()" title="Đăng xuất">⎋</button>
   </div>
@@ -375,6 +376,108 @@ let allRows=[],crmHubRows=[],onlineRows=[],saleSiRows=[],saleOnlRows=[],saleOnlC
   document.documentElement.setAttribute('data-theme',s);
   window.addEventListener('DOMContentLoaded',()=>{document.getElementById('themeLabel').textContent=s==='dark'?'Sáng':'Tối';});
 })();
+// ── Xuất số liệu trang đang mở ra CSV (mở được bằng Excel) ──────────────────────────
+// Quét thẳng DOM của trang: lấy các thẻ KPI + mọi bảng đang hiển thị, nên số xuất ra LUÔN khớp
+// đúng bộ lọc/tab người dùng đang chọn, và tự hoạt động với trang mới mà không phải sửa gì thêm.
+const EXPORT_PAGE_NAMES={overview:'MKT Tong Quan',detail:'MKT Chi Tiet','sale-si':'Bao Cao KH Si','sale-si-data':'CRM KH Si',
+  'sale-onl':'Bao Cao KH Le','sale-onl-data':'Chi Tiet KH Le','qc-doisoat':'QC Bao Cao Chung','qc-invoice':'QC Doi Soat Don Hang',
+  'qc-compare':'QC So Sanh Thang',danhgia:'Bao Cao Danh Gia',faq:'FAQ San Pham','sale-review':'Chat Luong Phan Hoi',social:'Bao Cao Social'};
+function expClean(t){return (t||'').replace(/\s+/g,' ').trim();}
+function expCsvCell(v){
+  v=expClean(v);
+  return /[",;\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+// 1 ô có thể chứa nhiều dòng (VD tên khách + SĐT) -> gộp bằng " | " cho gọn 1 ô Excel
+function expCellText(td){
+  const parts=[];
+  td.querySelectorAll('div,span').forEach(()=>{});
+  const raw=td.innerText||td.textContent||'';
+  raw.split('\n').map(x=>expClean(x)).filter(Boolean).forEach(x=>{if(!parts.includes(x))parts.push(x);});
+  return parts.join(' | ');
+}
+function expTableRows(tbl){
+  const out=[];
+  tbl.querySelectorAll('tr').forEach(tr=>{
+    if(tr.offsetParent===null&&tr.style.display==='none')return;   // bỏ hàng đang ẩn (chi tiết chưa xổ)
+    const cells=[...tr.children].filter(c=>c.tagName==='TD'||c.tagName==='TH');
+    if(!cells.length)return;
+    out.push(cells.map(expCellText));
+  });
+  return out;
+}
+function expSectionTitleFor(el,pageEl){
+  // tìm .sec-label / .tbl-title gần nhất phía trên để đặt tên bảng
+  let n=el, guard=0;
+  while(n&&n!==pageEl&&guard++<40){
+    let p=n.previousElementSibling;
+    while(p){
+      const lab=p.classList&&(p.classList.contains('sec-label')||p.classList.contains('tbl-title'))?p:
+                (p.querySelector?p.querySelector('.sec-label,.tbl-title'):null);
+      if(lab)return expClean(lab.innerText);
+      p=p.previousElementSibling;
+    }
+    n=n.parentElement;
+  }
+  return '';
+}
+function exportCurrentPage(){
+  const key=window._curPage||'overview';
+  const pageEl=document.getElementById('page-'+key);
+  if(!pageEl){alert('Không tìm thấy trang để xuất.');return;}
+  const lines=[];
+  const title=expClean((pageEl.querySelector('.page-title')||{}).innerText||EXPORT_PAGE_NAMES[key]||key);
+  const sub=expClean((pageEl.querySelector('.page-sub')||{}).innerText||'');
+  lines.push([title]);
+  if(sub)lines.push([sub]);
+  lines.push(['Xuất lúc', new Date().toLocaleString('vi-VN')]);
+  lines.push([]);
+
+  // KPI cards
+  const kpis=[...pageEl.querySelectorAll('.kpi')].filter(k=>k.offsetParent!==null);
+  if(kpis.length){
+    lines.push(['CHỈ SỐ TỔNG QUAN']);
+    lines.push(['Chỉ số','Giá trị','Ghi chú']);
+    kpis.forEach(k=>lines.push([
+      expClean((k.querySelector('.kpi-lbl')||{}).innerText||''),
+      expClean((k.querySelector('.kpi-val')||{}).innerText||''),
+      expClean((k.querySelector('.kpi-sub')||{}).innerText||'')
+    ]));
+    lines.push([]);
+  }
+  // Thẻ scorecard kiểu trang Social (không dùng class .kpi)
+  if(!kpis.length){
+    const cards=[...pageEl.querySelectorAll('.tov-card')].filter(c=>c.offsetParent!==null&&!c.querySelector('table')&&c.children.length===3);
+    if(cards.length>=3){
+      lines.push(['CHỈ SỐ TỔNG QUAN']);
+      lines.push(['Chỉ số','Giá trị','Ghi chú']);
+      cards.forEach(c=>{const t=[...c.children].map(x=>expClean(x.innerText));lines.push([t[0]||'',t[1]||'',t[2]||'']);});
+      lines.push([]);
+    }
+  }
+  // Bảng
+  let n=0;
+  [...pageEl.querySelectorAll('table')].forEach(tbl=>{
+    if(tbl.offsetParent===null)return;
+    const rows=expTableRows(tbl);
+    if(rows.length<2)return;
+    n++;
+    const st=expSectionTitleFor(tbl,pageEl);
+    lines.push([st||('BẢNG '+n)]);
+    rows.forEach(r=>lines.push(r));
+    lines.push([]);
+  });
+
+  if(!kpis.length&&!n){alert('Trang này chưa có số liệu để xuất.');return;}
+  const csv='﻿'+lines.map(r=>r.map(expCsvCell).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const d=new Date(),pad=x=>String(x).padStart(2,'0');
+  const name=`${EXPORT_PAGE_NAMES[key]||key}_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);
+  setStatus(`Đã xuất: ${name}`);
+}
 function toggleTheme(){
   const h=document.documentElement,dark=h.getAttribute('data-theme')==='dark';
   h.setAttribute('data-theme',dark?'light':'dark');
@@ -449,6 +552,7 @@ function initAuth(){
 }
 
 function switchPage(p){
+  window._curPage=p;
   ['danhgia','faq','sale-review','social','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
