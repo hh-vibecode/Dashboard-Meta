@@ -13,6 +13,12 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 // nếu đặt quá thấp model sẽ tiêu hết vào phần suy luận và trả về nội dung RỖNG.
 const OPENAI_MODEL = "gpt-5.4-nano";
 const IS_GPT5 = OPENAI_MODEL.startsWith("gpt-5");
+// Đơn giá USD / 1 triệu token (input, output) — đổi nếu OpenAI cập nhật giá hoặc đổi model
+const PRICE_PER_1M: Record<string, [number, number]> = {
+  "gpt-5.4-nano": [0.05, 0.40], "gpt-5-nano": [0.05, 0.40],
+  "gpt-4.1-nano": [0.10, 0.40], "gpt-4o-mini": [0.15, 0.60],
+};
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,7 +93,19 @@ Deno.serve(async (req: Request) => {
     }
     const aiData = await aiRes.json();
     const answer = aiData?.choices?.[0]?.message?.content?.trim() || "(không có phản hồi)";
-    return json({ answer });
+
+    // Ghi nhận lượng token + chi phí của lần hỏi này để dashboard hiển thị (không chặn câu trả lời nếu ghi lỗi)
+    const pt = aiData?.usage?.prompt_tokens ?? 0, ct = aiData?.usage?.completion_tokens ?? 0;
+    const [pin, pout] = PRICE_PER_1M[OPENAI_MODEL] ?? [0, 0];
+    const cost = (pt / 1e6) * pin + (ct / 1e6) * pout;
+    if (SERVICE_KEY) {
+      fetch(`${SUPABASE_URL}/rest/v1/faq_chat_usage`, {
+        method: "POST",
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: OPENAI_MODEL, prompt_tokens: pt, completion_tokens: ct, cost_usd: cost, question: question.slice(0, 500) }),
+      }).catch(() => {});
+    }
+    return json({ answer, usage: { prompt_tokens: pt, completion_tokens: ct, cost_usd: cost } });
   } catch (e) {
     return json({ error: `Lỗi gọi OpenAI: ${(e as Error).message}` }, 502);
   }
