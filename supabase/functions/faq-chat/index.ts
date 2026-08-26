@@ -12,7 +12,12 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 // LƯU Ý: dòng gpt-5.x dùng "max_completion_tokens" (không phải "max_tokens") và cần đủ hạn mức token,
 // nếu đặt quá thấp model sẽ tiêu hết vào phần suy luận và trả về nội dung RỖNG.
 const OPENAI_MODEL = "gpt-5.4-nano";
-const IS_GPT5 = OPENAI_MODEL.startsWith("gpt-5");
+// Model cho câu hỏi CÓ ẢNH. Đã test 4 vòng bằng ảnh chứa số ngẫu nhiên (không đoán mò được):
+//   gpt-5.4-nano 0/4 (bịa hoàn toàn) · gpt-5-nano 3/4 · gpt-4.1-nano 3/4 · gpt-4o-mini 4/4.
+// => model chữ đang dùng KHÔNG đọc được ảnh, phải tự chuyển sang gpt-4o-mini khi có ảnh đính kèm.
+// Lưu ý: số token input KHÔNG cho biết model có đọc ảnh hay không (gpt-5-nano chỉ tốn 56 token
+// vẫn đọc đúng, còn gpt-5.4-nano tốn tương đương lại đọc sai) — chỉ có test thực nghiệm mới tin được.
+const VISION_MODEL = "gpt-4o-mini";
 // Đơn giá USD / 1 triệu token (input, output) — đổi nếu OpenAI cập nhật giá hoặc đổi model
 const PRICE_PER_1M: Record<string, [number, number]> = {
   "gpt-5.4-nano": [0.05, 0.40], "gpt-5-nano": [0.05, 0.40],
@@ -36,7 +41,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Chỉ nhận POST" }, 405);
 
-  let body: { question?: string; history?: { role: string; content: string }[] };
+  let body: { question?: string; history?: { role: string; content: string }[]; images?: string[] };
   try {
     body = await req.json();
   } catch {
@@ -44,7 +49,14 @@ Deno.serve(async (req: Request) => {
   }
 
   const question = (body.question || "").trim();
-  if (!question) return json({ error: "Thiếu câu hỏi" }, 400);
+  // Chỉ nhận data URL ảnh, tối đa 3 tấm — chặn URL ngoài để không biến hàm này thành công cụ tải hộ.
+  const images = (Array.isArray(body.images) ? body.images : [])
+    .filter((u) => typeof u === "string" && /^data:image\/(png|jpe?g|webp|gif);base64,/.test(u))
+    .slice(0, 3);
+  if (!question && !images.length) return json({ error: "Thiếu câu hỏi" }, 400);
+  const hasImg = images.length > 0;
+  const MODEL = hasImg ? VISION_MODEL : OPENAI_MODEL;
+  const IS_GPT5 = MODEL.startsWith("gpt-5");
   if (!OPENAI_API_KEY) return json({ error: "Server chưa cấu hình OPENAI_API_KEY (chạy: supabase secrets set OPENAI_API_KEY=...)" }, 500);
 
   // Dữ liệu nhỏ (~260 câu, dưới 200KB) nên nhét thẳng toàn bộ vào system prompt (closed-book, không cần RAG).
@@ -80,17 +92,30 @@ Deno.serve(async (req: Request) => {
     `Viết chữ thường bình thường. Muốn nhấn mạnh con số thì cứ viết thẳng ra, không bôi đậm.\n` +
     `- Khi liệt kê thì mỗi ý xuống dòng, bắt đầu bằng dấu gạch ngang "- ".\n` +
     `- Luôn viết hoa đầu câu và viết hoa tên riêng cho đúng chính tả, kể cả khi khách gõ tắt hoặc gõ thường.\n\n` +
-    `=== KIẾN THỨC SẢN PHẨM ===\n${context}`;
+    (hasImg
+      ? `\nNGƯỜI DÙNG CÓ GỬI KÈM ẢNH:\n` +
+        `- Mô tả/nhận định những gì NHÌN THẤY trong ảnh (loại sản phẩm, chất liệu, tư thế, chữ trên ảnh...).\n` +
+        `- Rồi đối chiếu với KIẾN THỨC SẢN PHẨM để tư vấn.\n` +
+        `- Bạn KHÔNG có kho ảnh sản phẩm để tra mã hàng. Nếu không chắc chắn đó là mẫu nào thì nói thẳng ` +
+        `là nhìn ảnh chỉ nhận định được đến đâu, TUYỆT ĐỐI không bịa mã hàng hay giá cụ thể.\n`
+      : ``) +
+    `\n=== KIẾN THỨC SẢN PHẨM ===\n${context}`;
 
   const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
-  const messages = [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: question }];
+  const userContent = hasImg
+    ? [
+      { type: "text", text: question || "Xem ảnh này giúp em, đây là sản phẩm gì và tư vấn thế nào?" },
+      ...images.map((u) => ({ type: "image_url", image_url: { url: u, detail: "low" } })),
+    ]
+    : question;
+  const messages = [{ role: "system", content: systemPrompt }, ...history, { role: "user", content: userContent }];
 
   try {
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${OPENAI_API_KEY}` },
       body: JSON.stringify({
-        model: OPENAI_MODEL,
+        model: MODEL,
         messages,
         temperature: 0.3,
         ...(IS_GPT5 ? { max_completion_tokens: 900 } : { max_tokens: 700 }),
@@ -105,16 +130,16 @@ Deno.serve(async (req: Request) => {
 
     // Ghi nhận lượng token + chi phí của lần hỏi này để dashboard hiển thị (không chặn câu trả lời nếu ghi lỗi)
     const pt = aiData?.usage?.prompt_tokens ?? 0, ct = aiData?.usage?.completion_tokens ?? 0;
-    const [pin, pout] = PRICE_PER_1M[OPENAI_MODEL] ?? [0, 0];
+    const [pin, pout] = PRICE_PER_1M[MODEL] ?? [0, 0];
     const cost = (pt / 1e6) * pin + (ct / 1e6) * pout;
     if (SERVICE_KEY) {
       fetch(`${SUPABASE_URL}/rest/v1/faq_chat_usage`, {
         method: "POST",
         headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: OPENAI_MODEL, prompt_tokens: pt, completion_tokens: ct, cost_usd: cost, question: question.slice(0, 500) }),
+        body: JSON.stringify({ model: MODEL, prompt_tokens: pt, completion_tokens: ct, cost_usd: cost, question: ((hasImg ? `[${images.length} ảnh] ` : "") + question).slice(0, 500) }),
       }).catch(() => {});
     }
-    return json({ answer, usage: { prompt_tokens: pt, completion_tokens: ct, cost_usd: cost } });
+    return json({ answer, model: MODEL, usage: { prompt_tokens: pt, completion_tokens: ct, cost_usd: cost } });
   } catch (e) {
     return json({ error: `Lỗi gọi OpenAI: ${(e as Error).message}` }, 502);
   }
