@@ -733,6 +733,10 @@ const PRESENCE_TTL=90000, PRESENCE_PING=30000;
 const PRES_ANIMALS=['🦊','🐼','🦉','🐻','🐨','🐯','🦁','🐸','🐧','🦄','🐙','🦋','🐬','🦅','🐝','🦈'];
 const PRES_COLORS=['#4361ee','#0abf7a','#7c3aed','#f59e0b','#e11d48','#0891b2','#ec4899','#64748b'];
 function presHash(str){let h=0;for(let i=0;i<String(str).length;i++)h=(h*31+String(str).charCodeAt(i))|0;return Math.abs(h);}
+// Icon con vật ĐỔI NGẪU NHIÊN mỗi lần F5 hoặc mở tab mới (không hash cố định theo tên nữa) — chọn 1 lần
+// khi script chạy, gửi lên cùng dòng điểm danh để MỌI người xem đều thấy đúng icon mình vừa random ra.
+const presMyAnimal=Math.floor(Math.random()*PRES_ANIMALS.length);
+const presMyColor=Math.floor(Math.random()*PRES_COLORS.length);
 function presSessionId(){
   let id=sessionStorage.getItem('dashSession');
   if(!id){id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);sessionStorage.setItem('dashSession',id);}
@@ -746,7 +750,7 @@ async function presencePing(){
       method:'POST',
       headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY,
                'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},
-      body:JSON.stringify({session_id:presSessionId(),username:u,role:localStorage.getItem('dashRole')||'',last_seen:new Date().toISOString()})
+      body:JSON.stringify({session_id:presSessionId(),username:u,role:localStorage.getItem('dashRole')||'',last_seen:new Date().toISOString(),avatar_idx:presMyAnimal,color_idx:presMyColor})
     });
   }catch(e){}
 }
@@ -756,7 +760,7 @@ async function presenceRefresh(){
   let rows=[];
   try{
     const since=new Date(Date.now()-PRESENCE_TTL).toISOString();
-    const r=await fetch(`${SUPABASE_URL}/rest/v1/dash_presence?select=username,role,last_seen&last_seen=gte.${since}&order=last_seen.desc`,
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/dash_presence?select=username,role,last_seen,avatar_idx,color_idx&last_seen=gte.${since}&order=last_seen.desc`,
       {headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY}});
     rows=await r.json();
   }catch(e){return;}
@@ -766,17 +770,21 @@ async function presenceRefresh(){
   rows.forEach(x=>{if(!seen.has(x.username))seen.set(x.username,x);});
   const me=localStorage.getItem('dashUser');
   const list=[...seen.values()].sort((a,b)=>(a.username===me?-1:b.username===me?1:a.username.localeCompare(b.username)));
-  const av=(u,z)=>{
-    const h=presHash(u);
-    return`<div title="${u}" style="width:${z}px;height:${z}px;border-radius:50%;background:${PRES_COLORS[h%PRES_COLORS.length]};
+  const av=(x,z)=>{
+    // Đọc icon/màu server đã lưu (random lúc người đó F5) — chỉ hash theo tên làm phương án dự phòng
+    // cho dòng cũ chưa có avatar_idx (trước khi thêm 2 cột này vào bảng).
+    const h=presHash(x.username);
+    const ai=Number.isInteger(x.avatar_idx)?x.avatar_idx:h%PRES_ANIMALS.length;
+    const ci=Number.isInteger(x.color_idx)?x.color_idx:h%PRES_COLORS.length;
+    return`<div title="${x.username}" style="width:${z}px;height:${z}px;border-radius:50%;background:${PRES_COLORS[ci%PRES_COLORS.length]};
       display:flex;align-items:center;justify-content:center;font-size:${Math.round(z*0.52)}px;
-      border:2px solid var(--surface);margin-left:-7px;flex-shrink:0">${PRES_ANIMALS[h%PRES_ANIMALS.length]}</div>`;
+      border:2px solid var(--surface);margin-left:-7px;flex-shrink:0">${PRES_ANIMALS[ai%PRES_ANIMALS.length]}</div>`;
   };
   const shown=list.slice(0,3), extra=list.length-shown.length;
   bar.innerHTML=`<div id="presWrap" style="display:flex;align-items:center;cursor:default;position:relative;padding-left:7px"
       onmouseenter="document.getElementById('presPop').style.display='block'"
       onmouseleave="document.getElementById('presPop').style.display='none'">
-    ${shown.map(x=>av(x.username,26)).join('')}
+    ${shown.map(x=>av(x,26)).join('')}
     ${extra>0?`<div style="min-width:26px;height:26px;padding:0 5px;border-radius:13px;background:var(--bg2);color:var(--text2);
         display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;border:2px solid var(--surface);margin-left:-7px">+${extra}</div>`:''}
     <div id="presPop" style="display:none;position:absolute;top:34px;right:0;z-index:500;background:var(--surface);
@@ -784,7 +792,7 @@ async function presenceRefresh(){
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">
         Đang online (${list.length})</div>
       ${list.map(x=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
-        <div style="margin-left:7px">${av(x.username,22)}</div>
+        <div style="margin-left:7px">${av(x,22)}</div>
         <div style="font-size:12.5px;font-weight:700;white-space:nowrap">${x.username}${x.username===me?' <span style="font-weight:500;color:var(--muted)">(bạn)</span>':''}</div>
       </div>`).join('')}
     </div>
@@ -2751,6 +2759,17 @@ function filterSaleRows(from,to){
   });
 }
 
+// Suy brand theo TEXT kênh/sản phẩm — DÙNG CHUNG cho calcSaleStats (card "ADS/DS Theo Brand" ở Tổng Quan)
+// và buildOnlineCampTable (bảng "Kết Quả Online Theo Chiến Dịch"). Trước đây 2 nơi tự viết 2 bản riêng,
+// lệch nhau âm thầm — đây là nguyên nhân gốc khiến 2 bảng ra 2 số khác nhau cho cùng 1 brand.
+function saonlTextBrand(channel,product){
+  const text=(channel||'')+' '+(product||'');
+  if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(text))return'TTV';
+  if(/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text))return'HT';
+  if(/shidai/i.test(text))return'Shidai';
+  if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))return'CT';
+  return null;
+}
 function calcSaleStats(saleFiltered){
   if(!saleFiltered||!saleFiltered.length)return null;
   const adCampMap=buildAdCampMap();
@@ -2761,14 +2780,7 @@ function calcSaleStats(saleFiltered){
   const totalLeads=saleFiltered.length;
   const byCamp={};
   const byDirectProd={HT:{},Shidai:{},CT:{},TTV:{}};
-  function directBrand(r){
-    const text=(r[COL_SAONL.CHANNEL]||'')+' '+(r[COL_SAONL.PRODUCT]||'');
-    if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(text))return'TTV';
-    if(/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text))return'HT';
-    if(/shidai/i.test(text))return'Shidai';
-    if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))return'CT';
-    return null;
-  }
+  function directBrand(r){return saonlTextBrand(r[COL_SAONL.CHANNEL],r[COL_SAONL.PRODUCT]);}
   saleFiltered.forEach(r=>{
     const adId=(r[COL_SAONL.AD_ID]||'').trim();
     const dbr=directBrand(r);
@@ -4690,14 +4702,32 @@ function buildOnlineCampTable(){
     else if(nw==='cũ'||nw==='cu')byCamp[camp].cu++;
     byCamp[camp].total++;
   });
-  // Doanh số đã chốt theo chiến dịch: đơn Sale Online đã chốt + đơn CRM Sỉ đã chốt, nối qua chính Ad ID của đơn đó (không qua data hub)
-  // Nếu campaign chưa có lead nào trong Data Hub rơi đúng kỳ đang lọc (vd lead tạo tháng trước, chốt đơn tháng này) thì
-  // vẫn phải tạo dòng cho campaign đó để hiện đủ doanh số — không được bỏ rơi doanh số ra khỏi bảng.
+  // Doanh số đã chốt theo chiến dịch — PHẢI dùng đúng 1 quy tắc gán brand với card "ADS/DS Theo Brand" ở
+  // Tổng Quan (calcSaleStats/calcSiOnlineStats), nếu không 2 nơi ra 2 số khác nhau cho cùng 1 brand.
+  // 2 lỗi đã phát hiện qua data thật (26/8) khi bảng này còn tự chế quy tắc riêng — chỉ cộng khi Ads ID
+  // khớp ĐÚNG 1 chiến dịch:
+  //  1) Đơn không có/không khớp Ads ID bị RƠI MẤT khỏi bảng, không hiện ở đâu cả (1 kỳ test: Lẻ mất 49,2tr,
+  //     Sỉ mất 287,8tr) trong khi Tổng Quan vẫn tính đủ vào "Doanh Số". Giờ dồn vào dòng "Online chưa xác định"
+  //     (không rõ brand) hoặc "<brand> - Online chưa khớp Ads ID" (rõ brand qua text, chỉ thiếu Ads ID).
+  //  2) Sỉ CRM bị cộng theo brand của ĐÚNG chiến dịch mà Ads ID trỏ tới — kể cả Sỉ OFFLINE, kể cả khi trỏ
+  //     nhầm sang brand khác Shidai — khiến DS "Nến Bơ" (TTV) ở bảng này cao hơn cả DS Tự Tại Viên bên Tổng
+  //     Quan (22,98tr > 19,58tr, chênh đúng bằng phần Sỉ bị rò 4,55tr). Tổng Quan luôn quy 100% Sỉ NGUỒN
+  //     ONLINE về Shidai (Sỉ Offline không thuộc báo cáo Online) — áp đúng quy tắc đó ở đây, gọi thẳng
+  //     calcSiOnlineStats() để chắc chắn ra cùng 1 số chứ không tính lại theo cách khác.
   const addRev=(camp,v)=>{if(!byCamp[camp])byCamp[camp]={tiem:0,dat:0,le:0,si:0,chot:0,moi:0,cu:0,total:0,rev:0};byCamp[camp].rev+=v;};
+  const ONL_BRAND_LABEL={HT:'Hiền Thuỷ',Shidai:'Shidai',CT:'Chánh Tâm',TTV:'Tự Tại Viên'};
   (saleOnlRows||[]).filter(r=>/^chốt/i.test(r[COL_SAONL.STATUS]||'')&&inR(parseDate(r[COL_SAONL.DATE_CLOSE]))).forEach(r=>{
-    const adId=(r[COL_SAONL.AD_ID]||'').trim();const camp=adId&&adCampMap[adId]?adCampMap[adId]:null;if(camp)addRev(camp,vndNum(r[COL_SAONL.REVENUE]));});
-  (saleSiCrmRows||[]).filter(r=>vndNum(r[COL_SICRM.CLOSE_VALUE])>0&&inR(parseDate(r[COL_SICRM.CLOSE_DATE]))).forEach(r=>{
-    const adId=(r[COL_SICRM.AD_ID]||'').trim();const camp=adId&&adCampMap[adId]?adCampMap[adId]:null;if(camp)addRev(camp,vndNum(r[COL_SICRM.CLOSE_VALUE]));});
+    const v=vndNum(r[COL_SAONL.REVENUE]);if(v<=0)return;
+    const adId=(r[COL_SAONL.AD_ID]||'').trim();
+    const dbr=saonlTextBrand(r[COL_SAONL.CHANNEL],r[COL_SAONL.PRODUCT]);
+    // TTV luôn gom theo fanpage, bỏ qua Ads ID — y hệt calcSaleStats, để 2 bảng ra cùng 1 số Tự Tại Viên.
+    const camp=(adId&&dbr!=='TTV')?adCampMap[adId]:null;
+    if(camp)addRev(camp,v);
+    else if(dbr)addRev(`${ONL_BRAND_LABEL[dbr]} - Online chưa khớp Ads ID`,v);
+    else addRev('Online chưa xác định',v);
+  });
+  const siOnRev=calcSiOnlineStats(_f?_f.value:'',_t?_t.value:'',[]).revenue;
+  if(siOnRev>0)addRev('Shidai - Online (Sỉ)',siOnRev);
   // Phân nhóm chiến dịch theo thương hiệu
   const BRANDS=[['CT','Chánh Tâm','#2563eb'],['HT','Hiền Thuỷ','#ca8a04'],['Shidai','Shidai','#7c3aed'],['TTV','Tự Tại Viên','#0abf7a'],['Other','Chưa phân loại / chưa khớp','#64748b']];
   const grpRank=n=>n==='Data chưa phân loại'?2:(n==='ID chưa khớp chiến dịch'?1:0);
