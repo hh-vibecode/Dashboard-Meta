@@ -365,7 +365,7 @@ const COL_SICRM_MT={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,AD_ID:4,NAME:5,PHONE:6,S
 // Sale Online (Lẻ) giờ tách 2 sheet như Sỉ: "1.MASTER DATA LẺ" (hồ sơ khách) + "2.CRM" (lịch sử CS + chốt đơn).
 // saleOnlRows là mảng ĐÃ GỘP (Master ⨝ CRM theo Lead ID/SĐT) về đúng shape cũ để không phải sửa lại mọi nơi
 // đang đọc COL_SAONL — xem buildSaleOnlFlatRows(). saleOnlCrmRows giữ nguyên rows CRM thô (lịch sử nhiều dòng/lead).
-const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,MA_KH:16,CITY:17,DISTRICT:18};
+const COL_SAONL={DATE:0,LEAD_ID:1,NAME:2,PHONE:3,SOURCE:4,CHANNEL:5,SALES:6,AD_ID:7,PRODUCT:8,POTENTIAL:9,STATUS:10,NOTE:11,LOST_GROUP:12,LOST_REASON:13,DATE_CLOSE:14,REVENUE:15,MA_KH:16,CITY:17,DISTRICT:18,ADDRESS:19};
 const COL_SAONLCRM={DATE:0,LEAD_ID:1,SOURCE:2,CHANNEL:3,SALES:4,AD_ID:5,NAME:6,PHONE:7,STATUS_KH:8,FORM:9,CONTENT:10,EXPECTED:11,STATUS:12,LOST_GROUP:13,LOST_REASON:14,CLOSE_DATE:15,CLOSE_VALUE:16};
 // File hoá đơn mới không có cột Chi nhánh (BRANCH) như file cũ — các cột còn lại lùi lên trước 1 vị trí
 const COL_KIOT={BRANCH:-1,INVOICE:0,DATE:1,MA_KH:2,NAME:3,PHONE:4,SALES:5,CHANNEL:6,AMOUNT:7,DISCOUNT:8};
@@ -2651,6 +2651,7 @@ function buildSaleOnlFlatRows(master,crm){
     row[16]=m[mc.MA_KH];
     row[17]=m[mc.CITY];
     row[18]=m[mc.DISTRICT];
+    row[19]=m[mc.ADDRESS];
     return row;
   });
 }
@@ -4277,9 +4278,18 @@ function renderSaleOnl(){
   // Theo miền — cùng cách tính với Báo Cáo Sỉ (siRegion theo Tỉnh/TP), dùng `rows` đã lọc sẵn theo
   // ngày (saleRangePred) + thương hiệu (brSel) ở đầu hàm → bảng này tự động ăn theo 2 bộ lọc đó,
   // không cần thêm UI lọc riêng.
+  // Cột "Tỉnh/TP" ở Sale Lẻ gần như bỏ trống (sale không nhập khi tạo lead, khác hẳn bên Sỉ) — nếu chỉ
+  // dùng cột đó thì 99,98% rơi vào "Chưa rõ". Fallback đọc cột "Địa chỉ" (dạng tự do, có ghi thì hay kèm
+  // tên tỉnh/thành ở cuối, VD "Quảng Yên - Quảng Ninh") khi Tỉnh/TP trống — nâng tỷ lệ nhận diện lên được,
+  // dù vẫn còn nhiều địa chỉ chỉ ghi tên đường/phường không kèm tỉnh nên không đoán được.
+  const regionOfOnl=r=>{
+    const city=(r[COL_SAONL.CITY]||'').trim();
+    if(city)return siRegion(city);
+    return siRegion(r[COL_SAONL.ADDRESS]);
+  };
   const byRegionOnl={};
   rows.forEach(r=>{
-    const reg=siRegion(r[COL_SAONL.CITY]);
+    const reg=regionOfOnl(r);
     if(!byRegionOnl[reg])byRegionOnl[reg]={total:0,closed:0,rev:0};
     byRegionOnl[reg].total++;
     if(st(r,'chốt')){byRegionOnl[reg].closed++;byRegionOnl[reg].rev+=toN(r[COL_SAONL.REVENUE]);}
