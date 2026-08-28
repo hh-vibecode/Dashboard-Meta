@@ -269,7 +269,8 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="sb-strip"></div>
     <div class="sb-section" id="sec-dev-label">Đang Phát Triển</div>
     <nav id="sec-dev">
-      <div class="nav-item" onclick="switchPage('danhgia')" id="nav-danhgia"><span class="nav-icon">🗓️</span><span class="nav-label">Báo Cáo Đánh Giá</span></div>
+      <!-- Ẩn tạm theo yêu cầu user (26/8) — bỏ style="display:none" để hiện lại, không xoá code trang -->
+      <div class="nav-item" style="display:none" onclick="switchPage('danhgia')" id="nav-danhgia"><span class="nav-icon">🗓️</span><span class="nav-label">Báo Cáo Đánh Giá</span></div>
       <div class="nav-item" onclick="switchPage('faq')" id="nav-faq"><span class="nav-icon">💬</span><span class="nav-label">FAQ Sản Phẩm</span></div>
       <div class="nav-item" onclick="switchPage('sale-review')" id="nav-sale-review"><span class="nav-icon">🔍</span><span class="nav-label">Chất Lượng Phản Hồi</span></div>
       <div class="nav-item" onclick="switchPage('social')" id="nav-social"><span class="nav-icon">📱</span><span class="nav-label">Báo Cáo Social</span></div>
