@@ -4274,6 +4274,25 @@ function renderSaleOnl(){
     <td style="padding:9px 14px;font-weight:700">${s}</td>
     <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${vnd(d.rev)}</td>
   </tr>`).join('');
+  // Theo miền — cùng cách tính với Báo Cáo Sỉ (siRegion theo Tỉnh/TP), dùng `rows` đã lọc sẵn theo
+  // ngày (saleRangePred) + thương hiệu (brSel) ở đầu hàm → bảng này tự động ăn theo 2 bộ lọc đó,
+  // không cần thêm UI lọc riêng.
+  const byRegionOnl={};
+  rows.forEach(r=>{
+    const reg=siRegion(r[COL_SAONL.CITY]);
+    if(!byRegionOnl[reg])byRegionOnl[reg]={total:0,closed:0,rev:0};
+    byRegionOnl[reg].total++;
+    if(st(r,'chốt')){byRegionOnl[reg].closed++;byRegionOnl[reg].rev+=toN(r[COL_SAONL.REVENUE]);}
+  });
+  const REGION_ORDER_ONL=[['Miền Bắc','#0abf7a'],['Miền Trung','#7c3aed'],['Miền Nam','#4361ee'],['Khác','#94a3b8'],['Chưa rõ','#cbd5e1']];
+  const regionOnlData=REGION_ORDER_ONL.map(([name,color])=>({name,color,...(byRegionOnl[name]||{total:0,closed:0,rev:0})})).filter(x=>x.total>0);
+  const regionOnlRows=regionOnlData.map(x=>`<tr style="border-bottom:1px solid var(--border)">
+    <td style="padding:9px 14px;font-weight:700"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${x.color};margin-right:7px"></span>${x.name}</td>
+    <td style="padding:9px 14px;text-align:center;font-weight:700">${num(x.total)}</td>
+    <td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--green)">${num(x.closed)}</td>
+    <td style="padding:9px 14px;text-align:center;font-weight:700;color:#2563eb">${x.total>0?pct(x.closed/x.total*100):'—'}</td>
+    <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${x.rev>0?vnd(x.rev):'—'}</td>
+  </tr>`).join('');
   const clk=(key,html)=>`<div onclick="saonlShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
   const brandSel=brandChips('_saonlBrands','renderSaleOnl');
   document.getElementById('page-sale-onl').innerHTML=`
@@ -4354,7 +4373,18 @@ function renderSaleOnl(){
           </tr></thead><tbody>${revBySalesRows||'<tr><td colspan="2" style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</td></tr>'}</tbody>
         </table></div></div>
       </div>
-    </div>`;
+    </div>
+
+    <div class="sec-label">VIII. Doanh Số Theo Miền <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(theo Tỉnh/TP khách hàng · đã áp bộ lọc ngày + thương hiệu ở trên)</span></div>
+    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
+        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">MIỀN</th>
+        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">SỐ DATA</th>
+        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">ĐÃ CHỐT</th>
+        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#2563eb">TỶ LỆ CHỐT</th>
+        <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH THU</th>
+      </tr></thead><tbody>${regionOnlRows||'<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</td></tr>'}</tbody>
+    </table></div></div>`;
   // Build lead by channel horizontal bar
   const COLORS=['rgba(67,97,238,.8)','rgba(10,191,122,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)','rgba(234,179,8,.8)','rgba(20,184,166,.8)','rgba(239,68,68,.8)'];
   const chanCtx=document.getElementById('cSaonlChan');
