@@ -1,0 +1,7 @@
+.env
+.env.*
+supabase-keys.local.txt
+.DS_Store
+supabase/.temp/
+node_modules/
+package-lock.json
