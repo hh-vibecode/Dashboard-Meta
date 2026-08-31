@@ -1023,28 +1023,40 @@ async function loadData(){
 async function fetchCsvWithProxy(rawUrl,idx=0,labelOverride){
   const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM','KIOT1','KIOT2','SỈ-MT','SICRM-MT'];
   const lbl=labelOverride||labels[idx]||'';
-  const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now();
-  // Google Sheets published CSV hỗ trợ CORS trực tiếp → thử trực tiếp trước (nhanh + ổn định)
-  const attempts=[csvUrl,
-    'https://api.allorigins.win/raw?url='+encodeURIComponent(csvUrl),
-    'https://corsproxy.io/?'+encodeURIComponent(csvUrl),
-    'https://thingproxy.freeboard.io/fetch/'+csvUrl];
-  for(let i=0;i<attempts.length;i++){
-    setStatus(`[${lbl}] ${i===0?'Tải trực tiếp':'Proxy '+i}...`);
-    try{
-      const ctrl=new AbortController();
-      const timer=setTimeout(()=>ctrl.abort(),15000);
-      const res=await fetch(attempts[i],{signal:ctrl.signal,redirect:'follow'});
-      if(!res.ok){clearTimeout(timer);setStatus(`[${lbl}] ${i===0?'Trực tiếp':'Proxy '+i} lỗi ${res.status}, thử tiếp...`);continue;}
-      const text=await res.text();
-      clearTimeout(timer);
-      // Google trả HTML khi lỗi/redirect chưa xong → coi như fail, thử cách khác
-      if(/^\s*<(!doctype|html)/i.test(text)){setStatus(`[${lbl}] ${i===0?'Trực tiếp':'Proxy '+i} trả HTML, thử tiếp...`);continue;}
-      setStatus(`[${lbl}] Tải xong (${Math.round(text.length/1024)}KB)`);
-      return text;
-    }catch(e){setStatus(`[${lbl}] ${i===0?'Trực tiếp':'Proxy '+i} timeout/lỗi, thử tiếp...`);continue;}
+  // Sheet Sale Online Master ~1MB (file to nhất trong tất cả) từng bị timeout CẢ trực tiếp lẫn cả 3 proxy
+  // công cộng cùng lúc (2 lần trong 1 ngày, làm Doanh Số ra 0đ) — 3 proxy đó (allorigins/corsproxy/
+  // thingproxy) đều là dịch vụ free công cộng, không có SLA, hay bị 403/timeout khi có nhiều request cùng lúc.
+  // Thêm csv-proxy TỰ CHỦ (Supabase Edge Function, do mình kiểm soát) làm phương án 2 — ưu tiên trước 3 proxy
+  // công cộng vì đáng tin hơn hẳn — và AUTO-RETRY toàn bộ chuỗi 1 lần nữa nếu lần đầu trượt hết, vì thực tế
+  // đã kiểm chứng: y hệt request đó tải lại sau vài giây là thành công ngay (Google chỉ chậm nhất thời).
+  const csvProxyUrl=SUPABASE_URL+'/functions/v1/csv-proxy?url=';
+  for(let round=1;round<=2;round++){
+    const csvUrl=toCsv(rawUrl)+'&cachebust='+Date.now()+'-'+round;
+    const attempts=[
+      {url:csvUrl,label:'Trực tiếp',headers:{}},
+      {url:csvProxyUrl+encodeURIComponent(csvUrl),label:'Proxy riêng',headers:{apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+SUPABASE_ANON_KEY}},
+      {url:'https://api.allorigins.win/raw?url='+encodeURIComponent(csvUrl),label:'Proxy công cộng 1',headers:{}},
+      {url:'https://corsproxy.io/?'+encodeURIComponent(csvUrl),label:'Proxy công cộng 2',headers:{}},
+      {url:'https://thingproxy.freeboard.io/fetch/'+csvUrl,label:'Proxy công cộng 3',headers:{}},
+    ];
+    for(const a of attempts){
+      setStatus(`[${lbl}] ${a.label}...`);
+      try{
+        const ctrl=new AbortController();
+        const timer=setTimeout(()=>ctrl.abort(),20000);
+        const res=await fetch(a.url,{signal:ctrl.signal,redirect:'follow',headers:a.headers});
+        if(!res.ok){clearTimeout(timer);setStatus(`[${lbl}] ${a.label} lỗi ${res.status}, thử tiếp...`);continue;}
+        const text=await res.text();
+        clearTimeout(timer);
+        // Google trả HTML khi lỗi/redirect chưa xong → coi như fail, thử cách khác
+        if(/^\s*<(!doctype|html)/i.test(text)){setStatus(`[${lbl}] ${a.label} trả HTML, thử tiếp...`);continue;}
+        setStatus(`[${lbl}] Tải xong (${Math.round(text.length/1024)}KB)`);
+        return text;
+      }catch(e){setStatus(`[${lbl}] ${a.label} timeout/lỗi, thử tiếp...`);continue;}
+    }
+    if(round===1){setStatus(`[${lbl}] Trượt hết lần 1, thử lại toàn bộ sau 3s...`);await new Promise(r=>setTimeout(r,3000));}
   }
-  throw new Error(`[${lbl}] Không tải được dữ liệu (đã thử trực tiếp + 3 proxy)`);
+  throw new Error(`[${lbl}] Không tải được dữ liệu (đã thử 2 lượt × 5 cách)`);
 }
 
 // Tải trang pubhtml THÔ (không convert sang CSV) — dùng để đọc danh sách tab hiện có của 1 sheet
