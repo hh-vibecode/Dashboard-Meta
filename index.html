@@ -253,12 +253,13 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="fdiv"></div>
     <button class="btn-ghost" onclick="clearFilter()">Xoá</button>
   </div>
+  <div id="dataAgeBadge" onclick="loadData(true)" title="Bấm để tải lại ngay" style="display:none;cursor:pointer;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;background:var(--bg2);color:var(--text2);font-size:11px;font-weight:700;margin-right:8px;white-space:nowrap"></div>
   <div id="presenceBar" style="display:flex;align-items:center;gap:-6px;margin-right:6px"></div>
   <button class="theme-toggle" onclick="toggleTheme()">
     <div class="toggle-track"><div class="toggle-thumb"></div></div>
     <span id="themeLabel">Tối</span>
   </button>
-  <button class="settings-btn" id="settingsBtn" onclick="loadData()" title="Tải lại dữ liệu">↺</button>
+  <button class="settings-btn" id="settingsBtn" onclick="loadData(true)" title="Tải lại dữ liệu">↺</button>
   <button class="settings-btn" onclick="logout()" title="Đăng xuất">⎋</button>
   </div>
 </div>
@@ -922,7 +923,8 @@ function toggleSiGroup(){const s=document.getElementById('si-subnav'),a=document
 function toggleOnlGroup(){const s=document.getElementById('onl-subnav'),a=document.getElementById('onl-group-arrow');if(s){const open=s.style.display!=='none';s.style.display=open?'none':'';if(a)a.textContent=open?'▶':'▼';}}
 
 // ── Load ──
-async function loadData(){
+async function loadData(force=false){
+  window._dataAsOf=null;
   const crmRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=0&single=true&output=csv';
   const onlRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vTxkcdPdRW39OJhxER9HUomDHayVMfICFrIFYB3INtVJfC_HXRHC5a1xjVW2BYEDnDaMLbs_VQuvXwe/pub?gid=1118746473&single=true&output=csv';
   const siRaw='https://docs.google.com/spreadsheets/d/e/2PACX-1vQQ7Ai1kquRVQKXsfTobG0pm7y3JrYZi0q5UhhTtOv25Tku2ZUjBPJhP0CiOgO1_9FyN42SkViuqsI2/pub?gid=2107421092&single=true&output=csv';
@@ -943,15 +945,15 @@ async function loadData(){
     const mktPromise=loadMktFromSupabase().then(()=>true).catch(e=>{setStatus('⚠️ MKT (Supabase) lỗi: '+e.message);return false;});
     const tasks=[];
     const taskIdx={};
-    taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2));
-    taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3));
-    taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4));
-    taskIdx.saonlMaster=tasks.length;tasks.push(fetchCsvWithProxy(saonlMasterRaw,99,'SAONL-MASTER'));
-    taskIdx.saonlCrm=tasks.length;tasks.push(fetchCsvWithProxy(saonlCrmRaw,99,'SAONL-CRM'));
-    taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6));
-    taskIdx.siMT=tasks.length;tasks.push(fetchCsvWithProxy(siRawMT,9));
-    taskIdx.sicrmMT=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRawMT,10));
-    const kiotPromise=loadKiotAllMonths(kiotSheetId);
+    taskIdx.crm=tasks.length;tasks.push(fetchCsvWithProxy(crmRaw,2,null,force));
+    taskIdx.onl=tasks.length;tasks.push(fetchCsvWithProxy(onlRaw,3,null,force));
+    taskIdx.si=tasks.length;tasks.push(fetchCsvWithProxy(siRaw,4,null,force));
+    taskIdx.saonlMaster=tasks.length;tasks.push(fetchCsvWithProxy(saonlMasterRaw,99,'SAONL-MASTER',force));
+    taskIdx.saonlCrm=tasks.length;tasks.push(fetchCsvWithProxy(saonlCrmRaw,99,'SAONL-CRM',force));
+    taskIdx.sicrm=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRaw,6,null,force));
+    taskIdx.siMT=tasks.length;tasks.push(fetchCsvWithProxy(siRawMT,9,null,force));
+    taskIdx.sicrmMT=tasks.length;tasks.push(fetchCsvWithProxy(sicrmRawMT,10,null,force));
+    const kiotPromise=loadKiotAllMonths(kiotSheetId,force);
     setStatus('Đang kết nối dữ liệu...');
     const results=await Promise.allSettled(tasks);
     await mktPromise;
@@ -1016,13 +1018,56 @@ async function loadData(){
     renderQcInvoice();
     renderQcCompare();
     renderDanhGia();
+    renderDataAgeBadge();
     stopThinking();
   }catch(e){stopThinking();showErr('Không tải được: '+e.message);document.getElementById('btnLoad').disabled=false;}
 }
+// Dòng trạng thái trên topbar: "Dữ liệu: X phút trước" — lấy mốc CŨ NHẤT trong các sheet đang hiển thị
+// (markDataAsOf), vì dùng cache thì có sheet mới có sheet cũ, nói theo cái cũ nhất mới đúng thực tế.
+// Bấm vào là tải lại ngay (loadData(true), bỏ qua cache). Tự cập nhật lại số phút mỗi 30s cho khỏi đứng hình.
+function renderDataAgeBadge(){
+  const el=document.getElementById('dataAgeBadge');if(!el)return;
+  if(!window._dataAsOf){el.style.display='none';return;}
+  const mins=Math.round((Date.now()-window._dataAsOf)/60000);
+  const txt=mins<1?'Dữ liệu: vừa xong':mins<60?`Dữ liệu: ${mins} phút trước`:`Dữ liệu: ${Math.round(mins/60)} giờ trước`;
+  const stale=mins>=15;
+  el.style.display='flex';
+  el.style.color=stale?'#b45309':'var(--text2)';
+  el.innerHTML=`${stale?'⏱️':'🟢'} ${txt}`;
+}
+setInterval(renderDataAgeBadge,30000);
 
-async function fetchCsvWithProxy(rawUrl,idx=0,labelOverride){
+// ── Cache CSV trong trình duyệt ─────────────────────────────────────────────────
+// Trước đây MỌI lần mở dashboard đều tải lại từ đầu ~10 sheet (có sheet gần 1MB), dù data
+// chưa đổi gì — chậm, và phụ thuộc hên xui của Google/proxy mỗi lần (xem lỗi mất Doanh Số
+// Lẻ 26/8). Giờ cache theo URL, TTL 15 phút: mở lại trong 15 phút là dùng ngay bản cũ, không
+// chờ mạng; quá hạn hoặc bấm ↺ mới tải lại. Bọc try/catch vì Safari private mode / hết quota
+// có thể chặn localStorage — cache hỏng thì coi như không có, app vẫn chạy bình thường qua mạng.
+const CSV_CACHE_TTL=15*60*1000;
+const CSV_CACHE_KEY=u=>'dashCsv:'+u.split('?')[0].split('/').slice(-2).join('/')+':'+(u.match(/gid=(\d+)/)||[])[1];
+function csvCacheGet(url){
+  try{
+    const raw=localStorage.getItem(CSV_CACHE_KEY(url));if(!raw)return null;
+    const d=JSON.parse(raw);
+    if(!d||!d.text||Date.now()-d.at>CSV_CACHE_TTL)return null;
+    return d;
+  }catch(e){return null;}
+}
+function csvCacheSet(url,text){
+  try{localStorage.setItem(CSV_CACHE_KEY(url),JSON.stringify({at:Date.now(),text}));}
+  catch(e){/* het quota hoac bi chan -> bo qua, khong anh huong luong tai du lieu */}
+}
+// window._dataAsOf: mốc THỜI ĐIỂM CŨ NHẤT trong các sheet đang hiển thị — dùng cache thì giữ nguyên
+// giờ cache ghi lúc trước, không phải giờ hiện tại, để dòng trạng thái trên topbar nói đúng sự thật.
+function markDataAsOf(t){if(!window._dataAsOf||t<window._dataAsOf)window._dataAsOf=t;}
+
+async function fetchCsvWithProxy(rawUrl,idx=0,labelOverride,force=false){
   const labels=['MKT','SALE','CRM','ONL','SỈ','SAONL','SICRM','KIOT1','KIOT2','SỈ-MT','SICRM-MT'];
   const lbl=labelOverride||labels[idx]||'';
+  if(!force){
+    const cached=csvCacheGet(rawUrl);
+    if(cached){setStatus(`[${lbl}] Dùng bản đã tải (${Math.round((Date.now()-cached.at)/60000)} phút trước)`);markDataAsOf(cached.at);return cached.text;}
+  }
   // Sheet Sale Online Master ~1MB (file to nhất trong tất cả) từng bị timeout CẢ trực tiếp lẫn cả 3 proxy
   // công cộng cùng lúc (2 lần trong 1 ngày, làm Doanh Số ra 0đ) — 3 proxy đó (allorigins/corsproxy/
   // thingproxy) đều là dịch vụ free công cộng, không có SLA, hay bị 403/timeout khi có nhiều request cùng lúc.
@@ -1051,6 +1096,7 @@ async function fetchCsvWithProxy(rawUrl,idx=0,labelOverride){
         // Google trả HTML khi lỗi/redirect chưa xong → coi như fail, thử cách khác
         if(/^\s*<(!doctype|html)/i.test(text)){setStatus(`[${lbl}] ${a.label} trả HTML, thử tiếp...`);continue;}
         setStatus(`[${lbl}] Tải xong (${Math.round(text.length/1024)}KB)`);
+        csvCacheSet(rawUrl,text);markDataAsOf(Date.now());
         return text;
       }catch(e){setStatus(`[${lbl}] ${a.label} timeout/lỗi, thử tiếp...`);continue;}
     }
@@ -1089,7 +1135,7 @@ function parseSheetTabs(html){
 }
 // Quét toàn bộ tab tháng của sheet Hoá đơn Kiot rồi tải CSV từng tab — KHÔNG cần sửa code khi có tháng mới,
 // chỉ cần user "Xuất bản lên web" (Publish to web) tab mới trong Google Sheets là tự nhận ra ở lần tải kế tiếp.
-async function loadKiotAllMonths(sheetId){
+async function loadKiotAllMonths(sheetId,force=false){
   const pubhtmlUrl=`https://docs.google.com/spreadsheets/d/e/${sheetId}/pubhtml`;
   const html=await fetchHtmlWithProxy(pubhtmlUrl,'KIOT-DANH SÁCH TAB');
   const tabs=parseSheetTabs(html);
@@ -1097,7 +1143,7 @@ async function loadKiotAllMonths(sheetId){
   setStatus(`[KIOT] Tìm thấy ${tabs.length} tab: ${tabs.map(t=>t.name).join(', ')}`);
   const results=await Promise.allSettled(tabs.map(t=>{
     const csvUrl=`https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?gid=${t.gid}&single=true&output=csv`;
-    return fetchCsvWithProxy(csvUrl,99,'KIOT-'+t.name);
+    return fetchCsvWithProxy(csvUrl,99,'KIOT-'+t.name,force);
   }));
   const texts=results.filter(r=>r.status==='fulfilled').map(r=>r.value);
   const failed=tabs.filter((t,i)=>results[i].status==='rejected');
@@ -3257,7 +3303,7 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
         <option value="all">Tất cả SP</option>
       </select>
       <button class="refresh-btn" onclick="exportMktReport()" title="Xuất báo cáo Marketing đầy đủ">📄 Xuất Báo Cáo</button>
-      <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
+      <button class="refresh-btn" onclick="loadData(true)">↺ Refresh</button>
     </div>
 
     <div class="sec-label">Ads Performance</div>
@@ -5120,7 +5166,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
       </select>
       <input id="mktAdIdSearch" placeholder="🔎 Tìm theo Ads ID…" onkeydown="if(event.key==='Enter')mktSearchAdId(this.value)" style="height:30px;box-sizing:border-box;padding:3px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:11px;font-weight:600;font-family:var(--font);min-width:200px;outline:none">
       <button class="refresh-btn" onclick="mktSearchAdId(document.getElementById('mktAdIdSearch').value)">Tìm</button>
-      <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
+      <button class="refresh-btn" onclick="loadData(true)">↺ Refresh</button>
     </div>
     <div id="mktAdIdSearchMsg" style="font-size:11.5px;font-weight:700;margin:-8px 0 10px"></div>
     <div class="tbl-card">
@@ -5807,7 +5853,7 @@ function renderQcInvoice(){
       <div class="period-chip">📅 ${dsPeriodLabel}</div>
       <div class="stat-chip">🧾 ${num(invoices.length)} hoá đơn</div>
       ${brandChips('_kiotBrands','renderQcInvoice')}
-      <button class="refresh-btn" onclick="loadData()">↺ Refresh</button>
+      <button class="refresh-btn" onclick="loadData(true)">↺ Refresh</button>
     </div>
 
     <div class="sec-label">I. Dữ Liệu Tổng Hợp</div>
@@ -6524,7 +6570,7 @@ function dgMonthTab(){
         </select>
       </div>
       <div style="font-size:11.5px;color:var(--muted)">So với ${monthLabel(b.prevYm)} · gộp số liệu kinh doanh, quảng cáo và social</div>
-      <button class="refresh-btn" onclick="loadData()">↺ Cập Nhật</button>
+      <button class="refresh-btn" onclick="loadData(true)">↺ Cập Nhật</button>
     </div>
     ${kpi}
     ${dgSecWrap('I','Đánh Giá Tổng Thể','Tự động rút ra từ biến động giữa 2 tháng',evalHtml)}
@@ -6571,7 +6617,7 @@ function renderDanhGia(){
         <input type="date" value="${toStr}" onchange="dgSetRange('to',this.value)">
       </div>
       <div style="font-size:11.5px;color:var(--muted)">So với tuần ${fmtDate(localDate(d.prev.from))} – ${fmtDate(localDate(d.prev.to))} · Lũy kế tháng từ ${fmtDate(localDate(d.monthFrom))}</div>
-      <button class="refresh-btn" onclick="loadData()">↺ Cập Nhật</button>
+      <button class="refresh-btn" onclick="loadData(true)">↺ Cập Nhật</button>
     </div>
     ${dgSecWrap('I','Tóm Tắt Điều Hành','',dgExecSummary(biz,mkt,rep,pipe,verify))}
     ${dgSecWrap('II','Kết Quả Kinh Doanh','',biz.html)}
