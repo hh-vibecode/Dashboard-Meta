@@ -1900,53 +1900,66 @@ async function renderSaleReview(){
   const el=document.getElementById('page-sale-review');
   if(!el)return;
   if(!saleReviewRows.length){
-    el.innerHTML=`<div class="page-title">Chất Lượng Phản Hồi Sale</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang tải đánh giá...</div>`;
+    el.innerHTML=`<div class="page-title">Chất Lượng Phản Hồi Sale</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang tải...</div>`;
     try{await loadSaleReviewFromSupabase();await loadSrvReports();}catch(e){el.innerHTML=`<div class="page-title">Chất Lượng Phản Hồi Sale</div><div class="err-box">❌ Không tải được: ${e.message}</div>`;return;}
   }
   if(!saleReviewRows.length){
     el.innerHTML=`<div class="page-title">Chất Lượng Phản Hồi Sale</div>
-      <div class="page-sub">Tự động chấm phản hồi của sale với khách (nguồn: Pancake) dựa trên kiến thức ở FAQ Sản Phẩm</div>
       <div style="padding:60px;text-align:center;color:var(--muted)">Chưa có dữ liệu đánh giá nào.</div>`;
     return;
   }
-  // Lọc theo khoảng ngày trên topbar (dùng chung với mọi trang khác), rồi tới brand/verdict/sale/tìm kiếm
   const inRange=saleRangePred(r=>parseDate(r.conv_date));
   const dated=saleReviewRows.filter(inRange);
   const fB=window._srvBrand||'all',fV=window._srvVerdict||'all',fS=window._srvSale||'all',q=faqNorm(window._srvSearch||'');
   const sales=[...new Set(dated.map(r=>r.sale_name).filter(Boolean))].sort();
+  const esc=s=>(s||'').toString().replace(/"/g,'&quot;');
+  // 'chua_tu_van' = chi_bot+khong_tra_loi gộp (khớp đúng con số hiện ở ô KPI "Chưa Ai Tư Vấn");
+  // 'da_cham' = mọi verdict trừ tra_loi_inbox/chua_cham (khớp mẫu số "Lượt Đã Chấm").
+  const verdictMatch=r=>{
+    if(fV==='all')return true;
+    if(fV==='chua_tu_van')return r.verdict==='chi_bot'||r.verdict==='khong_tra_loi';
+    if(fV==='da_cham')return r.verdict!=='tra_loi_inbox'&&r.verdict!=='chua_cham';
+    return r.verdict===fV;
+  };
   const rows=dated.filter(r=>{
     if(fB!=='all'&&srvBrandOf(r.page_name)!==fB)return false;
-    if(fV!=='all'&&r.verdict!==fV)return false;
+    if(!verdictMatch(r))return false;
     if(fS!=='all'&&r.sale_name!==fS)return false;
     if(q){const hay=faqNorm([r.customer_name,r.phone,r.sale_name,r.customer_ask,r.sale_reply,r.issue].join(' '));if(!hay.includes(q))return false;}
     return true;
   });
   const cnt=(list,v)=>list.filter(r=>r.verdict===v).length;
-  // Nhóm "bình luận → đã tư vấn ở tin nhắn" KHÔNG phải lỗi và cũng không phải lượt được chấm chất lượng
-  // (nội dung tư vấn thật nằm ở hội thoại inbox riêng) → tách khỏi mẫu số tỷ lệ đúng.
   const inbox=cnt(dated,'tra_loi_inbox'),pend=cnt(dated,'chua_cham');
   const total=dated.length-inbox-pend,ok=cnt(dated,'dung');
-  const kpi=`<div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
-    ${mkKpi('📋','Lượt Đã Chấm',num(total),pend?num(pend)+' lượt đang chờ chấm':'khách có nhu cầu thật','g-blue')}
-    ${mkKpi('✅','Đúng',num(ok),pct(total?ok/total*100:0)+' tổng lượt','g-green')}
-    ${mkKpi('⚠️','Thiếu Ý',num(cnt(dated,'thieu')),'trả lời chưa đủ','g-yellow')}
-    ${mkKpi('❌','Sai Kiến Thức',num(cnt(dated,'sai')),'cần chấn chỉnh ngay','g-red')}
-    ${mkKpi('🤖','Chưa Ai Tư Vấn',num(cnt(dated,'chi_bot')+cnt(dated,'khong_tra_loi')),'chỉ bot rep hoặc bị bỏ qua','g-purple')}
-  </div>
-  ${pend?`<div onclick="setSrvFilter('Verdict','chua_cham')" title="Bấm để xem danh sách chờ chấm" style="cursor:pointer;margin-top:-4px;padding:9px 13px;background:#fef9c3;color:#854d0e;border-radius:9px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:8px">
-    ⏳ ${num(pend)} lượt CHƯA ĐÁNH GIÁ — job 7h sáng đã kéo về nhưng chưa chấm đúng/sai.
-    <span style="margin-left:auto;font-weight:500;font-size:11.5px">Mở Claude Code bảo chấm khi rảnh →</span></div>`:''}
-  ${inbox?`<div style="margin-top:-4px;padding:8px 13px;background:#cffafe;color:#0e7490;border-radius:9px;font-size:12px;font-weight:600">
-    📩 ${num(inbox)} bình luận được bot điều hướng sang tin nhắn và sale đã tư vấn ở đó — không tính là lỗi, không tính vào tỷ lệ đúng.</div>`:''}`;
-  // ── Bảng tổng hợp theo thương hiệu ──
+  const rate=total?ok/total*100:0;
+
+  // ── Bộ lọc Thương hiệu + Sale — đẩy lên trên cùng, gọn ──
   const brandKeys=[...new Set(dated.map(r=>srvBrandOf(r.page_name)))].sort((a,b)=>dated.filter(x=>srvBrandOf(x.page_name)===b).length-dated.filter(x=>srvBrandOf(x.page_name)===a).length);
+  const sel=(onchange,cur,opts)=>`<select onchange="${onchange}" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
+    ${opts.map(([v,l])=>`<option value="${esc(v)}"${cur===v?' selected':''}>${l}</option>`).join('')}</select>`;
+  const topFilters=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    ${sel("setSrvFilter('Brand',this.value)",fB,[['all','🏷️ Tất cả thương hiệu'],...brandKeys.map(b=>[b,(SRV_BRANDS[b]||b)+' ('+dated.filter(r=>srvBrandOf(r.page_name)===b).length+')'])])}
+    ${sel("setSrvFilter('Sale',this.value)",fS,[['all','👤 Tất cả sale'],...sales.map(s=>[s,s+' ('+dated.filter(r=>r.sale_name===s).length+')'])])}
+  </div>`;
+
+  // ── KPI — bấm vào 1 ô để lọc bảng chi tiết bên dưới theo đúng kết quả đó ──
+  const fc=(vkey,icon,label,val,sub,grad)=>`<div onclick="srvToggleVerdict('${vkey}')" style="cursor:pointer;border-radius:16px;outline:${fV===vkey?'3px solid var(--accent)':'none'};outline-offset:2px">${mkKpi(icon,label,val,sub,grad)}</div>`;
+  const kpi=`<div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
+    ${fc('da_cham','📋','Lượt Đã Chấm',num(total),pend?num(pend)+' chờ chấm':'','g-blue')}
+    ${fc('dung','✅','Đúng',num(ok),pct(rate),'g-green')}
+    ${fc('thieu','⚠️','Thiếu Ý',num(cnt(dated,'thieu')),'','g-yellow')}
+    ${fc('sai','❌','Sai Kiến Thức',num(cnt(dated,'sai')),'','g-red')}
+    ${fc('chua_tu_van','🤖','Chưa Ai Tư Vấn',num(cnt(dated,'chi_bot')+cnt(dated,'khong_tra_loi')),'','g-purple')}
+  </div>`;
+
+  // ── Tóm Tắt Nhanh: bảng chỉ số theo thương hiệu (như cũ) + 1 dòng đánh giá chung gộp các banner rời trước đây ──
   const brandRows=brandKeys.map(b=>{
     const list=dated.filter(r=>srvBrandOf(r.page_name)===b);
     const d=cnt(list,'dung'),t=cnt(list,'thieu'),s=cnt(list,'sai'),k=cnt(list,'chi_bot')+cnt(list,'khong_tra_loi');
     const den=list.length-cnt(list,'tra_loi_inbox')-cnt(list,'chua_cham');
-    const rate=den?d/den*100:0;
+    const r2=den?d/den*100:0;
     const pages=[...new Set(list.map(r=>r.page_name))];
-    return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="setSrvFilter('Brand','${b}')" title="Bấm để lọc riêng thương hiệu này">
+    return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="setSrvFilter('Brand','${b}')">
       <td style="padding:9px 12px;font-weight:700;font-size:12.5px;white-space:nowrap">${SRV_BRANDS[b]||b}</td>
       <td style="padding:9px 12px;font-size:11.5px;color:var(--muted);white-space:normal">${pages.join(' · ')}</td>
       <td style="padding:9px 12px;text-align:center;font-weight:700;font-size:12.5px">${num(den)}</td>
@@ -1954,7 +1967,7 @@ async function renderSaleReview(){
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#b45309;font-weight:700">${num(t)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#e11d48;font-weight:700">${num(s)}</td>
       <td style="padding:9px 12px;text-align:center;font-size:12.5px;color:#4338ca;font-weight:700">${num(k)}</td>
-      <td style="padding:9px 12px;text-align:right;font-weight:800;font-size:12.5px;color:${rate>=70?'var(--green)':rate>=50?'#b45309':'#e11d48'}">${rate.toFixed(1)}%</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:800;font-size:12.5px;color:${r2>=70?'var(--green)':r2>=50?'#b45309':'#e11d48'}">${r2.toFixed(1)}%</td>
     </tr>`;
   }).join('');
   const brandTable=`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
@@ -1963,9 +1976,18 @@ async function renderSaleReview(){
       ${[['THƯƠNG HIỆU','left'],['PAGE','left'],['TỔNG LƯỢT','center'],['ĐÚNG','center','var(--green)'],['THIẾU Ý','center','#b45309'],['SAI','center','#e11d48'],['CHƯA AI TƯ VẤN','center','#4338ca'],['TỶ LỆ ĐÚNG','right']].map(([c,a,col])=>`<th style="padding:10px 12px;text-align:${a};font-size:11px;font-weight:700;color:${col||'var(--muted)'};white-space:nowrap">${c}</th>`).join('')}
     </tr></thead><tbody>${brandRows}</tbody>
   </table></div></div>`;
-  // ── Bảng chi tiết kiểu Excel, bấm 1 dòng để xổ đầy đủ nội dung ──
+  const openRepCount=srvReports.filter(r=>r.status==='open').length;
+  const assessBits=[`Tỷ lệ đúng <b style="color:${rate>=70?'var(--green)':'#b45309'}">${rate.toFixed(1)}%</b>`];
+  if(pend)assessBits.push(`<span onclick="srvToggleVerdict('chua_cham')" style="cursor:pointer">⏳ ${num(pend)} chưa đánh giá</span>`);
+  if(inbox)assessBits.push(`📩 ${num(inbox)} bình luận → đã tư vấn ở tin nhắn (không tính lỗi)`);
+  if(openRepCount)assessBits.push(`<span onclick="toggleSrvRepPanel()" style="cursor:pointer">🚩 ${num(openRepCount)} báo lỗi chờ xử lý</span>`);
+  const assessHtml=`<div style="display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;padding:10px 14px;background:var(--bg2);border-radius:10px;font-size:12px;font-weight:600;color:var(--text2);margin-top:8px">${assessBits.join('<span style="color:var(--border)">·</span>')}</div>`;
+
+  // ── Bảng chi tiết — CHỈ hiện khi đã thu hẹp bằng cách nào đó (bấm KPI, chọn brand/sale, gõ tìm kiếm,
+  // hoặc chọn khoảng ngày trên topbar) — mặc định ẩn hẳn để giao diện gọn, không dội cả nghìn dòng ra ngay.
+  const hasDateRange=!!(document.getElementById('dateFrom')?.value||document.getElementById('dateTo')?.value);
+  const showDetail=fV!=='all'||fB!=='all'||fS!=='all'||hasDateRange||!!q;
   const cut=(s,n)=>{s=(s||'').toString().trim();return s.length>n?s.slice(0,n)+'…':s;};
-  const esc=s=>(s||'').toString().replace(/"/g,'&quot;');
   const bodyRows=rows.map(r=>{
     const v=SRV_VERDICT[r.verdict]||{label:r.verdict,bg:'#e5e7eb',fg:'#6b7280',icon:'•'};
     const sev=SRV_SEV[r.severity];
@@ -2004,88 +2026,30 @@ async function renderSaleReview(){
       </div>`:''}
     </td></tr>`;
   }).join('')||`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
-  const sel=(onchange,cur,opts)=>`<select onchange="${onchange}" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
-    ${opts.map(([v,l])=>`<option value="${esc(v)}"${cur===v?' selected':''}>${l}</option>`).join('')}</select>`;
-  const detailTab=`
-    <div class="sec-label" style="margin-top:18px">I. Tổng Hợp Theo Thương Hiệu <span style="font-weight:400;text-transform:none;color:var(--muted)">(bấm 1 dòng để lọc riêng thương hiệu đó)</span></div>
-    ${brandTable}
-    ${srvReportPanel()}
-    <div class="tbl-head" style="margin-top:22px;flex-wrap:wrap;gap:8px">
-      <div class="sec-label" style="margin:0">II. Chi Tiết Từng Lượt <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(rows.length)} lượt · bấm 1 dòng để xem đầy đủ)</span></div>
-      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-        <input id="srvSearchBox" oninput="setSrvFilter('Search',this.value)" value="${esc(window._srvSearch||'')}" placeholder="🔎 Tìm khách / SĐT / nội dung…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:220px;outline:none">
-        ${sel("setSrvFilter('Brand',this.value)",fB,[['all','🏷️ Tất cả thương hiệu'],...brandKeys.map(b=>[b,(SRV_BRANDS[b]||b)+' ('+dated.filter(r=>srvBrandOf(r.page_name)===b).length+')'])])}
-        ${sel("setSrvFilter('Verdict',this.value)",fV,[['all','📋 Tất cả kết quả'],...Object.entries(SRV_VERDICT).map(([k,v])=>[k,v.icon+' '+v.label+' ('+cnt(dated,k)+')'])])}
-        ${sel("setSrvFilter('Sale',this.value)",fS,[['all','👤 Tất cả sale'],...sales.map(s=>[s,s+' ('+dated.filter(r=>r.sale_name===s).length+')'])])}
-      </div>
-    </div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+  const detailBlock=showDetail?`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
       <colgroup>${['8%','10%','12%','9%','21%','21%','9%','6%','4%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KHÁCH HỎI','left'],['SALE TRẢ LỜI','left'],['KẾT QUẢ','left'],['MỨC ĐỘ','left'],['BÁO SAI','center']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
-    </table></div></div>`;
-  const srvTab=window._srvTab||'tongquan';
-  const tabBtn=(k,label)=>`<span onclick="srvSetTab('${k}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px 10px 0 0;font-size:13px;font-weight:800;border:1.5px solid ${srvTab===k?'var(--border)':'transparent'};border-bottom:1.5px solid ${srvTab===k?'var(--surface)':'var(--border)'};background:${srvTab===k?'var(--surface)':'transparent'};color:${srvTab===k?'var(--text)':'var(--muted)'};margin-bottom:-1.5px">${label}</span>`;
-  const tabsHtml=`<div style="display:flex;border-bottom:1.5px solid var(--border);margin:16px 0 18px">${tabBtn('tongquan','📊 Tổng Quan')}${tabBtn('chitiet','📋 Chi Tiết')}</div>`;
+    </table></div></div>`
+    :`<div style="padding:34px;text-align:center;color:var(--muted);font-size:12.5px">Bấm 1 ô KPI ở trên, chọn thương hiệu/sale, hoặc chọn khoảng ngày để xem chi tiết từng lượt</div>`;
+
   el.innerHTML=`
     <div class="page-title">Chất Lượng Phản Hồi Sale</div>
-    <div class="page-sub">Tự động chấm phản hồi của sale với khách (nguồn: Pancake) theo kiến thức ở FAQ Sản Phẩm · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub">📅 ${curPeriodLabel()}</div>
+    ${topFilters}
     ${kpi}
-    ${tabsHtml}
-    ${srvTab==='chitiet'?detailTab:srvOverviewTab(dated,cnt)}`;
+    <div class="sec-label" style="margin-top:16px">Tóm Tắt Nhanh</div>
+    ${brandTable}
+    ${assessHtml}
+    ${srvReportPanel()}
+    <div style="margin-top:18px;display:flex;justify-content:flex-end">
+      <input id="srvSearchBox" oninput="setSrvFilter('Search',this.value)" value="${esc(window._srvSearch||'')}" placeholder="🔎 Tìm khách / SĐT / nội dung…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:220px;outline:none">
+    </div>
+    <div style="margin-top:8px">${detailBlock}</div>`;
   if(window._srvSearchFocus){window._srvSearchFocus=false;const sb=document.getElementById('srvSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
 }
-function srvSetTab(v){window._srvTab=v;renderSaleReview();}
-function toggleSrvDay(d){window._srvDayOpen=window._srvDayOpen||{};window._srvDayOpen[d]=!window._srvDayOpen[d];renderSaleReview();}
-// ── Tab Tổng Quan: theo NGÀY, chỉ hiện data có vấn đề — bấm 1 ngày mới xổ chi tiết ra (mặc định ẩn hết) ──
-function srvOverviewTab(dated,cnt){
-  const esc=s=>(s||'').toString().replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  const PROBLEM=new Set(['thieu','sai','chi_bot','khong_tra_loi']);
-  const byDay={};
-  dated.forEach(r=>{(byDay[r.conv_date]=byDay[r.conv_date]||[]).push(r);});
-  const days=Object.keys(byDay).filter(Boolean).sort((a,b)=>b.localeCompare(a));
-  if(!days.length)return`<div style="padding:40px;text-align:center;color:var(--muted)">Không có dữ liệu trong khoảng ngày đang lọc</div>`;
-  const dayRows=days.map(d=>{
-    const list=byDay[d];
-    const dung=cnt(list,'dung'),thieu=cnt(list,'thieu'),sai=cnt(list,'sai'),bocLo=cnt(list,'chi_bot')+cnt(list,'khong_tra_loi'),choCham=cnt(list,'chua_cham');
-    const vanDe=thieu+sai+bocLo;
-    const open=!!(window._srvDayOpen&&window._srvDayOpen[d]);
-    const problems=list.filter(r=>PROBLEM.has(r.verdict));
-    const card=r=>{
-      const v=SRV_VERDICT[r.verdict]||{label:r.verdict,bg:'#e5e7eb',fg:'#6b7280',icon:'•'};
-      const b=srvBrandOf(r.page_name);
-      return`<div style="border:1px solid var(--border);border-radius:10px;padding:11px 13px;background:var(--surface)">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-          <span style="display:inline-block;padding:2px 9px;border-radius:6px;background:${v.bg};color:${v.fg};font-size:11px;font-weight:700">${v.icon} ${v.label}</span>
-          <span style="font-size:12px;font-weight:700">${r.customer_name||'—'}</span>
-          <span style="font-size:11px;color:var(--muted)">${SRV_BRANDS[b]||b}${r.sale_name?' · sale: '+r.sale_name:''}</span>
-          <span onclick="openSrvReport(${r.id})" title="Báo lượt này chấm sai" style="margin-left:auto;cursor:pointer;font-size:13px;opacity:${srvReportedIds().has(r.id)?'1':'.4'}">${srvReportedIds().has(r.id)?'🚩':'❗'}</span>
-        </div>
-        <div style="font-size:12.5px;color:var(--text2);line-height:1.55"><b>Khách hỏi:</b> ${esc(r.customer_ask)||'—'}</div>
-        ${r.sale_reply?`<div style="font-size:12.5px;color:var(--text2);line-height:1.55;margin-top:2px"><b>Sale trả lời:</b> ${esc(r.sale_reply)}</div>`:''}
-        ${r.issue?`<div style="font-size:12px;color:${v.fg};line-height:1.55;margin-top:5px"><b>Vấn đề:</b> ${esc(r.issue)}</div>`:''}
-        ${r.suggestion?`<div style="font-size:12px;color:var(--muted);line-height:1.55;margin-top:2px"><b>Gợi ý:</b> ${esc(r.suggestion)}</div>`:''}
-      </div>`;
-    };
-    return`<div style="margin-bottom:8px">
-      <div onclick="toggleSrvDay('${d}')" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 15px;border:1.5px solid ${vanDe>0?'#fcd34d':'var(--border)'};border-radius:${open?'11px 11px 0 0':'11px'};background:${vanDe>0?'#fef3c7':'var(--surface)'}">
-        <span style="font-size:11px;color:var(--muted)">${open?'▼':'▶'}</span>
-        <span style="font-weight:800;font-size:13.5px;min-width:90px">${d}</span>
-        <span style="font-size:11.5px;color:var(--muted)">${num(list.length)} lượt</span>
-        <span style="font-size:11.5px;color:var(--green)">✅ ${num(dung)}</span>
-        ${thieu?`<span style="font-size:11.5px;color:#b45309;font-weight:700">⚠️ ${num(thieu)} thiếu</span>`:''}
-        ${sai?`<span style="font-size:11.5px;color:#e11d48;font-weight:700">❌ ${num(sai)} sai</span>`:''}
-        ${bocLo?`<span style="font-size:11.5px;color:#4338ca;font-weight:700">🤖 ${num(bocLo)} chưa ai tư vấn</span>`:''}
-        ${choCham?`<span style="font-size:11.5px;color:#a16207">⏳ ${num(choCham)} chờ chấm</span>`:''}
-        <span style="margin-left:auto;font-weight:800;font-size:13px;color:${vanDe>0?'#b45309':'var(--green)'}">${vanDe>0?vanDe+' vấn đề':'Ổn cả ngày'}</span>
-      </div>
-      ${open?(problems.length?`<div style="border:1.5px solid ${vanDe>0?'#fcd34d':'var(--border)'};border-top:none;border-radius:0 0 11px 11px;padding:12px;background:var(--bg2);display:flex;flex-direction:column;gap:8px">${problems.map(card).join('')}</div>`
-        :`<div style="border:1.5px solid var(--border);border-top:none;border-radius:0 0 11px 11px;padding:16px;text-align:center;color:var(--muted);font-size:12.5px;background:var(--bg2)">Không có data vấn đề trong ngày này.</div>`):''}
-    </div>`;
-  }).join('');
-  return`<div class="sec-label">Theo Ngày <span style="font-weight:400;text-transform:none;color:var(--muted)">(${days.length} ngày · bấm 1 ngày để xem chi tiết data có vấn đề)</span></div>${dayRows}`;
-}
+function srvToggleVerdict(v){window._srvVerdict=(window._srvVerdict===v)?'all':v;renderSaleReview();}
 
 // ── BÁO SAI KẾT QUẢ CHẤM (bảng sale_review_report) ───────────────────────────
 // Mục đích: user gom nhiều báo lỗi trong vài ngày rồi nhờ sửa MỘT THỂ, thay vì nhắn lẻ từng cái.
@@ -2204,7 +2168,7 @@ async function resolveSrvReport(id){
 }
 function srvReportPanel(){
   const open=srvReports.filter(r=>r.status==='open'), done=srvReports.filter(r=>r.status!=='open');
-  if(!srvReports.length)return'';
+  if(!open.length)return'';
   const exp=window._srvRepOpen;
   const when=t=>{try{const d=new Date(t);return d.toLocaleDateString('vi-VN')+' '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}catch(e){return t||'';}};
   const card=r=>`<div style="border:1px solid var(--border);border-radius:11px;padding:11px 13px;background:var(--surface)">
@@ -2221,8 +2185,7 @@ function srvReportPanel(){
   </div>`;
   return`<div style="margin-top:16px">
     <div onclick="toggleSrvRepPanel()" style="cursor:pointer;display:flex;align-items:center;gap:9px;padding:10px 14px;background:${open.length?'#fef3c7':'var(--surface)'};border:1.5px solid ${open.length?'#fcd34d':'var(--border)'};border-radius:${exp?'11px 11px 0 0':'11px'};font-size:12.5px;font-weight:700;color:${open.length?'#92400e':'var(--text2)'}">
-      <span>${exp?'▼':'▶'}</span> 🚩 ${num(open.length)} báo lỗi chấm sai đang chờ xử lý${done.length?` · ${num(done.length)} đã sửa`:''}
-      <span style="margin-left:auto;font-weight:500;font-size:11px;color:var(--muted)">Báo lỗi được giữ 3 ngày rồi tự xoá</span>
+      <span>${exp?'▼':'▶'}</span> 🚩 ${num(open.length)} báo lỗi đang chờ xử lý${done.length?` · ${num(done.length)} đã sửa`:''}
     </div>
     ${exp?`<div style="border:1.5px solid ${open.length?'#fcd34d':'var(--border)'};border-top:none;border-radius:0 0 11px 11px;padding:12px;background:var(--bg2);display:flex;flex-direction:column;gap:9px">
       ${open.map(card).join('')||'<div style="font-size:12px;color:var(--muted);padding:6px">Không còn báo lỗi nào chờ xử lý.</div>'}
