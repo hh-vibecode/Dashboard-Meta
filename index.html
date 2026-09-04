@@ -851,6 +851,10 @@ function doLogin(){
 // Thêm trang mới vào mục này thì thêm id vào đây, KHỎI phải sửa chỗ nào khác.
 // Khi nào user bảo public thì bỏ id ra khỏi mảng này + thêm vào ROLE_PAGES của các role liên quan.
 const DEV_PAGES=['danhgia','faq','sale-review','social'];
+// Trang ẨN TẠM khỏi sidebar cho MỌI role (kể cả tester) — khác DEV_PAGES (chỉ giới hạn role, không ẩn hẳn).
+// Bỏ id ra khỏi đây để hiện lại. Trước đây chỉ đặt style="display:none" tĩnh trên thẻ nav là KHÔNG đủ — vòng
+// lặp applyRole() bên dưới tự set lại display theo quyền mỗi lần đăng nhập/đổi role, ghi đè mất display:none.
+const HIDDEN_PAGES=['danhgia'];
 const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null,
   // sale-mt: Sale Sỉ thị trường Miền Trung — chỉ Báo Cáo KH Sỉ (khoá cứng vùng Miền Trung, xem siRegionToggle),
   // không Marketing/QC/Sale Online. sales-admin: quản lý sale nói chung, thấy hết Sỉ+Lẻ nhưng bỏ Marketing+QC.
@@ -863,7 +867,7 @@ function applyRole(){
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
   document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el=>{
     const id=el.id.replace('nav-','');if(id==='si-group'||id==='onl-group')return;
-    el.style.display=(allowed&&allowed.indexOf(id)<0)?'none':'';
+    el.style.display=(HIDDEN_PAGES.includes(id)||(allowed&&allowed.indexOf(id)<0))?'none':'';
   });
   const grp=document.getElementById('nav-si-group');
   if(grp){const ok=!allowed||allowed.indexOf('sale-si')>=0||allowed.indexOf('sale-si-data')>=0;grp.style.display=ok?'':'none';}
@@ -875,7 +879,9 @@ function applyRole(){
     const l=document.getElementById(lab);if(l)l.style.display=vis?'':'none';n.style.display=vis?'':'none';
   });
   if(allowed&&allowed.length)switchPage(allowed[0]);
-  else if(role==='tester')switchPage('danhgia');
+  // Báo Cáo Đánh Giá đang ẩn tạm (nav-danhgia display:none) — tester không còn bấm vào được từ sidebar,
+  // nhưng dòng mặc định cũ vẫn tự nhảy thẳng vào đó lúc đăng nhập, nên vẫn "thấy" dù đã ẩn. Đổi sang FAQ.
+  else if(role==='tester')switchPage('faq');
 }
 function logout(){
   try{fetch(`${SUPABASE_URL}/rest/v1/dash_presence?session_id=eq.${presSessionId()}`,{method:'DELETE',
@@ -895,6 +901,7 @@ function initAuth(){
 
 function switchPage(p){
   // Chặn ở GỐC, không chỉ ẩn menu: ẩn menu thôi thì gọi thẳng switchPage() vẫn vào được trang.
+  if(HIDDEN_PAGES.includes(p))return;   // ẩn tạm cho MỌI role, kể cả tester — không cho vào bằng bất kỳ đường nào
   const _role=localStorage.getItem('dashRole')||'admin';
   const _allowed=ROLE_PAGES[_role]!==undefined?ROLE_PAGES[_role]:null;
   if(_allowed&&_allowed.indexOf(p)<0){
