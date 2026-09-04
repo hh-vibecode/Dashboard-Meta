@@ -1892,7 +1892,10 @@ function srvBrandOf(pageName){
   return'Khác';
 }
 const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'},tra_loi_inbox:{label:'Bình luận → đã tư vấn ở tin nhắn',bg:'#cffafe',fg:'#0891b2',icon:'📩'},chua_cham:{label:'Chưa đánh giá',bg:'#fef9c3',fg:'#a16207',icon:'⏳'}};
-const SRV_SEV={cao:{label:'Nghiêm trọng',fg:'#e11d48'},trung:{label:'Trung bình',fg:'#b45309'},thap:{label:'Nhẹ',fg:'#6b7280'}};
+// 2 lô dữ liệu dùng 2 kiểu chữ severity khác nhau (lô đầu 'cao'/'trung'/'thap', lô chấm sau này
+// 'Nghiêm trọng'/'Nhẹ' trực tiếp) — map cả 2 để không có dòng nào bị rơi mất màu/nhãn.
+const SRV_SEV={cao:{label:'Nghiêm trọng',fg:'#e11d48'},trung:{label:'Trung bình',fg:'#b45309'},thap:{label:'Nhẹ',fg:'#6b7280'},
+  'Nghiêm trọng':{label:'Nghiêm trọng',fg:'#e11d48'},'Nhẹ':{label:'Nhẹ',fg:'#6b7280'}};
 async function renderSaleReview(){
   const el=document.getElementById('page-sale-review');
   if(!el)return;
@@ -2003,10 +2006,7 @@ async function renderSaleReview(){
   }).join('')||`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
   const sel=(onchange,cur,opts)=>`<select onchange="${onchange}" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
     ${opts.map(([v,l])=>`<option value="${esc(v)}"${cur===v?' selected':''}>${l}</option>`).join('')}</select>`;
-  el.innerHTML=`
-    <div class="page-title">Chất Lượng Phản Hồi Sale</div>
-    <div class="page-sub">Tự động chấm phản hồi của sale với khách (nguồn: Pancake) theo kiến thức ở FAQ Sản Phẩm · 📅 ${curPeriodLabel()}</div>
-    ${kpi}
+  const detailTab=`
     <div class="sec-label" style="margin-top:18px">I. Tổng Hợp Theo Thương Hiệu <span style="font-weight:400;text-transform:none;color:var(--muted)">(bấm 1 dòng để lọc riêng thương hiệu đó)</span></div>
     ${brandTable}
     ${srvReportPanel()}
@@ -2025,7 +2025,66 @@ async function renderSaleReview(){
         ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KHÁCH HỎI','left'],['SALE TRẢ LỜI','left'],['KẾT QUẢ','left'],['MỨC ĐỘ','left'],['BÁO SAI','center']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`;
+  const srvTab=window._srvTab||'tongquan';
+  const tabBtn=(k,label)=>`<span onclick="srvSetTab('${k}')" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px 10px 0 0;font-size:13px;font-weight:800;border:1.5px solid ${srvTab===k?'var(--border)':'transparent'};border-bottom:1.5px solid ${srvTab===k?'var(--surface)':'var(--border)'};background:${srvTab===k?'var(--surface)':'transparent'};color:${srvTab===k?'var(--text)':'var(--muted)'};margin-bottom:-1.5px">${label}</span>`;
+  const tabsHtml=`<div style="display:flex;border-bottom:1.5px solid var(--border);margin:16px 0 18px">${tabBtn('tongquan','📊 Tổng Quan')}${tabBtn('chitiet','📋 Chi Tiết')}</div>`;
+  el.innerHTML=`
+    <div class="page-title">Chất Lượng Phản Hồi Sale</div>
+    <div class="page-sub">Tự động chấm phản hồi của sale với khách (nguồn: Pancake) theo kiến thức ở FAQ Sản Phẩm · 📅 ${curPeriodLabel()}</div>
+    ${kpi}
+    ${tabsHtml}
+    ${srvTab==='chitiet'?detailTab:srvOverviewTab(dated,cnt)}`;
   if(window._srvSearchFocus){window._srvSearchFocus=false;const sb=document.getElementById('srvSearchBox');if(sb){sb.focus();const v=sb.value;sb.value='';sb.value=v;}}
+}
+function srvSetTab(v){window._srvTab=v;renderSaleReview();}
+function toggleSrvDay(d){window._srvDayOpen=window._srvDayOpen||{};window._srvDayOpen[d]=!window._srvDayOpen[d];renderSaleReview();}
+// ── Tab Tổng Quan: theo NGÀY, chỉ hiện data có vấn đề — bấm 1 ngày mới xổ chi tiết ra (mặc định ẩn hết) ──
+function srvOverviewTab(dated,cnt){
+  const esc=s=>(s||'').toString().replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const PROBLEM=new Set(['thieu','sai','chi_bot','khong_tra_loi']);
+  const byDay={};
+  dated.forEach(r=>{(byDay[r.conv_date]=byDay[r.conv_date]||[]).push(r);});
+  const days=Object.keys(byDay).filter(Boolean).sort((a,b)=>b.localeCompare(a));
+  if(!days.length)return`<div style="padding:40px;text-align:center;color:var(--muted)">Không có dữ liệu trong khoảng ngày đang lọc</div>`;
+  const dayRows=days.map(d=>{
+    const list=byDay[d];
+    const dung=cnt(list,'dung'),thieu=cnt(list,'thieu'),sai=cnt(list,'sai'),bocLo=cnt(list,'chi_bot')+cnt(list,'khong_tra_loi'),choCham=cnt(list,'chua_cham');
+    const vanDe=thieu+sai+bocLo;
+    const open=!!(window._srvDayOpen&&window._srvDayOpen[d]);
+    const problems=list.filter(r=>PROBLEM.has(r.verdict));
+    const card=r=>{
+      const v=SRV_VERDICT[r.verdict]||{label:r.verdict,bg:'#e5e7eb',fg:'#6b7280',icon:'•'};
+      const b=srvBrandOf(r.page_name);
+      return`<div style="border:1px solid var(--border);border-radius:10px;padding:11px 13px;background:var(--surface)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="display:inline-block;padding:2px 9px;border-radius:6px;background:${v.bg};color:${v.fg};font-size:11px;font-weight:700">${v.icon} ${v.label}</span>
+          <span style="font-size:12px;font-weight:700">${r.customer_name||'—'}</span>
+          <span style="font-size:11px;color:var(--muted)">${SRV_BRANDS[b]||b}${r.sale_name?' · sale: '+r.sale_name:''}</span>
+          <span onclick="openSrvReport(${r.id})" title="Báo lượt này chấm sai" style="margin-left:auto;cursor:pointer;font-size:13px;opacity:${srvReportedIds().has(r.id)?'1':'.4'}">${srvReportedIds().has(r.id)?'🚩':'❗'}</span>
+        </div>
+        <div style="font-size:12.5px;color:var(--text2);line-height:1.55"><b>Khách hỏi:</b> ${esc(r.customer_ask)||'—'}</div>
+        ${r.sale_reply?`<div style="font-size:12.5px;color:var(--text2);line-height:1.55;margin-top:2px"><b>Sale trả lời:</b> ${esc(r.sale_reply)}</div>`:''}
+        ${r.issue?`<div style="font-size:12px;color:${v.fg};line-height:1.55;margin-top:5px"><b>Vấn đề:</b> ${esc(r.issue)}</div>`:''}
+        ${r.suggestion?`<div style="font-size:12px;color:var(--muted);line-height:1.55;margin-top:2px"><b>Gợi ý:</b> ${esc(r.suggestion)}</div>`:''}
+      </div>`;
+    };
+    return`<div style="margin-bottom:8px">
+      <div onclick="toggleSrvDay('${d}')" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 15px;border:1.5px solid ${vanDe>0?'#fcd34d':'var(--border)'};border-radius:${open?'11px 11px 0 0':'11px'};background:${vanDe>0?'#fef3c7':'var(--surface)'}">
+        <span style="font-size:11px;color:var(--muted)">${open?'▼':'▶'}</span>
+        <span style="font-weight:800;font-size:13.5px;min-width:90px">${d}</span>
+        <span style="font-size:11.5px;color:var(--muted)">${num(list.length)} lượt</span>
+        <span style="font-size:11.5px;color:var(--green)">✅ ${num(dung)}</span>
+        ${thieu?`<span style="font-size:11.5px;color:#b45309;font-weight:700">⚠️ ${num(thieu)} thiếu</span>`:''}
+        ${sai?`<span style="font-size:11.5px;color:#e11d48;font-weight:700">❌ ${num(sai)} sai</span>`:''}
+        ${bocLo?`<span style="font-size:11.5px;color:#4338ca;font-weight:700">🤖 ${num(bocLo)} chưa ai tư vấn</span>`:''}
+        ${choCham?`<span style="font-size:11.5px;color:#a16207">⏳ ${num(choCham)} chờ chấm</span>`:''}
+        <span style="margin-left:auto;font-weight:800;font-size:13px;color:${vanDe>0?'#b45309':'var(--green)'}">${vanDe>0?vanDe+' vấn đề':'Ổn cả ngày'}</span>
+      </div>
+      ${open?(problems.length?`<div style="border:1.5px solid ${vanDe>0?'#fcd34d':'var(--border)'};border-top:none;border-radius:0 0 11px 11px;padding:12px;background:var(--bg2);display:flex;flex-direction:column;gap:8px">${problems.map(card).join('')}</div>`
+        :`<div style="border:1.5px solid var(--border);border-top:none;border-radius:0 0 11px 11px;padding:16px;text-align:center;color:var(--muted);font-size:12.5px;background:var(--bg2)">Không có data vấn đề trong ngày này.</div>`):''}
+    </div>`;
+  }).join('');
+  return`<div class="sec-label">Theo Ngày <span style="font-weight:400;text-transform:none;color:var(--muted)">(${days.length} ngày · bấm 1 ngày để xem chi tiết data có vấn đề)</span></div>${dayRows}`;
 }
 
 // ── BÁO SAI KẾT QUẢ CHẤM (bảng sale_review_report) ───────────────────────────
