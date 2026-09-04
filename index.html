@@ -854,7 +854,7 @@ const DEV_PAGES=['danhgia','faq','sale-review','social'];
 // Trang ẨN TẠM khỏi sidebar cho MỌI role (kể cả tester) — khác DEV_PAGES (chỉ giới hạn role, không ẩn hẳn).
 // Bỏ id ra khỏi đây để hiện lại. Trước đây chỉ đặt style="display:none" tĩnh trên thẻ nav là KHÔNG đủ — vòng
 // lặp applyRole() bên dưới tự set lại display theo quyền mỗi lần đăng nhập/đổi role, ghi đè mất display:none.
-const HIDDEN_PAGES=['danhgia'];
+const HIDDEN_PAGES=['danhgia','social'];
 const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null,
   // sale-mt: Sale Sỉ thị trường Miền Trung — chỉ Báo Cáo KH Sỉ (khoá cứng vùng Miền Trung, xem siRegionToggle),
   // không Marketing/QC/Sale Online. sales-admin: quản lý sale nói chung, thấy hết Sỉ+Lẻ nhưng bỏ Marketing+QC.
