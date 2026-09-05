@@ -2022,12 +2022,14 @@ async function renderSaleReview(){
       <td style="padding:9px 10px;font-size:11.5px;color:var(--text2);white-space:normal;word-break:break-word" title="${esc(r.customer_ask)}">${cut(r.customer_ask,90)}</td>
       <td style="padding:9px 10px;font-size:11.5px;color:var(--text2);white-space:normal;word-break:break-word" title="${esc(r.sale_reply)}">${r.sale_reply?cut(r.sale_reply,90):'<i style="color:#e11d48">(không trả lời)</i>'}</td>
       <td style="padding:9px 10px;white-space:nowrap"><span style="display:inline-block;padding:3px 9px;border-radius:6px;background:${v.bg};color:${v.fg};font-size:11px;font-weight:700">${v.icon} ${v.label}</span></td>
+      <td style="padding:9px 6px;text-align:center" onclick="event.stopPropagation()">${r.pancake_url?`<a href="${r.pancake_url}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:11.5px;text-decoration:none">Link</a>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td style="padding:9px 6px;text-align:center" onclick="event.stopPropagation()">
         <span onclick="openSrvReport(${r.id})" title="Báo lượt này chấm sai"
           style="cursor:pointer;font-size:14px;line-height:1;opacity:${srvReportedIds().has(r.id)?'1':'.45'}">${srvReportedIds().has(r.id)?'🚩':'❗'}</span>
       </td>
     </tr>
-    <tr id="srv-d-${r.id}" style="display:none;background:var(--bg2)"><td colspan="8" style="padding:14px 18px 16px 34px">
+    <tr id="srv-d-${r.id}" style="display:none;background:var(--bg2)"><td colspan="9" style="padding:14px 18px 16px 34px">
+      ${r.pancake_url?`<div style="margin-bottom:8px"><a href="${r.pancake_url}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:12px;text-decoration:none">🔗 Mở hội thoại trên Pancake</a></div>`:''}
       ${r.full_thread?`<div style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px;max-height:360px;overflow-y:auto">${fmtThread(r.full_thread)}</div>`:`
       <div style="border-left:3px solid var(--border);padding-left:12px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Khách hỏi</div>
@@ -2047,11 +2049,11 @@ async function renderSaleReview(){
         ${r.source_faq?`<div style="font-size:10.5px;color:#3b5bb8;margin-top:7px">📄 Căn cứ: ${r.source_faq}</div>`:''}
       </div>`:''}
     </td></tr>`;
-  }).join('')||`<tr><td colspan="8" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
+  }).join('')||`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
   const detailBlock=showDetail?`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
-      <colgroup>${['9%','11%','13%','10%','22%','22%','9%','4%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <colgroup>${['9%','10%','12%','9%','20%','20%','9%','5%','4%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KHÁCH HỎI','left'],['SALE TRẢ LỜI','left'],['KẾT QUẢ','left'],['BÁO SAI','center']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KHÁCH HỎI','left'],['SALE TRẢ LỜI','left'],['KẾT QUẢ','left'],['LINK','center'],['BÁO SAI','center']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`
     :`<div style="padding:34px;text-align:center;color:var(--muted);font-size:12.5px">Bấm 1 ô KPI ở trên, chọn thương hiệu/sale, hoặc chọn khoảng ngày để xem chi tiết từng lượt</div>`;
