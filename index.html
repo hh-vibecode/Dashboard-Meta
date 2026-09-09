@@ -861,9 +861,11 @@ const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl'
   'sale-mt':['sale-si','sale-si-data'],
   'sales-admin':['sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice'],
 };
+// Khoá cứng vùng Sỉ theo role (Huế/Toàn chỉ thấy Bắc+Nam, sale.mt chỉ thấy Miền Trung) — xem siRegionToggle/setSiRegion.
+const ROLE_SI_REGION_LOCK={'sale-mt':'mt','sale-si':'bn'};
 function applyRole(){
   const role=localStorage.getItem('dashRole')||'admin';
-  if(role==='sale-mt')window._siRegion='mt';
+  if(ROLE_SI_REGION_LOCK[role])window._siRegion=ROLE_SI_REGION_LOCK[role];
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
   document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el=>{
     const id=el.id.replace('nav-','');if(id==='si-group'||id==='onl-group')return;
@@ -3792,7 +3794,7 @@ function renderSaleSi(){
   document.getElementById('page-sale-si').innerHTML=`
     <div class="page-title">Báo Cáo KH Sỉ</div>
     <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span>Phân tích khách hàng sỉ · ${total} khách hàng (đã đủ Nguồn + Tên KH) · 📅 ${curPeriodLabel()}</span>
+      <span>${total} khách hàng · 📅 ${curPeriodLabel()}</span>
       ${siRegionToggle()}
       <select onchange="setSiProductOv(this.value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
         <option value="all"${prodFOv==='all'?' selected':''}>📦 Tất cả sản phẩm</option>
@@ -3806,9 +3808,9 @@ function renderSaleSi(){
       </select>
     </div>
 
-    <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(doanh thu tính theo ngày chốt đơn)</span></div>
+    <div class="sec-label">I. Tổng Quan Chung</div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách <span style="font-weight:400;text-transform:none">(Online + Offline = Tổng khách mới · chỉ tính khách đã phân loại nguồn${noSrcCount>0?', bỏ qua '+num(noSrcCount)+' khách thiếu Nguồn':''})</span></div>
+      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
         ${siClk('new',mkKpi('✨','Tổng Khách Mới',num(newInPeriod),'tạo trong kỳ','g-teal'))}
         <div onclick="siShowOnlineQuality()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('🌐','Từ Online',num(fromOnl),pct(newInPeriod?fromOnl/newInPeriod*100:0)+' khách mới','g-green')}</div>
@@ -3888,7 +3890,7 @@ function renderSaleSi(){
       </table></div></div>
     </div>
 
-    <div class="sec-label">III. Doanh Thu Khách Sỉ <span style="font-weight:400;font-size:11px;color:var(--muted)">(giá trị đơn cộng dồn)</span></div>
+    <div class="sec-label">III. Doanh Thu Khách Sỉ</div>
     <div style="display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;align-items:start">
       <div class="tov-card" style="padding:0;overflow:hidden">
         <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:14px 14px 8px">🏆 Top Khách Theo DT</div>
@@ -4192,7 +4194,7 @@ function renderSaleSiData(){
     </div>
     ${pendPanel}
     <div style="margin:18px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',done:' đã xong',pending:' còn tồn đọng'})[F]||''} · sắp theo giá trị KH)</span></div>
+      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',done:' đã xong',pending:' còn tồn đọng'})[F]||''})</span></div>
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
         <input id="siSearchBox" oninput="setSiSearch(this.value)" value="${(window._siSearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên khách / SĐT…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:200px;outline:none">
         <select onchange="setSiSrc(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
@@ -4465,7 +4467,7 @@ function renderSaleOnl(){
   document.getElementById('page-sale-onl').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
       <div><div class="page-title">Báo Cáo KH Lẻ</div>
-      <div class="page-sub">Phân tích lead online · ${total} leads · 📅 ${curPeriodLabel()}</div></div>
+      <div class="page-sub">${total} leads · 📅 ${curPeriodLabel()}</div></div>
       ${brandSel}
     </div>
 
@@ -4496,7 +4498,7 @@ function renderSaleOnl(){
     <div class="sec-label">III. Lead Theo Kênh <span style="font-weight:400;text-transform:none;color:var(--muted)">(nguồn Online)</span></div>
     <div class="chart-card"><div class="chart-wrap" style="height:${Math.max(200,chanEntries.length*32)}px"><canvas id="cSaonlChan"></canvas></div></div>
 
-    <div class="sec-label">IV. Lead Theo Sales <span style="font-weight:400;text-transform:none;color:var(--muted)">(nguồn Online — Offline là khách mua trực tiếp tại cửa hàng, không phải sales online xử lý lead)</span></div>
+    <div class="sec-label">IV. Lead Theo Sales <span style="font-weight:400;text-transform:none;color:var(--muted)">(nguồn Online)</span></div>
     <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
         <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES PHỤ TRÁCH</th>
@@ -4712,7 +4714,7 @@ function renderSaleOnlData(){
       ${fc('mat','❌','Mất Lead',num(csMat),pct(csTotal?csMat/csTotal*100:0)+' lượt','g-yellow')}
     </div>
     <div style="margin:18px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',chot:' đã chốt',mat:' mất lead'})[F]||''} · sắp theo doanh thu)</span></div>
+      <div class="sec-label" style="margin:0">Danh Sách Khách Hàng <span style="font-weight:400;font-size:11px;color:var(--muted)">(${num(total)} khách${({all:'',cared:' đã CS',needcare:' chưa/lâu CS',chot:' đã chốt',mat:' mất lead'})[F]||''})</span></div>
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
         <input id="saonlSearchBox" oninput="setSaonlSearch(this.value)" value="${(window._saonlSearch||'').replace(/"/g,'&quot;')}" placeholder="🔎 Tìm tên khách / SĐT…" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:600;font-family:var(--font);min-width:200px;outline:none">
         <select onchange="setSaonlSrc(this.value)" style="padding:6px 11px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
@@ -4995,16 +4997,19 @@ function setSiProductOv(v){window._siProductOv=v;renderSaleSi();}
 // Chuyển đổi 2 nguồn data Sỉ (Bắc+Nam / Miền Trung — cùng form, khác đội) ngay trên trang Báo Cáo KH Sỉ,
 // không tách trang riêng cho đỡ rối menu. Đổi ở đây thì cả Tổng Quan lẫn CRM đều đổi theo.
 function siRegionToggle(){
-  // Role sale-mt bị khoá cứng ở Miền Trung, không được thấy/chuyển sang Bắc+Nam — chỉ hiện nhãn cố định.
-  if((localStorage.getItem('dashRole')||'')==='sale-mt'){
-    return `<div style="display:inline-flex;padding:5px 12px;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-size:12px;font-weight:700;white-space:nowrap">🧭 Miền Trung</div>`;
+  // Role bị khoá cứng theo vùng (sale-mt=Miền Trung, sale-si=Bắc+Nam) — không được thấy/chuyển vùng khác, chỉ hiện nhãn cố định.
+  const lock=ROLE_SI_REGION_LOCK[localStorage.getItem('dashRole')||''];
+  if(lock){
+    const label=lock==='mt'?'🧭 Miền Trung':'🧭 Bắc + Nam';
+    return `<div style="display:inline-flex;padding:5px 12px;border-radius:8px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-size:12px;font-weight:700;white-space:nowrap">${label}</div>`;
   }
   const r=window._siRegion||'bn';
   const btn=(v,label)=>`<button onclick="setSiRegion('${v}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${r===v?'var(--accent)':'var(--border)'};background:${r===v?'var(--accent)':'var(--surface)'};color:${r===v?'#fff':'var(--text2)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">${label}</button>`;
   return `<div style="display:inline-flex;gap:6px">${btn('bn','🧭 Bắc + Nam')}${btn('mt','🧭 Miền Trung')}</div>`;
 }
 function setSiRegion(v){
-  if((localStorage.getItem('dashRole')||'')==='sale-mt')v='mt'; // khoá cứng, không cho đổi dù có gọi thẳng hàm
+  const lock=ROLE_SI_REGION_LOCK[localStorage.getItem('dashRole')||''];
+  if(lock)v=lock; // khoá cứng, không cho đổi dù có gọi thẳng hàm
   window._siRegion=v;renderSaleSi();renderSaleSiData();
 }
 function setSiBrand(v){window._siBrand=v;renderSaleSiData();}
@@ -5091,7 +5096,7 @@ function renderSaleOverview(){
   }).join('');
   document.getElementById('page-sale-overview').innerHTML=`
     <div class="page-title">Sale — Data Hub</div>
-    <div class="page-sub">Dashboard Sale Manager · Master Data Hub · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub">📅 ${curPeriodLabel()}</div>
     <div class="period-bar">
       <div class="stat-chip">👥 ${total} tổng leads</div>
       <div class="stat-chip">🌐 ${online.length} online</div>
@@ -5607,7 +5612,7 @@ function renderQcDoiSoat(){
   el.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
       <div><div class="page-title">QC — Báo Cáo Chung</div>
-      <div class="page-sub">Theo dõi chất lượng data & hiệu quả xử lý · Mess → Lead đạt → Tiềm năng → Lẻ/Sỉ</div></div>
+  </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         ${brandChips('_qcBrands','renderQcDoiSoat')}
         <div class="stat-chip">📅 ${curPeriodLabel()}</div>
@@ -5663,7 +5668,7 @@ function renderQcDoiSoat(){
       </div>
       -->
       <div class="qc-card" style="--qa:#e11d48${(siErrN+onlErrN+dhTagErrN)>0?';cursor:pointer':''}"${(siErrN+onlErrN+dhTagErrN)>0?' onclick="qcShowErrors()"':''}>
-        <div class="qc-h" style="color:var(--text)">🛠️ Kiểm Soát Lỗi Nhập Liệu <span style="font-weight:600;color:var(--muted);text-transform:none">(trùng lặp · bỏ trống trạng thái · thiếu trường ảnh hưởng số liệu)</span></div>
+        <div class="qc-h" style="color:var(--text)">🛠️ Kiểm Soát Lỗi Nhập Liệu</div>
         <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
           <div style="display:flex;align-items:center;gap:11px">${ic('🏪')}<div><div style="font-size:24px;font-weight:900;color:${siErrN>0?'#e11d48':GRN}">${num(siErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Master Sỉ</div></div></div>
           <div style="display:flex;align-items:center;gap:11px">${ic('🌐')}<div><div style="font-size:24px;font-weight:900;color:${onlErrN>0?'#e11d48':GRN}">${num(onlErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Sale Online</div></div></div>
@@ -5671,7 +5676,7 @@ function renderQcDoiSoat(){
         </div>
         ${(siErrN+onlErrN+dhTagErrN)===0?'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện lỗi nhập liệu</div>':''}
       </div>
-      <div class="qc-group-h" style="margin-top:14px">📇 Kiểm Soát Tag & SĐT Khách Sỉ <span style="font-weight:600;color:var(--muted);text-transform:none;font-size:11px">(data hub, nguồn tag "KH Sỉ" · theo bộ lọc ngày, tối thiểu từ T6/2026 · bỏ qua data không có ngày tạo)</span></div>
+      <div class="qc-group-h" style="margin-top:14px">📇 Kiểm Soát Tag & SĐT Khách Sỉ</div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
         <div class="qc-card" style="--qa:#7c3aed;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).tagged)">
           <div class="qc-h" style="color:var(--text)">🏷️ Gắn Tag "KH Sỉ"</div>
@@ -5694,12 +5699,6 @@ function renderQcDoiSoat(){
           ${single('🗂️',num(siTagNoMasterN),pct(siTagPhoneN?siTagNoMasterN/siTagPhoneN*100:0)+' / '+num(siTagPhoneN)+' có SĐT','#e11d48')}
         </div>
       </div>
-    </div>
-
-    <div style="margin-top:14px;padding:11px 14px;background:var(--bg2);border-radius:10px;font-size:11px;color:var(--muted);line-height:1.6">
-      <b>Ghi chú:</b> Phần <b>Lẻ</b> lấy theo thẻ gắn ở tab nguồn online (datahub): Lead đạt / Tiềm năng / KH lẻ.
-      Phần <b>Sỉ</b> lấy theo tab <b>Master Sỉ</b> (nguồn Online, lọc theo ngày tạo): Lead đạt = khách sỉ online đã ghi nhận vào Master; Tiềm năng/Chốt theo cột "Phân loại KH" (chốt tính cộng dồn vào tiềm năng).
-      "Đã chăm sóc" khớp Mã KH/Lead ID với CRM Sỉ. Chỉ số theo khoảng thời gian đang chọn (MKT chỉ có data từ T6/2026).
     </div>`;
 }
 // Nhận diện brand từ Chi nhánh / Kênh bán của hoá đơn Kiot
@@ -5940,7 +5939,6 @@ function renderQcInvoice(){
     </div>`;};
   el.innerHTML=`
     <div class="page-title">QC — Đối Soát Đơn Hàng</div>
-    <div class="page-sub">Đối chiếu doanh số báo cáo (Báo Cáo Online + Báo Cáo Sỉ) với doanh số trên KiotViet · nối qua Mã KH</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${dsPeriodLabel}</div>
       <div class="stat-chip">🧾 ${num(invoices.length)} hoá đơn</div>
@@ -5956,7 +5954,7 @@ function renderQcInvoice(){
       <div onclick="qcInvShow('notInvoiced')" title="Bấm để xem chi tiết" style="cursor:pointer">${mkKpi(diff<0?'⚠️':'✅','Chưa Đi Đơn',diff<0?vnd(-diff):'0 đ',diff<0?'giá trị đơn hàng chưa đi so với báo cáo':'khớp hoàn toàn',diff<0?'g-red':'g-green')}</div>
     </div>
 
-    <div class="sec-label">II. Đối Soát Theo Nguồn <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(khách chưa có Mã KH hoặc Mã KH chưa thấy trên Kiot = chưa ra hoá đơn)</span></div>
+    <div class="sec-label">II. Đối Soát Theo Nguồn</div>
     ${srcBox('Khách Lẻ','🌐',C.blue,onlRecTotal,onlInvoicedTotal,invoicedOnl.length,'invoicedOnl',invoicedOnl.reduce((s,x)=>s+x.rev,0),notInvoicedOnl.length,notInvoicedOnlTotal,'notInvoicedOnl','invOnl',mismatchOnl,'mismatchOnl',noCodeOnl,'noCodeOnl','recOnl',notInvoicedOnl)}
     ${srcBox('Sỉ','🏪',C.purple,siRecTotal,siInvoicedTotal,invoicedSi.length,'invoicedSi',invoicedSi.reduce((s,x)=>s+x.rev,0),notInvoicedSi.length,notInvoicedSiTotal,'notInvoicedSi','invSi',mismatchSi,'mismatchSi',noCodeSi,'noCodeSi','recSi',notInvoicedSi)}
     `;
@@ -6421,7 +6419,7 @@ function dgPipelineSection(d){
     <div style="margin-bottom:16px">${dgPipeTable(pd.progressed,'Không có lượt chăm sóc mới nào trong tuần')}</div>
     <div class="sec-label">4. Khách không có tiến triển (${pd.noProgress.length})</div>
     <div style="margin-bottom:16px">${dgPipeTable(pd.noProgress,'Không có khách nào bị đình trệ')}</div>
-    <div class="sec-label">5. Khách có nguy cơ mất (${pd.atRisk.length}) <span style="font-weight:400;text-transform:none;color:var(--muted)">— chỉ đánh dấu nghi vấn, cần Sales xác nhận</span></div>
+    <div class="sec-label">5. Khách có nguy cơ mất (${pd.atRisk.length})</div>
     <div style="margin-bottom:16px">${dgPipeTable(pd.atRisk,'Chưa phát hiện khách nào có dấu hiệu nguy cơ mất')}</div>
     <div class="sec-label">6. Khách sỉ tiềm năng dài hạn (${pd.longCareList.length})</div>
     <div style="margin-bottom:16px">${dgPipeTable(pd.longCareList,'Không có khách nào đang ở nhóm chăm sóc dài hạn')}</div>
