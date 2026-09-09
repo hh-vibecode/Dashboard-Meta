@@ -3810,14 +3810,17 @@ function renderSaleSi(){
 
     <div class="sec-label">I. Tổng Quan Chung</div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:10px">
+        <div onclick="siShowDoanhThu()" title="Bấm để xem Online/Offline" style="cursor:pointer">${mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt đơn','g-green')}</div>
+        <div onclick="siShowTiemNang()" title="Bấm để xem Online/Offline" style="cursor:pointer">${mkKpi('💎','Giá Trị Tiềm Năng',vnd(expTotalRev),expList.length+' khách có dự kiến (chưa ra đơn)','g-purple')}</div>
+      </div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
         ${siClk('new',mkKpi('✨','Tổng Khách Mới',num(newInPeriod),'tạo trong kỳ','g-teal'))}
         <div onclick="siShowOnlineQuality()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('🌐','Từ Online',num(fromOnl),pct(newInPeriod?fromOnl/newInPeriod*100:0)+' khách mới','g-green')}</div>
         <div onclick="siShowOfflineQuality()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(newInPeriod?selfSource/newInPeriod*100:0)+' khách mới','g-yellow')}</div>
       </div>
     </div>
-    <!-- Trạng thái KH: ẩn tạm theo yêu cầu user (9/9/2026), chưa cần thiết — bỏ comment 3 dòng dưới để hiện lại
+    <!-- Trạng thái KH: ẩn tạm theo yêu cầu user (9/9/2026), chưa cần thiết — bỏ comment khối dưới để hiện lại
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái KH</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
@@ -3827,13 +3830,6 @@ function renderSaleSi(){
       </div>
     </div>
     -->
-    <div class="sec-label" style="margin-top:14px">Doanh Thu &amp; Tiềm Năng</div>
-    <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
-      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
-        <div onclick="siShowDoanhThu()" title="Bấm để xem Online/Offline" style="cursor:pointer">${mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt đơn','g-green')}</div>
-        <div onclick="siShowTiemNang()" title="Bấm để xem Online/Offline" style="cursor:pointer">${mkKpi('💎','Giá Trị Tiềm Năng',vnd(expTotalRev),expList.length+' khách có dự kiến (chưa ra đơn)','g-purple')}</div>
-      </div>
-    </div>
 
     <div class="sec-label">II. Tổng Quan Khách Hàng Theo Khu Vực</div>
     <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:16px;align-items:stretch">
