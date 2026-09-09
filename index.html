@@ -1690,7 +1690,7 @@ function faqHistoryHtml(){
 function renderFaqFeedbackBox(){
   const box=document.getElementById('faqFeedbackBox');if(!box)return;
   if(!faqFeedbackRows.length){box.innerHTML=faqHistoryHtml();return;}
-  box.innerHTML=`<div class="sec-label" style="margin-top:0">🚩 Lỗi đã báo, chưa sửa <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(${faqFeedbackRows.length} mục · bấm để dạy lại)</span></div>`+
+  box.innerHTML=`<div class="sec-label" style="margin-top:0">🚩 Lỗi đã báo, chưa sửa <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(${faqFeedbackRows.length} mục)</span></div>`+
     faqFeedbackRows.map(f=>`<div class="tov-card" style="padding:13px 16px;margin-bottom:8px;border-left:3px solid #b45309">
       <div style="font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">👤 ${f.reporter||'(không rõ)'} báo lúc ${faqTime(f.created_at)}</div>
       <div style="font-size:13px;font-weight:700;margin-bottom:5px">${f.question}</div>
@@ -2056,7 +2056,7 @@ async function renderSaleReview(){
         ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KHÁCH HỎI','left'],['SALE TRẢ LỜI','left'],['KẾT QUẢ','left'],['LINK','center'],['BÁO SAI','center']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`
-    :`<div style="padding:34px;text-align:center;color:var(--muted);font-size:12.5px">Bấm 1 ô KPI ở trên, chọn thương hiệu/sale, hoặc chọn khoảng ngày để xem chi tiết từng lượt</div>`;
+    :`<div style="padding:34px;text-align:center;color:var(--muted);font-size:12.5px">Chưa có bộ lọc</div>`;
 
   el.innerHTML=`
     <div class="page-title">Chất Lượng Phản Hồi Sale</div>
@@ -3346,7 +3346,6 @@ function renderOverview(rows,kpi,saleStats,camps,period,htSpend,sdSpend,ctSpend,
   ];
   document.getElementById('page-overview').innerHTML=`
     <div class="page-title">Tổng Quan</div>
-    <div class="page-sub">Chọn brand & khoảng ngày trên topbar để lọc</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
@@ -3625,6 +3624,17 @@ function renderSaleSi(){
     expList.push([r[COL_SI.DATE],r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siNameCell(siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],r[COL_SI.CITY],r[COL_SI.SALES],vnd(ci.expected)]);});
 
   // Chất lượng data khách Online: theo cột "Phân loại KH" — xếp đủ 4 trạng thái chuẩn (Đã ra đơn / Tiềm năng, chưa ra đơn / Không tiềm năng / Mất kết nối) + Chưa cập nhật
+  // Tự Khai Thác (Offline) làm y hệt Online, để 2 nút "bấm xem chi tiết" ra cùng 1 kiểu modal.
+  const selfNewRows=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline');
+  const selfDonRows=selfNewRows.filter(isDon);
+  const selfNotYetRows=selfNewRows.filter(r=>!isDon(r));
+  const selfTiemRows=selfNotYetRows.filter(r=>/tiềm năng|tiem nang/.test(stOf(r))&&!isPhoStatus(r));
+  const selfLostRows=selfNotYetRows.filter(r=>/mất kết n|mat ket n/.test(stOf(r)));
+  const selfKtnRows=selfNotYetRows.filter(isPhoStatus);
+  const selfNoContactRows=selfNotYetRows.filter(r=>isNoContact(r)&&!selfTiemRows.includes(r)&&!selfLostRows.includes(r)&&!selfKtnRows.includes(r));
+  const selfLongCareRows=selfNotYetRows.filter(r=>isLongCare(r)&&!selfTiemRows.includes(r)&&!selfLostRows.includes(r)&&!selfKtnRows.includes(r)&&!selfNoContactRows.includes(r));
+  const selfChuaPlRows=selfNotYetRows.filter(r=>!selfTiemRows.includes(r)&&!selfLostRows.includes(r)&&!selfKtnRows.includes(r)&&!selfNoContactRows.includes(r)&&!selfLongCareRows.includes(r));
+
   const onlNewRows=newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='online');
   const onlDonRows=onlNewRows.filter(isDon);
   const onlNotYetRows=onlNewRows.filter(r=>!isDon(r));
@@ -3647,6 +3657,13 @@ function renderSaleSi(){
     onlNoContact:{title:'Online — Chưa liên hệ được',cols:siCols,rows:siMap(onlNoContactRows)},
     onlLongCare:{title:'Online — Chăm sóc dài hạn',cols:siCols,rows:siMap(onlLongCareRows)},
     offline:{title:'Khách mới nguồn Offline (tự khai thác)',cols:siCols,rows:siMap(newRows.filter(r=>(r[COL_SI.SOURCE]||'').toLowerCase()==='offline'))},
+    selfDon:{title:'Tự khai thác — Đã ra đơn',cols:siCols,rows:siMap(selfDonRows)},
+    selfTiem:{title:'Tự khai thác — Tiềm năng, chưa ra đơn',cols:siCols,rows:siMap(selfTiemRows)},
+    selfKtn:{title:'Tự khai thác — Không tiềm năng',cols:siCols,rows:siMap(selfKtnRows)},
+    selfLost:{title:'Tự khai thác — Mất kết nối',cols:siCols,rows:siMap(selfLostRows)},
+    selfChuaPl:{title:'Tự khai thác — Chưa cập nhật trạng thái',cols:siCols,rows:siMap(selfChuaPlRows)},
+    selfNoContact:{title:'Tự khai thác — Chưa liên hệ được',cols:siCols,rows:siMap(selfNoContactRows)},
+    selfLongCare:{title:'Tự khai thác — Chăm sóc dài hạn',cols:siCols,rows:siMap(selfLongCareRows)},
     srcother:{title:'Khách mới chưa rõ nguồn (không tính vào Tổng Khách Mới)',cols:siCols,rows:siMap(newRowsAll.filter(r=>{const s=(r[COL_SI.SOURCE]||'').toLowerCase().trim();return s!=='online'&&s!=='offline';}))},
     closed:{title:'Khách đã ra đơn',cols:siCols,rows:siMap(baseRows.filter(isDon))},
     notYet:{title:'Khách chưa ra đơn',cols:siCols,rows:siMap(notYetRows)},
@@ -3666,6 +3683,9 @@ function renderSaleSi(){
   };
   window._siNotYet={total:notYetRows.length,tiem:tiemRows.length,pho:phoRows.length,lost:lostRows.length,noContact:noContactRows.length,longCare:longCareRows.length,nost:noStatusRows.length};
   window._siOnlineQ={total:onlNewRows.length,don:onlDonRows.length,tiem:onlTiemRows.length,ktn:onlKtnRows.length,lost:onlLostRows.length,noContact:onlNoContactRows.length,longCare:onlLongCareRows.length,chuaPl:onlChuaPlRows.length};
+  window._siOfflineQ={total:selfNewRows.length,don:selfDonRows.length,tiem:selfTiemRows.length,ktn:selfKtnRows.length,lost:selfLostRows.length,noContact:selfNoContactRows.length,longCare:selfLongCareRows.length,chuaPl:selfChuaPlRows.length};
+  window._siDoanhThu={total:totalRev,onl:onlRev,off:selfRev};
+  window._siTiemNang={total:expTotalRev,onl:expOnlRev,off:expSelfRev,count:expList.length};
   // ── Doanh thu: top khách / theo miền / theo thành phố ──
   const custRev=rows.map(r=>({name:siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),store:(r[COL_SI.STORE]||'').trim(),city:(r[COL_SI.CITY]||'Chưa rõ').trim(),region:siRegion(r[COL_SI.CITY]),rev:toN(r[COL_SI.TOTAL_REV])})).filter(x=>x.rev>0).sort((a,b)=>b.rev-a.rev);
   const topCust=custRev.slice(0,12);
@@ -3786,15 +3806,16 @@ function renderSaleSi(){
       </select>
     </div>
 
-    <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết · doanh thu tính theo ngày chốt đơn)</span></div>
+    <div class="sec-label">I. Tổng Quan Chung <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(doanh thu tính theo ngày chốt đơn)</span></div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Nguồn khách <span style="font-weight:400;text-transform:none">(Online + Offline = Tổng khách mới · chỉ tính khách đã phân loại nguồn${noSrcCount>0?', bỏ qua '+num(noSrcCount)+' khách thiếu Nguồn':''})</span></div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
         ${siClk('new',mkKpi('✨','Tổng Khách Mới',num(newInPeriod),'tạo trong kỳ','g-teal'))}
         <div onclick="siShowOnlineQuality()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('🌐','Từ Online',num(fromOnl),pct(newInPeriod?fromOnl/newInPeriod*100:0)+' khách mới','g-green')}</div>
-        ${siClk('offline',mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(newInPeriod?selfSource/newInPeriod*100:0)+' khách mới','g-yellow'))}
+        <div onclick="siShowOfflineQuality()" title="Bấm để xem phân loại" style="cursor:pointer">${mkKpi('🤝','Tự Khai Thác',num(selfSource),pct(newInPeriod?selfSource/newInPeriod*100:0)+' khách mới','g-yellow')}</div>
       </div>
     </div>
+    <!-- Trạng thái KH: ẩn tạm theo yêu cầu user (9/9/2026), chưa cần thiết — bỏ comment 3 dòng dưới để hiện lại
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
       <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Trạng thái KH</div>
       <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
@@ -3803,20 +3824,12 @@ function renderSaleSi(){
         ${siClk('nost',mkKpi('🏷️','Chưa Phân Loại Data',num(noStatusRows.length),'chưa gắn trạng thái ở cột Phân loại KH','g-blue'))}
       </div>
     </div>
+    -->
+    <div class="sec-label" style="margin-top:14px">Doanh Thu &amp; Tiềm Năng</div>
     <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Doanh thu (theo ngày chốt đơn)</div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
-        ${siClk('closes',mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt','g-green'))}
-        ${siClk('closesOnl',mkKpi('🌐','Doanh Thu Online',vnd(onlRev),pct(totalRev?onlRev/totalRev*100:0)+' tổng DT','g-blue'))}
-        ${siClk('closesOff',mkKpi('🤝','Doanh Thu Offline',vnd(selfRev),pct(totalRev?selfRev/totalRev*100:0)+' tổng DT','g-yellow'))}
-      </div>
-    </div>
-    <div style="border:1.5px solid var(--border);border-radius:14px;padding:11px 12px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:0 2px 8px">Doanh thu tiềm năng (dự kiến · khách chưa ra đơn)</div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
-        ${siClk('expAll',mkKpi('💎','Giá Trị Tiềm Năng',vnd(expTotalRev),expList.length+' khách có dự kiến','g-purple'))}
-        ${siClk('expOnl',mkKpi('🌐','Giá Trị Tiềm Năng Online',vnd(expOnlRev),pct(expTotalRev?expOnlRev/expTotalRev*100:0)+' tổng GT','g-blue'))}
-        ${siClk('expOff',mkKpi('🤝','Giá Trị Tiềm Năng Offline',vnd(expSelfRev),pct(expTotalRev?expSelfRev/expTotalRev*100:0)+' tổng GT','g-yellow'))}
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:0">
+        <div onclick="siShowDoanhThu()" title="Bấm để xem Online/Offline" style="cursor:pointer">${mkKpi('💰','Tổng Doanh Thu',vnd(totalRev),'theo ngày chốt đơn','g-green')}</div>
+        <div onclick="siShowTiemNang()" title="Bấm để xem Online/Offline" style="cursor:pointer">${mkKpi('💎','Giá Trị Tiềm Năng',vnd(expTotalRev),expList.length+' khách có dự kiến (chưa ra đơn)','g-purple')}</div>
       </div>
     </div>
 
@@ -3875,17 +3888,7 @@ function renderSaleSi(){
       </table></div></div>
     </div>
 
-    <div class="sec-label">VII. Doanh Thu Theo Sales</div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES PHỤ TRÁCH</th>
-        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">ĐANG QUẢN LÝ</th>
-        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">ĐÃ CHỐT</th>
-        <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH THU</th>
-      </tr></thead><tbody>${salesRows}</tbody>
-    </table></div></div>
-
-    <div class="sec-label">VIII. Doanh Thu Khách Sỉ <span style="font-weight:400;font-size:11px;color:var(--muted)">(giá trị đơn cộng dồn)</span></div>
+    <div class="sec-label">III. Doanh Thu Khách Sỉ <span style="font-weight:400;font-size:11px;color:var(--muted)">(giá trị đơn cộng dồn)</span></div>
     <div style="display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:12px;align-items:start">
       <div class="tov-card" style="padding:0;overflow:hidden">
         <div style="font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:14px 14px 8px">🏆 Top Khách Theo DT</div>
@@ -3924,7 +3927,6 @@ function siShowNotYet(){
     <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
     <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:5px">${desc}</div>
-    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
   </div>`;
   let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
   m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
@@ -3950,7 +3952,6 @@ function siShowOnlineQuality(){
     <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
     <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:5px">${desc}</div>
-    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
   </div>`;
   let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
   m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
@@ -3967,6 +3968,76 @@ function siShowOnlineQuality(){
         ${card('onlNoContact','Chưa liên hệ được',d.noContact,'#f59e0b','đã thử liên hệ nhưng chưa gặp được khách')}
         ${card('onlLongCare','Chăm sóc dài hạn',d.longCare,'#0abf7a','tiềm năng dài hạn, chưa chốt trong ngắn hạn')}
         ${card('onlChuaPl','Chưa cập nhật',d.chuaPl,'#64748b','chưa gắn trạng thái ở cột Phân loại KH')}
+      </div>
+    </div></div>`;
+}
+
+// Khách mới nguồn Offline (tự khai thác) → phân loại theo cột "Phân loại KH" — y hệt siShowOnlineQuality,
+// tách hàm riêng vì tiêu đề/key khác nhau.
+function siShowOfflineQuality(){
+  const d=window._siOfflineQ||{total:0,don:0,tiem:0,ktn:0,lost:0,noContact:0,longCare:0,chuaPl:0};
+  const card=(key,label,val,color,desc)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 180px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
+    <div style="font-size:30px;font-weight:900;margin-top:6px;color:var(--text)">${num(val)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${desc}</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:900px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">🤝 Tự Khai Thác — phân loại theo Phân loại KH <span style="color:var(--muted);font-weight:600;font-size:13px">· ${num(d.total)} khách</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('selfDon','Đã ra đơn',d.don,'#16a34a','đã chốt')}
+        ${card('selfTiem','Tiềm năng, chưa ra đơn',d.tiem,'#7c3aed','có giá trị dự kiến')}
+        ${card('selfKtn','Không tiềm năng',d.ktn,'#0891b2','đã gắn trạng thái Không tiềm năng')}
+        ${card('selfLost','Mất kết nối',d.lost,'#e11d48','không nghe máy / chưa phản hồi')}
+        ${card('selfNoContact','Chưa liên hệ được',d.noContact,'#f59e0b','đã thử liên hệ nhưng chưa gặp được khách')}
+        ${card('selfLongCare','Chăm sóc dài hạn',d.longCare,'#0abf7a','tiềm năng dài hạn, chưa chốt trong ngắn hạn')}
+        ${card('selfChuaPl','Chưa cập nhật',d.chuaPl,'#64748b','chưa gắn trạng thái ở cột Phân loại KH')}
+      </div>
+    </div></div>`;
+}
+// Tổng Doanh Thu → phân theo Online/Offline (gộp 2 card rời trước đây vào modal, bấm ô Tổng mới xem)
+function siShowDoanhThu(){
+  const d=window._siDoanhThu||{total:0,onl:0,off:0};
+  const card=(key,label,val,color,pctv)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 220px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
+    <div style="font-size:26px;font-weight:900;margin-top:6px;color:var(--text)">${vnd(val)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${pctv} tổng doanh thu</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">💰 Doanh Thu — Online / Offline <span style="color:var(--muted);font-weight:600;font-size:13px">· ${vnd(d.total)}</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('closesOnl','Doanh Thu Online',d.onl,'#2563eb',pct(d.total?d.onl/d.total*100:0))}
+        ${card('closesOff','Doanh Thu Offline',d.off,'#ca8a04',pct(d.total?d.off/d.total*100:0))}
+      </div>
+    </div></div>`;
+}
+// Giá Trị Tiềm Năng → phân theo Online/Offline (gộp 2 card rời trước đây vào modal)
+function siShowTiemNang(){
+  const d=window._siTiemNang||{total:0,onl:0,off:0,count:0};
+  const card=(key,label,val,color,pctv)=>`<div onclick="siShow('${key}')" style="cursor:pointer;flex:1 1 220px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
+    <div style="font-size:26px;font-weight:900;margin-top:6px;color:var(--text)">${vnd(val)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${pctv} tổng giá trị tiềm năng</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">💎 Giá Trị Tiềm Năng — Online / Offline <span style="color:var(--muted);font-weight:600;font-size:13px">· ${d.count} khách có dự kiến</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('expOnl','Tiềm Năng Online',d.onl,'#2563eb',pct(d.total?d.onl/d.total*100:0))}
+        ${card('expOff','Tiềm Năng Offline',d.off,'#ca8a04',pct(d.total?d.off/d.total*100:0))}
       </div>
     </div></div>`;
 }
@@ -4105,10 +4176,10 @@ function renderSaleSiData(){
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
     <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span>Thông tin & chăm sóc khách sỉ (Master ⨝ CRM) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</span>
+      <span>Thông tin & chăm sóc khách sỉ (Master ⨝ CRM) · 📅 ${curPeriodLabel()}</span>
       ${siRegionToggle()}
     </div>
-    <div class="sec-label">Hoạt Động Chăm Sóc <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm vào 1 ô để lọc danh sách bên dưới)</span></div>
+    <div class="sec-label">Hoạt Động Chăm Sóc</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px">
       ${fc('all','👥','Tổng Số KH',num(khTotal),'khách riêng biệt','g-blue')}
       ${fc('cared','✅','KH Đã Chăm Sóc',num(khDaCS),pct(khTotal?khDaCS/khTotal*100:0)+' tổng KH','g-green')}
@@ -4291,7 +4362,10 @@ function renderSaleOnl(){
     if(txtBr==='TTV')return'TTV';
     if(a&&adCampMap[a])return brandText(adCampMap[a])||txtBr;
     return txtBr;};
-  let rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
+  // Hơn 6k lead update hàng loạt trước T6/2026 không đáng tin (data cũ dồn vào 1 lượt) — loại khỏi báo cáo tạm thời
+  const SAONL_FLOOR=new Date(2026,5,1);
+  let rows=saleOnlRows.filter(r=>{const d=parseDate(r[COL_SAONL.DATE]);return d&&d>=SAONL_FLOOR;});
+  rows=rows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
   if(brSel.length)rows=rows.filter(r=>brSel.includes(brandOf(r)));
   const toN=vndNum;
   const st=(r,kw)=>(r[COL_SAONL.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
@@ -4386,34 +4460,6 @@ function renderSaleOnl(){
     <td style="padding:9px 14px;font-weight:700">${s}</td>
     <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${vnd(d.rev)}</td>
   </tr>`).join('');
-  // Theo miền — cùng cách tính với Báo Cáo Sỉ (siRegion theo Tỉnh/TP), dùng `rows` đã lọc sẵn theo
-  // ngày (saleRangePred) + thương hiệu (brSel) ở đầu hàm → bảng này tự động ăn theo 2 bộ lọc đó,
-  // không cần thêm UI lọc riêng.
-  // Cột "Tỉnh/TP" ở Sale Lẻ gần như bỏ trống (sale không nhập khi tạo lead, khác hẳn bên Sỉ) — nếu chỉ
-  // dùng cột đó thì 99,98% rơi vào "Chưa rõ". Fallback đọc cột "Địa chỉ" (dạng tự do, có ghi thì hay kèm
-  // tên tỉnh/thành ở cuối, VD "Quảng Yên - Quảng Ninh") khi Tỉnh/TP trống — nâng tỷ lệ nhận diện lên được,
-  // dù vẫn còn nhiều địa chỉ chỉ ghi tên đường/phường không kèm tỉnh nên không đoán được.
-  const regionOfOnl=r=>{
-    const city=(r[COL_SAONL.CITY]||'').trim();
-    if(city)return siRegion(city);
-    return siRegion(r[COL_SAONL.ADDRESS]);
-  };
-  const byRegionOnl={};
-  rows.forEach(r=>{
-    const reg=regionOfOnl(r);
-    if(!byRegionOnl[reg])byRegionOnl[reg]={total:0,closed:0,rev:0};
-    byRegionOnl[reg].total++;
-    if(st(r,'chốt')){byRegionOnl[reg].closed++;byRegionOnl[reg].rev+=toN(r[COL_SAONL.REVENUE]);}
-  });
-  const REGION_ORDER_ONL=[['Miền Bắc','#0abf7a'],['Miền Trung','#7c3aed'],['Miền Nam','#4361ee'],['Khác','#94a3b8'],['Chưa rõ','#cbd5e1']];
-  const regionOnlData=REGION_ORDER_ONL.map(([name,color])=>({name,color,...(byRegionOnl[name]||{total:0,closed:0,rev:0})})).filter(x=>x.total>0);
-  const regionOnlRows=regionOnlData.map(x=>`<tr style="border-bottom:1px solid var(--border)">
-    <td style="padding:9px 14px;font-weight:700"><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${x.color};margin-right:7px"></span>${x.name}</td>
-    <td style="padding:9px 14px;text-align:center;font-weight:700">${num(x.total)}</td>
-    <td style="padding:9px 14px;text-align:center;font-weight:700;color:var(--green)">${num(x.closed)}</td>
-    <td style="padding:9px 14px;text-align:center;font-weight:700;color:#2563eb">${x.total>0?pct(x.closed/x.total*100):'—'}</td>
-    <td style="padding:9px 14px;text-align:right;font-weight:800;color:var(--green)">${x.rev>0?vnd(x.rev):'—'}</td>
-  </tr>`).join('');
   const clk=(key,html)=>`<div onclick="saonlShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
   const brandSel=brandChips('_saonlBrands','renderSaleOnl');
   document.getElementById('page-sale-onl').innerHTML=`
@@ -4435,7 +4481,7 @@ function renderSaleOnl(){
       ${clk('ttv',mkKpi('🕯️','Tự Tại Viên',vnd(revTTV),'đã chốt','g-purple'))}
     </div>
 
-    <div class="sec-label" style="margin-top:16px">II. Tổng Quan Lead <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm ô số để xem chi tiết)</span></div>
+    <div class="sec-label" style="margin-top:16px">II. Tổng Quan Lead</div>
     <div class="kpi-grid">
       ${clk('total',mkKpi('👥','Tổng Lead Tiềm Năng',num(total),'tất cả lead','g-blue'))}
       ${mkKpi('🎯','Tỉ Lệ Chốt',pct(closeRate),num(closed)+'/'+num(total)+' lead','g-yellow')}
@@ -4494,18 +4540,7 @@ function renderSaleOnl(){
           </tr></thead><tbody>${revBySalesRows||'<tr><td colspan="2" style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</td></tr>'}</tbody>
         </table></div></div>
       </div>
-    </div>
-
-    <div class="sec-label">VIII. Doanh Số Theo Miền <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(theo Tỉnh/TP khách hàng · đã áp bộ lọc ngày + thương hiệu ở trên)</span></div>
-    <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-      <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">MIỀN</th>
-        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--muted)">SỐ DATA</th>
-        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--green)">ĐÃ CHỐT</th>
-        <th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:700;color:#2563eb">TỶ LỆ CHỐT</th>
-        <th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--green)">DOANH THU</th>
-      </tr></thead><tbody>${regionOnlRows||'<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</td></tr>'}</tbody>
-    </table></div></div>`;
+    </div>`;
   // Build lead by channel horizontal bar
   const COLORS=['rgba(67,97,238,.8)','rgba(10,191,122,.8)','rgba(249,115,22,.8)','rgba(168,85,247,.8)','rgba(236,72,153,.8)','rgba(234,179,8,.8)','rgba(20,184,166,.8)','rgba(239,68,68,.8)'];
   const chanCtx=document.getElementById('cSaonlChan');
@@ -4663,9 +4698,9 @@ function renderSaleOnlData(){
 
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Lẻ</div>
-    <div class="page-sub">Thông tin & chăm sóc khách lẻ (Master ⨝ CRM) · click 👤 để mở hồ sơ · 📅 ${curPeriodLabel()}</div>
+    <div class="page-sub">Thông tin & chăm sóc khách lẻ (Master ⨝ CRM) · 📅 ${curPeriodLabel()}</div>
     ${brandChips('_saonlBrands','renderSaleOnlData')}
-    <div class="sec-label">Hoạt Động Chăm Sóc <span style="font-weight:400;font-size:11px;color:var(--muted);text-transform:none">(bấm vào 1 ô để lọc danh sách bên dưới)</span></div>
+    <div class="sec-label">Hoạt Động Chăm Sóc</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px">
       ${fc('all','👥','Tổng Số KH',num(khTotal),'khách riêng biệt','g-blue')}
       ${fc('cared','✅','KH Đã Chăm Sóc',num(khDaCS),pct(khTotal?khDaCS/khTotal*100:0)+' tổng KH','g-green')}
@@ -4921,7 +4956,7 @@ function buildOnlineCampTable(){
     </tr>`;
     return brandRow+subRows;
   }).join('');
-  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} data · theo Ad ID · click thương hiệu để xem chiến dịch · click số Chốt Đơn để xem chi tiết đơn + Ads ID + lý do · 📅 ${curPeriodLabel()})</span></div>
+  return`<div class="sec-label">Kết Quả Online Theo Chiến Dịch <span style="font-weight:400;color:var(--muted);font-size:11px">(${grand.total} data · theo Ad ID · 📅 ${curPeriodLabel()})</span></div>
   <div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
     <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
       <th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">THƯƠNG HIỆU</th>
@@ -5208,7 +5243,7 @@ function renderDetail(camps,period,filteredRows,saleStats){
 
   document.getElementById('page-detail').innerHTML=`
     <div class="page-title">Chi Tiết</div>
-    <div class="page-sub">Chiến dịch → Nhóm QC → QC → Ads ID · Click ▶ để mở từng cấp</div>
+    <div class="page-sub">Chiến dịch → Nhóm QC → QC → Ads ID</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
@@ -5363,8 +5398,10 @@ function renderQcDoiSoat(){
     const g={};rows.forEach((r,i)=>{const p=find(i);(g[p]=g[p]||[]).push(r);});
     return Object.values(g).filter(a=>a.length>1);
   };
+  // Hơn 6k lead update hàng loạt trước T6/2026 không đáng tin — loại khỏi phần kiểm tra lỗi nhập liệu (Lẻ) luôn
+  const onlRowsQc=saleOnlRows.filter(r=>{const d=parseDate(r[COL_SAONL.DATE]);return d&&d>=new Date(2026,5,1);});
   const siDup=clustersBy(saleSiRows,[r=>{const p=last9(r[COL_SI.PHONE]);return p?'P'+p:'';},r=>{const c=coKey(r[COL_SI.STORE]);return c?'C'+c:'';}]);
-  const onlDup=clustersBy(saleOnlRows,[r=>{const p=last9(r[COL_SAONL.PHONE]);return p?'P'+p:'';},r=>{const n=nmKey(r[COL_SAONL.NAME]);return n?'N'+n:'';}]);
+  const onlDup=clustersBy(onlRowsQc,[r=>{const p=last9(r[COL_SAONL.PHONE]);return p?'P'+p:'';},r=>{const n=nmKey(r[COL_SAONL.NAME]);return n?'N'+n:'';}]);
   const siDupN=siDup.reduce((s,g)=>s+g.length,0), onlDupN=onlDup.reduce((s,g)=>s+g.length,0);
   window._qcDups={
     si:siDup.map(g=>g.map(r=>[r[COL_SI.MA_KH],r[COL_SI.LEAD_ID],siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE],r[COL_SI.PHONE],r[COL_SI.DATE]])),
@@ -5417,7 +5454,7 @@ function renderQcDoiSoat(){
     if(siDupSet.has(r))errs.push(dupWhy(r,COL_SI.PHONE,COL_SI.STORE,COL_SI.REP));
     if(errs.length)siErrRows.push([r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID],siNameCell(siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE]),r[COL_SI.PHONE],r[COL_SI.SOURCE],'<b style="color:#e11d48">'+errs.join(' · ')+'</b>']);});
   const onlErrRows=[];
-  saleOnlRows.forEach(r=>{if(bl(r[COL_SAONL.DATE]))return;   // không có ngày tạo = data trống, bỏ qua
+  onlRowsQc.forEach(r=>{if(bl(r[COL_SAONL.DATE]))return;   // không có ngày tạo = data trống, bỏ qua
     const errs=[];
     const mf=[];if(bl(r[COL_SAONL.SOURCE]))mf.push('Nguồn');if(bl(r[COL_SAONL.NAME])&&bl(r[COL_SAONL.PHONE]))mf.push('Tên & SĐT');
     if(/^chốt/i.test(r[COL_SAONL.STATUS]||'')){if(vndNum(r[COL_SAONL.REVENUE])<=0)mf.push('Doanh thu chốt');if(bl(r[COL_SAONL.DATE_CLOSE]))mf.push('Ngày chốt');}
@@ -5496,7 +5533,7 @@ function renderQcDoiSoat(){
   const footPct=(lbl,b,c)=>`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px"><span style="font-size:11.5px;color:var(--muted)">${lbl}</span>${badge(b,c)}</div>`;
   const subRow=html=>`<div style="display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--border);padding-top:10px">${html}</div>`;
   // click = key trong _qcLists (chỉ gắn khi có data để xem)
-  const C=(n,title,accent,body,click)=>`<div class="qc-card" style="--qa:${accent}${click?';cursor:pointer':''}"${click?` onclick="qcShowList('${click}')"`:''}><div class="qc-h">${n?n+'. ':''}${title}</div>${body}${click?`<div style="margin-top:9px;font-size:10.5px;font-weight:800;color:${accent}">👆 bấm để xem danh sách</div>`:''}</div>`;
+  const C=(n,title,accent,body,click)=>`<div class="qc-card" style="--qa:${accent}${click?';cursor:pointer':''}"${click?` onclick="qcShowList('${click}')"`:''}><div class="qc-h">${n?n+'. ':''}${title}</div>${body}</div>`;
 
   // Danh sách chi tiết để bấm xem (dash 6/10/12)
   window._qcLists={
@@ -5577,6 +5614,7 @@ function renderQcDoiSoat(){
       </div>
     </div>
 
+    <!-- ẩn tạm theo yêu cầu user (9/9/2026): Chi phí Ads chung / Sale Online (Lẻ) / Sỉ — chỉ giữ Chất Lượng Xử Lý Data + 2 mục Kiểm Soát. Bỏ comment khối dưới để hiện lại.
     <div class="qc-group" style="--qg:#4361ee;margin-top:16px">
       <div class="qc-group-h">💸 Chất Lượng Data — Chi Phí (Ads chung)</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">${c1}</div>
@@ -5591,8 +5629,9 @@ function renderQcDoiSoat(){
       <div class="qc-group-h">🏪 Chất Lượng Data — Sỉ</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${cSi1}${cSi2}${cSi3}</div>
     </div>
+    -->
 
-    <div class="qc-group" style="--qg:#0abf7a">
+    <div class="qc-group" style="--qg:#0abf7a;margin-top:16px">
       <div class="qc-group-h">🛒 Chất Lượng Xử Lý Data — Sale</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
         <div>
@@ -5607,7 +5646,8 @@ function renderQcDoiSoat(){
     </div>
 
     <div class="qc-group" style="--qg:#f59e0b">
-      <div class="qc-group-h">📈 Đánh Giá Chung</div>
+      <div class="qc-group-h">🛠️ Kiểm Soát</div>
+      <!-- ẩn tạm theo yêu cầu user (9/9/2026): Tỷ Lệ Chuyển Đổi + TG TB — chỉ giữ 2 mục Kiểm Soát dưới. Bỏ comment khối dưới để hiện lại.
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
         <div class="qc-card" style="--qa:#4361ee;flex:1 1 420px;max-width:640px"><div class="qc-h" style="color:var(--text)">Tỷ Lệ Chuyển Đổi</div><div style="padding-top:4px">${funnelHtml}</div></div>
         <div style="display:flex;flex-direction:column;gap:14px;flex:1 1 250px;min-width:240px">
@@ -5621,41 +5661,37 @@ function renderQcDoiSoat(){
           </div>
         </div>
       </div>
-      <div class="qc-card" style="--qa:#e11d48;margin-top:14px${(siErrN+onlErrN+dhTagErrN)>0?';cursor:pointer':''}"${(siErrN+onlErrN+dhTagErrN)>0?' onclick="qcShowErrors()"':''}>
+      -->
+      <div class="qc-card" style="--qa:#e11d48${(siErrN+onlErrN+dhTagErrN)>0?';cursor:pointer':''}"${(siErrN+onlErrN+dhTagErrN)>0?' onclick="qcShowErrors()"':''}>
         <div class="qc-h" style="color:var(--text)">🛠️ Kiểm Soát Lỗi Nhập Liệu <span style="font-weight:600;color:var(--muted);text-transform:none">(trùng lặp · bỏ trống trạng thái · thiếu trường ảnh hưởng số liệu)</span></div>
         <div style="display:flex;gap:40px;flex-wrap:wrap;align-items:center;padding-top:2px">
           <div style="display:flex;align-items:center;gap:11px">${ic('🏪')}<div><div style="font-size:24px;font-weight:900;color:${siErrN>0?'#e11d48':GRN}">${num(siErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Master Sỉ</div></div></div>
           <div style="display:flex;align-items:center;gap:11px">${ic('🌐')}<div><div style="font-size:24px;font-weight:900;color:${onlErrN>0?'#e11d48':GRN}">${num(onlErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Sale Online</div></div></div>
           <div style="display:flex;align-items:center;gap:11px">${ic('🏷️')}<div><div style="font-size:24px;font-weight:900;color:${dhTagErrN>0?'#e11d48':GRN}">${num(dhTagErrN)}<span style="font-size:13px;color:var(--muted);font-weight:700"> data lỗi</span></div><div style="font-size:10.5px;color:var(--muted);margin-top:2px">Data Hub — có SĐT thiếu tag phân loại</div></div></div>
         </div>
-        ${(siErrN+onlErrN+dhTagErrN)>0?'<div style="margin-top:10px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm để xem danh sách lỗi</div>':'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện lỗi nhập liệu</div>'}
+        ${(siErrN+onlErrN+dhTagErrN)===0?'<div style="margin-top:10px;font-size:11px;font-weight:700;color:'+GRN+'">✓ Không phát hiện lỗi nhập liệu</div>':''}
       </div>
       <div class="qc-group-h" style="margin-top:14px">📇 Kiểm Soát Tag & SĐT Khách Sỉ <span style="font-weight:600;color:var(--muted);text-transform:none;font-size:11px">(data hub, nguồn tag "KH Sỉ" · theo bộ lọc ngày, tối thiểu từ T6/2026 · bỏ qua data không có ngày tạo)</span></div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
         <div class="qc-card" style="--qa:#7c3aed;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).tagged)">
           <div class="qc-h" style="color:var(--text)">🏷️ Gắn Tag "KH Sỉ"</div>
           ${single('🏷️',num(siTagN),'khách trong data hub · '+tagPeriod,'#7c3aed')}
-          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#7c3aed">👆 bấm xem data</div>
         </div>
         <div class="qc-card" style="--qa:#0891b2;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).phone)">
           <div class="qc-h" style="color:var(--text)">📞 KH Sỉ Có SĐT</div>
           ${single('📞',num(siTagPhoneN),pct(siTagN?siTagPhoneN/siTagN*100:0)+' / '+num(siTagN)+' KH Sỉ','#0891b2')}
-          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#0891b2">👆 bấm xem data</div>
         </div>
         <div class="qc-card" style="--qa:#f59e0b;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).noPhone)">
           <div class="qc-h" style="color:var(--text)">🚫 KH Sỉ Không Có SĐT</div>
           ${single('🚫',num(siTagNoPhoneN),pct(siTagN?siTagNoPhoneN/siTagN*100:0)+' / '+num(siTagN)+' KH Sỉ','#f59e0b')}
-          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#f59e0b">👆 bấm xem data</div>
         </div>
         <div class="qc-card" style="--qa:#0abf7a;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).updated)">
           <div class="qc-h" style="color:var(--text)">✅ Có SĐT — Đã Update Master</div>
           ${single('✅',num(siTagUpdatedN),pct(siTagPhoneN?siTagUpdatedN/siTagPhoneN*100:0)+' / '+num(siTagPhoneN)+' có SĐT','#0abf7a')}
-          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#0abf7a">👆 bấm xem data</div>
         </div>
         <div class="qc-card" style="--qa:#e11d48;cursor:pointer" onclick="dataModal((window._qcSiTag||{}).noMaster)">
           <div class="qc-h" style="color:var(--text)">🗂️ Chưa Update Trong Master / Bàn Giao TTMN</div>
           ${single('🗂️',num(siTagNoMasterN),pct(siTagPhoneN?siTagNoMasterN/siTagPhoneN*100:0)+' / '+num(siTagPhoneN)+' có SĐT','#e11d48')}
-          <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:#e11d48">👆 bấm xem data</div>
         </div>
       </div>
     </div>
@@ -5713,6 +5749,8 @@ function renderQcInvoice(){
   // Việc khớp phải quét TOÀN BỘ hoá đơn Kiot (không giới hạn theo khoảng ngày topbar đang chọn) — đơn chốt trong kỳ
   // đang xem có thể lên hoá đơn muộn hơn, rơi ra ngoài khoảng ngày đang lọc, vẫn phải tính là đã khớp.
   let invoicesForMatch=Object.values(invMap);
+  // Ngày hoá đơn Kiot mới nhất trong toàn bộ file export — để biết data hoá đơn đang cập nhật tới đâu
+  const kiotLastDate=Object.values(invMap).reduce((mx,r)=>{const d=parseDate(r[COL_KIOT.DATE]);return(d&&(!mx||d>mx))?d:mx;},null);
   if(brSel.length)invoicesForMatch=invoicesForMatch.filter(r=>brSel.includes(kiotBrand(r)));
   const invByMaKh={};
   invoicesForMatch.forEach(r=>{const k=nrmMa(r[COL_KIOT.MA_KH]);const d=parseDate(r[COL_KIOT.DATE]);if(!k||!d)return;
@@ -5881,6 +5919,8 @@ function renderQcInvoice(){
         </tr>`;}).join('')}</tbody>
       </table>
     </div>`:'';
+    window._qcInvNotTables=window._qcInvNotTables||{};
+    window._qcInvNotTables[notKey]={label,table:notTable};
     return `
     <div style="border:1px solid var(--border);border-radius:14px;padding:13px 16px;margin-bottom:10px;background:var(--bg2)">
       <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${icon} ${label}</div>
@@ -5895,9 +5935,8 @@ function renderQcInvoice(){
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:11px">
         ${statChip('📦','Tổng Đơn Báo Cáo',num(invCount+notCount)+' đơn','',color,`qcInvShow('${recListKey}')`)}
         ${statChip('✅','Đã Lên Kiot',num(invCount)+' đơn',vnd(invRevSum),C.green,`qcInvShow('${invRec}')`)}
-        ${statChip('⚠️','Data Có Vấn Đề',num(notCount)+' đơn',vnd(notRev),C.amber,'')}
+        ${statChip('⚠️','Data Có Vấn Đề',num(notCount)+' đơn',vnd(notRev),C.amber,notCount?`qcInvShowNotTable('${notKey}')`:'')}
       </div>
-      ${notTable}
     </div>`;};
   el.innerHTML=`
     <div class="page-title">QC — Đối Soát Đơn Hàng</div>
@@ -5905,6 +5944,7 @@ function renderQcInvoice(){
     <div class="period-bar">
       <div class="period-chip">📅 ${dsPeriodLabel}</div>
       <div class="stat-chip">🧾 ${num(invoices.length)} hoá đơn</div>
+      ${kiotLastDate?`<div class="stat-chip">🕒 Hoá đơn cập nhật đến ${fmtDate(kiotLastDate)}</div>`:''}
       ${brandChips('_kiotBrands','renderQcInvoice')}
       <button class="refresh-btn" onclick="loadData(true)">↺ Refresh</button>
     </div>
@@ -5922,6 +5962,18 @@ function renderQcInvoice(){
     `;
 }
 function qcInvShow(key){const d=(window._qcInvLists||{})[key];if(d)dataModal(d);}
+function qcInvShowNotTable(key){
+  const d=(window._qcInvNotTables||{})[key];if(!d)return;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:1100px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">⚠️ Data Có Vấn Đề — ${d.label}</div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="overflow:auto;padding:0 12px 12px">${d.table}</div>
+    </div></div>`;
+}
 function qcInvShowNotInvoiced(){
   const onl=(window._qcInvLists&&window._qcInvLists.notInvoicedOnl)||{rows:[]};
   const si=(window._qcInvLists&&window._qcInvLists.notInvoicedSi)||{rows:[]};
@@ -5930,7 +5982,6 @@ function qcInvShowNotInvoiced(){
     <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
     <div style="font-size:24px;font-weight:900;margin-top:6px;color:var(--text)">${vnd(sumRev(rows))}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:5px">${rows.length} đơn · ${desc}</div>
-    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
   </div>`;
   let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
   m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
@@ -5987,7 +6038,6 @@ function mktShowDoanhSo(){
     <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${label}</div>
     <div style="font-size:24px;font-weight:900;margin-top:6px;color:var(--text)">${vnd(val)}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:5px">${cnt} đơn · ${total?pct(val/total*100):'0%'} tổng DS · ${desc}</div>
-    <div style="margin-top:8px;font-size:10.5px;font-weight:800;color:${color}">👆 bấm xem data</div>
   </div>`;
   let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
   m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
@@ -6801,8 +6851,7 @@ function renderQcCompare(){
           <tbody>${bodyHtml}</tbody>
         </table>
       </div>
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:10px">👆 Bấm vào hàng Doanh Số, Số Data Tiềm Năng hoặc CP / Mess để xổ ra chi tiết</div>`;
+    </div>`;
 }
 function qcCmpSetMonthRange(part,val){
   if(!val)return;
