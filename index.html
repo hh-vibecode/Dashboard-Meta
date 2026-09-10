@@ -3794,7 +3794,6 @@ function renderSaleSi(){
   document.getElementById('page-sale-si').innerHTML=`
     <div class="page-title">Báo Cáo KH Sỉ</div>
     <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span>${total} khách hàng · 📅 ${curPeriodLabel()}</span>
       ${siRegionToggle()}
       <select onchange="setSiProductOv(this.value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
         <option value="all"${prodFOv==='all'?' selected':''}>📦 Tất cả sản phẩm</option>
@@ -4174,7 +4173,6 @@ function renderSaleSiData(){
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Sỉ</div>
     <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span>Thông tin & chăm sóc khách sỉ (Master ⨝ CRM) · 📅 ${curPeriodLabel()}</span>
       ${siRegionToggle()}
     </div>
     <div class="sec-label">Hoạt Động Chăm Sóc</div>
@@ -4462,8 +4460,7 @@ function renderSaleOnl(){
   const brandSel=brandChips('_saonlBrands','renderSaleOnl');
   document.getElementById('page-sale-onl').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
-      <div><div class="page-title">Báo Cáo KH Lẻ</div>
-      <div class="page-sub">${total} leads · 📅 ${curPeriodLabel()}</div></div>
+      <div><div class="page-title">Báo Cáo KH Lẻ</div></div>
       ${brandSel}
     </div>
 
@@ -4696,7 +4693,6 @@ function renderSaleOnlData(){
 
   elp.innerHTML=`
     <div class="page-title">CRM Khách Hàng Lẻ</div>
-    <div class="page-sub">Thông tin & chăm sóc khách lẻ (Master ⨝ CRM) · 📅 ${curPeriodLabel()}</div>
     ${brandChips('_saonlBrands','renderSaleOnlData')}
     <div class="sec-label">Hoạt Động Chăm Sóc</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px">
@@ -5244,7 +5240,6 @@ function renderDetail(camps,period,filteredRows,saleStats){
 
   document.getElementById('page-detail').innerHTML=`
     <div class="page-title">Chi Tiết</div>
-    <div class="page-sub">Chiến dịch → Nhóm QC → QC → Ads ID</div>
     <div class="period-bar">
       <div class="period-chip">📅 ${period}</div>
       <div class="stat-chip">📊 ${camps.length} chiến dịch</div>
@@ -6828,7 +6823,6 @@ function renderQcCompare(){
 
   el.innerHTML=`
     <div class="page-title">QC — So Sánh Tháng</div>
-    <div class="page-sub">Xu hướng MKT/Sale Performance (Tổng Quan MKT) theo từng tháng, mỗi cột so với cột tháng liền trước · chỉ có data từ ${fmtDate(localDate(QC_CMP_FLOOR))} trở đi</div>
     <div class="period-bar">
       <div class="date-filter">
         <label>Từ tháng</label>
