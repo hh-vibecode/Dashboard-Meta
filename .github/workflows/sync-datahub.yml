@@ -1,0 +1,19 @@
+name: Sync Data Hub từ Pancake
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # mỗi 30 phút -- Data Hub là lead mới, Sale cần thấy sớm hơn MKT (chỉ 1 lần/ngày)
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - name: Sync đơn hàng Pancake -> Supabase
+        env:
+          PANCAKE_SESSION_TOKEN: ${{ secrets.PANCAKE_SESSION_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/sync-datahub-pancake.js
