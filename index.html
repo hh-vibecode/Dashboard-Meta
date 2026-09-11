@@ -268,6 +268,10 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
 <div class="app-body">
   <div class="sidebar" id="sidebar">
     <div class="sb-strip"></div>
+    <div class="sb-section" id="sec-datahub-label">Data Hub</div>
+    <nav id="sec-datahub">
+      <div class="nav-item active" onclick="switchPage('datahub')" id="nav-datahub"><span class="nav-icon">🗄️</span><span class="nav-label">Đơn Hàng (Pancake)</span></div>
+    </nav>
     <div class="sb-section" id="sec-dev-label">Đang Phát Triển</div>
     <nav id="sec-dev">
       <!-- Ẩn tạm theo yêu cầu user (26/8) — bỏ style="display:none" để hiện lại, không xoá code trang -->
@@ -278,7 +282,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     </nav>
     <div class="sb-section" id="sec-marketing-label">Marketing</div>
     <nav id="sec-marketing">
-      <div class="nav-item active" onclick="switchPage('overview')" id="nav-overview"><span class="nav-icon">📊</span><span class="nav-label">Tổng Quan</span></div>
+      <div class="nav-item" onclick="switchPage('overview')" id="nav-overview"><span class="nav-icon">📊</span><span class="nav-label">Tổng Quan</span></div>
       <div class="nav-item" onclick="switchPage('detail')" id="nav-detail"><span class="nav-icon">📋</span><span class="nav-label">Chi Tiết</span></div>
     </nav>
     <div class="sb-section" id="sec-sale-label" style="margin-top:12px">Sale</div>
@@ -303,6 +307,9 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
   </div>
 
   <div class="main-content" id="mainContent">
+    <div class="tab-page active" id="page-datahub">
+      <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải Data Hub…</div>
+    </div>
     <div class="tab-page" id="page-danhgia">
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải báo cáo tuần...</div>
     </div>
@@ -315,7 +322,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
     <div class="tab-page" id="page-social">
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải báo cáo social...</div>
     </div>
-    <div class="tab-page active" id="page-overview">
+    <div class="tab-page" id="page-overview">
       <div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải dữ liệu…</span></div>
     </div>
     <div class="tab-page" id="page-detail">
@@ -854,8 +861,10 @@ const DEV_PAGES=['danhgia','faq','sale-review','social'];
 // Trang ẨN TẠM khỏi sidebar cho MỌI role (kể cả tester) — khác DEV_PAGES (chỉ giới hạn role, không ẩn hẳn).
 // Bỏ id ra khỏi đây để hiện lại. Trước đây chỉ đặt style="display:none" tĩnh trên thẻ nav là KHÔNG đủ — vòng
 // lặp applyRole() bên dưới tự set lại display theo quyền mỗi lần đăng nhập/đổi role, ghi đè mất display:none.
-const HIDDEN_PAGES=['danhgia','social'];
-const ROLE_PAGES={admin:['overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null,
+// 11/9: user yêu cầu ẩn HẾT app cũ, chỉ để lại Data Hub -- làm từng phần một, xong phần nào bỏ id đó ra khỏi
+// đây để hiện lại dần, KHÔNG xoá code các trang cũ.
+const HIDDEN_PAGES=['danhgia','social','overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare','faq','sale-review'];
+const ROLE_PAGES={admin:['datahub','overview','detail','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],'sale-si':['sale-si','sale-si-data','qc-doisoat','qc-invoice','qc-compare'],'sale-onl':['sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'],mkt:['overview','detail'],tester:null,
   // sale-mt: Sale Sỉ thị trường Miền Trung — chỉ Báo Cáo KH Sỉ (khoá cứng vùng Miền Trung, xem siRegionToggle),
   // không Marketing/QC/Sale Online. sales-admin: quản lý sale nói chung, thấy hết Sỉ+Lẻ nhưng bỏ Marketing+QC.
   'sale-mt':['sale-si','sale-si-data'],
@@ -875,7 +884,7 @@ function applyRole(){
   if(grp){const ok=!allowed||allowed.indexOf('sale-si')>=0||allowed.indexOf('sale-si-data')>=0;grp.style.display=ok?'':'none';}
   const ogrp=document.getElementById('nav-onl-group');
   if(ogrp){const ok=!allowed||allowed.indexOf('sale-onl')>=0||allowed.indexOf('sale-onl-data')>=0;ogrp.style.display=ok?'':'none';}
-  [['sec-dev-label','sec-dev'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
+  [['sec-datahub-label','sec-datahub'],['sec-dev-label','sec-dev'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
     const n=document.getElementById(nav);if(!n)return;
     const vis=[...n.querySelectorAll('.nav-item')].some(it=>it.style.display!=='none');
     const l=document.getElementById(lab);if(l)l.style.display=vis?'':'none';n.style.display=vis?'':'none';
@@ -911,10 +920,11 @@ function switchPage(p){
     return;
   }
   window._curPage=p;
-  ['danhgia','faq','sale-review','social','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
+  ['datahub','danhgia','faq','sale-review','social','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
+  if(p==='datahub')renderDataHubOrders();
   if(p==='danhgia')renderDanhGia();
   if(p==='faq')renderFaq();
   if(p==='sale-review')renderSaleReview();
@@ -7551,6 +7561,108 @@ function vndNum(v){const n=parseInt(String(v==null?'':v).replace(/[^0-9-]/g,''),
 function vnd(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n))+' ₫';}
 function num(n){return new Intl.NumberFormat('vi-VN').format(Math.round(n));}
 function pct(n){return n>0?n.toFixed(2)+'%':'—';}
+
+// =========================================================================================
+// ── Data Hub v2: đơn hàng crawl thẳng từ Pancake POS API vào Supabase (bảng datahub_orders),
+// thay cho luồng cũ Sale tự nhập tay vào Google Sheet rồi Dashboard đọc CSV từ Sheet đó.
+// Tự sync mỗi 30 phút qua GitHub Actions (xem .github/workflows/sync-datahub.yml +
+// scripts/sync-datahub-pancake.js). Trang này ĐỘC LẬP với loadData() (luồng Sheet cũ) — chưa nối
+// vào các báo cáo khác, làm từng phần theo yêu cầu user (11/9).
+// =========================================================================================
+const DH_BRAND_LABEL={CT:'Chánh Tâm',HT:'Hiền Thuỷ',Shidai:'Shidai',TTV:'Tự Tại Viên',Other:'Khác'};
+let dhOrders=[],dhLoaded=false;
+async function loadDataHubOrders(force){
+  if(dhLoaded&&!force)return;
+  dhOrders=await sbFetchAll('datahub_orders','select=*&order=order_date.desc,system_id.desc');
+  dhLoaded=true;
+}
+function dhFilteredOrders(){
+  const brand=document.getElementById('dhBrandFilter')?.value||'all';
+  const from=document.getElementById('dhDateFrom')?.value||'';
+  const to=document.getElementById('dhDateTo')?.value||'';
+  const q=(document.getElementById('dhSearch')?.value||'').trim().toLowerCase();
+  return dhOrders.filter(o=>{
+    if(brand!=='all'&&o.brand!==brand)return false;
+    if(from&&o.order_date<from)return false;
+    if(to&&o.order_date>to)return false;
+    if(q){
+      const hay=[o.customer_name,o.phone,o.system_id,o.staff_name,o.ad_id].join(' ').toLowerCase();
+      if(!hay.includes(q))return false;
+    }
+    return true;
+  });
+}
+function dhSetPage(p){window._dhPage=p;renderDataHubTable();}
+function dhSetFilter(){window._dhPage=1;renderDataHubTable();}
+async function refreshDataHub(){await loadDataHubOrders(true);renderDataHubOrders();}
+async function renderDataHubOrders(){
+  const el=document.getElementById('page-datahub');
+  el.innerHTML='<div class="loading"><div class="spin"></div><br><span style="font-size:13px;font-weight:700;color:var(--text2)">Đang tải Data Hub…</span></div>';
+  try{ await loadDataHubOrders(false); }
+  catch(e){ el.innerHTML=`<div class="err-box">❌ Không tải được Data Hub: ${e.message}</div>`; return; }
+  const today=new Date().toISOString().slice(0,10);
+  const todayCount=dhOrders.filter(o=>o.order_date===today).length;
+  const newCount=dhOrders.filter(o=>o.customer_status==='Mới').length;
+  const byBrand={};dhOrders.forEach(o=>{const b=o.brand||'Other';byBrand[b]=(byBrand[b]||0)+1;});
+  const brandChips=Object.keys(DH_BRAND_LABEL).map(b=>`<option value="${b}">${DH_BRAND_LABEL[b]} (${byBrand[b]||0})</option>`).join('');
+  el.innerHTML=`
+    <div class="page-title">Data Hub — Đơn Hàng (Pancake)</div>
+    <div class="page-sub">Crawl thẳng từ Pancake, tự đồng bộ mỗi 30 phút — không qua Google Sheet trung gian</div>
+    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+      ${mkKpi('🗄️','Tổng Đơn',num(dhOrders.length),'toàn bộ lịch sử','g-blue')}
+      ${mkKpi('🆕','Hôm Nay',num(todayCount),today,'g-teal')}
+      ${mkKpi('✨','Khách Mới',num(newCount),pct(dhOrders.length?newCount/dhOrders.length*100:0)+' tổng đơn','g-green')}
+      ${mkKpi('🔁','Khách Cũ',num(dhOrders.length-newCount),'mua lại','g-purple')}
+    </div>
+    <div class="period-bar" style="margin-top:14px">
+      <select id="dhBrandFilter" class="top-select" onchange="dhSetFilter()">
+        <option value="all">Tất cả brand (${dhOrders.length})</option>
+        ${brandChips}
+      </select>
+      <span style="font-size:11px;color:var(--muted)">Từ:</span>
+      <input id="dhDateFrom" type="date" onchange="dhSetFilter()" style="height:30px;padding:3px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:11px">
+      <span style="font-size:11px;color:var(--muted)">→</span>
+      <input id="dhDateTo" type="date" onchange="dhSetFilter()" style="height:30px;padding:3px 8px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:11px">
+      <input id="dhSearch" placeholder="🔎 Tên / SĐT / Mã đơn / NV / Ad ID…" oninput="dhSetFilter()" style="height:30px;box-sizing:border-box;padding:3px 12px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:11px;font-weight:600;min-width:230px;outline:none">
+      <button class="refresh-btn" onclick="refreshDataHub()">↺ Tải lại</button>
+    </div>
+    <div id="dhTableWrap"></div>`;
+  window._dhPage=1;
+  renderDataHubTable();
+}
+function renderDataHubTable(){
+  const wrap=document.getElementById('dhTableWrap');if(!wrap)return;
+  const list=dhFilteredOrders();
+  const pageSize=50,page=window._dhPage||1,totalPages=Math.max(1,Math.ceil(list.length/pageSize));
+  const pageItems=list.slice((page-1)*pageSize,page*pageSize);
+  const rows=pageItems.map(o=>`<tr>
+    <td>${o.order_date||'—'}</td>
+    <td><code>${o.system_id}</code></td>
+    <td><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;background:${o.customer_status==='Mới'?'var(--green-l)':'var(--bg2)'};color:${o.customer_status==='Mới'?'var(--green)':'var(--text2)'}">${o.customer_status||'—'}</span></td>
+    <td style="font-size:11px;color:var(--muted)">${o.customer_tags||'—'}</td>
+    <td class="name">${o.customer_name||'—'}</td>
+    <td>${o.phone||'—'}</td>
+    <td style="font-size:11px">${[o.address,o.ward,o.district,o.province].filter(Boolean).join(', ')||'—'}</td>
+    <td style="font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(o.source||'').replace(/"/g,'&quot;')}">${o.source||'—'}</td>
+    <td style="font-size:11px">${o.internal_note||'—'}</td>
+    <td>${o.staff_name||'—'}</td>
+    <td style="font-size:10.5px;color:var(--muted)">${o.ad_id||'—'}</td>
+    <td>${DH_BRAND_LABEL[o.brand]||o.brand||'—'}</td>
+  </tr>`).join('');
+  wrap.innerHTML=`
+    <div class="tbl-card">
+      <div class="tbl-head"><div class="tbl-title">Danh sách đơn hàng</div><div class="tbl-count">${num(list.length)}</div></div>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>Ngày tạo đơn</th><th>Mã đơn</th><th>Mới/Cũ</th><th>Thẻ KH</th><th>Khách hàng</th><th>SĐT</th><th>Địa chỉ</th><th>Nguồn đơn</th><th>Ghi chú</th><th>NV cập nhật</th><th>Ad ID</th><th>Brand</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--muted)">Không có đơn nào khớp bộ lọc</td></tr>'}</tbody>
+      </table></div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border-top:1px solid var(--border)">
+        <button class="refresh-btn" ${page<=1?'disabled':''} onclick="dhSetPage(${page-1})">‹ Trước</button>
+        <span style="font-size:12px;font-weight:700;color:var(--muted)">Trang ${page}/${totalPages}</span>
+        <button class="refresh-btn" ${page>=totalPages?'disabled':''} onclick="dhSetPage(${page+1})">Sau ›</button>
+      </div>
+    </div>`;
+}
 
 window.onload=function(){
   initAuth();
