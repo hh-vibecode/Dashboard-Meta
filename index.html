@@ -4414,12 +4414,13 @@ function renderSaleOnl(){
   const closedRev=rows.filter(r=>st(r,'chốt')).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
   // Top potential customers (loại bỏ lead đã mất)
   const topPot=rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0&&!st(r,'mất')&&!st(r,'chốt')).sort((a,b)=>toN(b[COL_SAONL.POTENTIAL])-toN(a[COL_SAONL.POTENTIAL])).slice(0,10);
+  const _onlHist=getOnlCrmHistory();
   const topPotRows=topPot.map(r=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:8px 12px;font-size:12px;color:var(--muted)">${r[COL_SAONL.LEAD_ID]||'—'}</td>
     <td style="padding:8px 12px;font-weight:700">${r[COL_SAONL.NAME]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SAONL.SALES]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SAONL.CHANNEL]||'—'}</td>
-    <td style="padding:8px 12px;font-size:12px">${r[COL_SAONL.PRODUCT]||'—'}</td>
+    <td style="padding:8px 12px;font-size:12px">${onlContactInfo(r,_onlHist).content||'—'}</td>
     <td style="padding:8px 12px;text-align:right;font-weight:800;color:#7c3aed">${vnd(toN(r[COL_SAONL.POTENTIAL]))}</td>
     <td style="padding:8px 12px;font-size:11px">${r[COL_SAONL.STATUS]||'—'}</td>
   </tr>`).join('');
@@ -4502,7 +4503,7 @@ function renderSaleOnl(){
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">HỌ TÊN</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SALES</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">NGUỒN</th>
-        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">SẢN PHẨM QUAN TÂM</th>
+        <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">NỘI DUNG TRAO ĐỔI</th>
         <th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:700;color:#7c3aed">GIÁ TRỊ TIỀM NĂNG</th>
         <th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted)">TRẠNG THÁI</th>
       </tr></thead><tbody>${topPotRows||'<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">Chưa có dữ liệu</td></tr>'}</tbody>
