@@ -4420,7 +4420,7 @@ function renderSaleOnl(){
     <td style="padding:8px 12px;font-weight:700">${r[COL_SAONL.NAME]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SAONL.SALES]||'—'}</td>
     <td style="padding:8px 12px;font-size:12px">${r[COL_SAONL.CHANNEL]||'—'}</td>
-    <td style="padding:8px 12px;font-size:12px">${onlContactInfo(r,_onlHist).content||'—'}</td>
+    <td style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.45;width:340px"><div style="width:340px;white-space:pre-line;word-break:break-word;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden" title="${(onlContactInfo(r,_onlHist).content||'').replace(/"/g,'&quot;')}">${onlContactInfo(r,_onlHist).content||'—'}</div></td>
     <td style="padding:8px 12px;text-align:right;font-weight:800;color:#7c3aed">${vnd(toN(r[COL_SAONL.POTENTIAL]))}</td>
     <td style="padding:8px 12px;font-size:11px">${r[COL_SAONL.STATUS]||'—'}</td>
   </tr>`).join('');
