@@ -2937,24 +2937,46 @@ function calcSaleStats(saleFiltered){
 }
 
 // Doanh thu Sỉ nguồn Online (khách có Nguồn=Online ở Master Sỉ) — để cộng vào Doanh Số MKT.
-// CHỈ tính "Giá trị đơn đầu tiên" (COL_SI.FIRST_ORDER, theo COL_SI.FIRST_ORDER_DATE) — đúng phần MKT
-// thực sự mang về; các đơn chốt sau đó là sale tự chăm sóc/bán thêm, không tính vào doanh số MKT nữa
-// (khác Báo Cáo KH Sỉ — trang đó vẫn cộng dồn mọi đơn qua CRM Sỉ, theo yêu cầu user 10/9/2026).
+// CHỈ tính các đơn CHỐT TRONG CÙNG THÁNG với đơn đầu tiên của khách (COL_SI.FIRST_ORDER_DATE ở Master
+// xác định "tháng đầu") — nếu khách mua 2-3 lần ngay trong tháng đầu đó thì tính hết (đối chiếu CRM Sỉ
+// để lấy đủ từng đơn), nhưng bắt đầu sang tháng sau (mua thêm/mua lại) thì KHÔNG tính nữa vì lúc đó là
+// sale tự chăm sóc/bán thêm, không còn là lead MKT mang về. User yêu cầu 12/9/2026, ví dụ: khách Nam Vĩnh
+// Phúc mua lần đầu nhưng mua 2 lần trong tháng đó → tính cả 2; sang tháng sau mua thêm thì thôi.
+// (khác Báo Cáo KH Sỉ — trang đó vẫn cộng dồn MỌI đơn mọi tháng qua CRM Sỉ, theo yêu cầu user 10/9/2026).
 function calcSiOnlineStats(from,to,brSel){
-  if(!saleSiRows||!saleSiRows.length)return{revenue:0,orders:0,list:[]};
+  if(!saleSiRows||!saleSiRows.length||!saleSiCrmRows||!saleSiCrmRows.length)return{revenue:0,orders:0,list:[]};
   const fromD=from?localDate(from):null,toD=to?localDate(to,true):null;
   const inR=d=>!!d&&(!fromD||d>=fromD)&&(!toD||d<=toD);
+  const monthKey=d=>d?(d.getFullYear()+'-'+d.getMonth()):null;
+  const nrmK=v=>(v||'').toString().replace(/[\t\n\r]/g,' ').trim().toUpperCase();
+  const last9=s=>{const d=(s||'').toString().replace(/\D/g,'');return d.length>=9?d.slice(-9):d;};
   // Toàn bộ Sỉ là 1 mảng kinh doanh của Shidai — không tách theo text kênh/ads id nữa,
   // 100% doanh số Sỉ tính về Shidai (trước đây suy theo text/ads khiến 1 phần rơi oan sang CT/HT/TTV)
   const brandSi=r=>'Shidai';
-  let revenue=0;const list=[];
+  // Tháng "đơn đầu tiên" + thông tin khách, keyed theo Mã KH/Lead ID/SĐT — chỉ khách nguồn Online có đơn đầu
+  const firstMonthByKey={},nameByKey={},phoneByKey={},storeByKey={};
   saleSiRows.forEach(r=>{
     if(!(r[COL_SI.SOURCE]||'').toLowerCase().includes('online'))return;
-    const fv=vndNum(r[COL_SI.FIRST_ORDER]),fd=parseDate(r[COL_SI.FIRST_ORDER_DATE]);
-    if(fv<=0||!inR(fd))return;
     if(brSel&&brSel.length){const b=brandSi(r);if(!b||!brSel.includes(b))return;}
-    revenue+=fv;
-    list.push([r[COL_SI.FIRST_ORDER_DATE],r[COL_SI.LEAD_ID]||r[COL_SI.MA_KH],siNameCell(siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),r[COL_SI.STORE]),r[COL_SI.PHONE],'Sỉ · Online',adIdNote(r[COL_SI.AD_ID]),vnd(fv)]);
+    const fv=vndNum(r[COL_SI.FIRST_ORDER]),fd=parseDate(r[COL_SI.FIRST_ORDER_DATE]);
+    if(fv<=0||!fd)return;
+    const mk=monthKey(fd),nm=siPersonName(r[COL_SI.REP],r[COL_SI.STORE]),mph=(r[COL_SI.PHONE]||'').trim(),st=(r[COL_SI.STORE]||'').trim();
+    const ph=last9(r[COL_SI.PHONE]);
+    [nrmK(r[COL_SI.MA_KH]),nrmK(r[COL_SI.LEAD_ID]),ph?'PH:'+ph:''].forEach(k=>{if(!k)return;firstMonthByKey[k]=mk;if(nm&&nm!=='—')nameByKey[k]=nm;if(mph)phoneByKey[k]=mph;if(st)storeByKey[k]=st;});
+  });
+  const lookByKeys=(map,leadid,phone)=>map[nrmK(leadid)]||(last9(phone)?map['PH:'+last9(phone)]:'')||'';
+  let revenue=0;const list=[];
+  saleSiCrmRows.forEach(r=>{
+    const cv=vndNum(r[COL_SICRM.CLOSE_VALUE]),cd=parseDate(r[COL_SICRM.CLOSE_DATE]);
+    if(cv<=0||!cd||!inR(cd))return;
+    const ph=last9(r[COL_SICRM.PHONE]);
+    const fk=firstMonthByKey[nrmK(r[COL_SICRM.LEAD_ID])]||(ph?firstMonthByKey['PH:'+ph]:null);
+    if(!fk||fk!==monthKey(cd))return;   // không phải khách nguồn online, hoặc đơn này đã sang tháng sau đơn đầu
+    revenue+=cv;
+    const nm=(r[COL_SICRM.NAME]||'').trim()||lookByKeys(nameByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    const pho=(r[COL_SICRM.PHONE]||'').trim()||lookByKeys(phoneByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    const st=lookByKeys(storeByKey,r[COL_SICRM.LEAD_ID],r[COL_SICRM.PHONE]);
+    list.push([r[COL_SICRM.CLOSE_DATE],r[COL_SICRM.LEAD_ID],siNameCell(nm,st),pho,'Sỉ · Online',adIdNote(r[COL_SICRM.AD_ID]),vnd(cv)]);
   });
   list.sort((a,b)=>{const da=parseDate(a[0]),db=parseDate(b[0]);return(db?db:0)-(da?da:0);});
   return{revenue,orders:list.length,list};
