@@ -2882,7 +2882,7 @@ function saonlTextBrand(channel,product){
   if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(text))return'TTV';
   if(/ht[\s\-–]|hiền thu[ỷy]|hiến thu[ỷy]|hien thuy/i.test(text))return'HT';
   if(/shidai/i.test(text))return'Shidai';
-  if(/chánh tâm|chanh tam|ct[\s\-–]/i.test(text))return'CT';
+  if(/chánh tâm|chanh tam|ct[\s\-–]|hoàng dương|hoang duong/i.test(text))return'CT';
   return null;
 }
 function calcSaleStats(saleFiltered){
@@ -4365,7 +4365,7 @@ function renderSaleOnl(){
     if(/tự tại viên|tu tai vien|nến bơ|nen bo/i.test(n))return'TTV';
     if(/hiền th|hien th|\bHT\b/i.test(n))return'HT';
     if(/shidai|thời đại|thoi dai/i.test(n))return'Shidai';
-    if(/chánh tâm|chanh tam|\bCT\b/i.test(n))return'CT';return null;};
+    if(/chánh tâm|chanh tam|\bCT\b|hoàng dương|hoang duong/i.test(n))return'CT';return null;};
   // Ưu tiên Ads ID → chiến dịch thật (giống hệt Tổng Quan MKT), text ở cột Kênh chỉ dùng khi Ads ID không khớp
   // được chiến dịch nào — trước đây ưu tiên ngược lại (text trước) khiến doanh số theo brand lệch hẳn so với
   // Tổng Quan MKT dù cùng 1 sheet dữ liệu. Riêng Tự Tại Viên/Nến Bơ luôn theo text kênh/fanpage, bất kể Ads ID.
