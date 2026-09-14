@@ -4462,11 +4462,16 @@ function renderSaleOnl(){
   const revHT=revByBrand('HT');
   const revSD=revByBrand('Shidai');
   const revTTV=revByBrand('TTV');
+  // Đơn đã chốt nhưng không suy được về brand nào (thiếu/không khớp Ads ID & text kênh) — vẫn phải tính vào
+  // đâu đó cho khớp Tổng Doanh Thu, không được rơi mất khỏi 4 card brand.
+  const rowsOther=rows.filter(r=>st(r,'chốt')&&!['CT','HT','Shidai','TTV'].includes(brandOf(r)));
+  const revOther=rowsOther.reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
   window._saonlLists.ct={title:'Chánh Tâm — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('CT'))};
   window._saonlLists.ht={title:'Hiền Thuỷ — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('HT'))};
   window._saonlLists.sd={title:'Shidai — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('Shidai'))};
   window._saonlLists.ttv={title:'Tự Tại Viên — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('TTV'))};
-  window._saonlByBrand={total:closedRev,ct:revCT,ht:revHT,sd:revSD,ttv:revTTV};
+  window._saonlLists.other={title:'Chưa phân loại brand — đã chốt',cols:saoCols,rows:saoMap(rowsOther)};
+  window._saonlByBrand={total:closedRev,ct:revCT,ht:revHT,sd:revSD,ttv:revTTV,other:revOther};
   // Revenue by sales
   const revBySalesRows=Object.entries(bySales).filter(([,d])=>d.rev>0).sort((a,b)=>b[1].rev-a[1].rev).map(([s,d])=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:9px 14px;font-weight:700">${s}</td>
@@ -6051,6 +6056,7 @@ function saonlShowByBrand(){
         ${card('ht','Hiền Thuỷ','🌊',d.ht,'#ca8a04')}
         ${card('sd','Shidai','🐉',d.sd,'#0891b2')}
         ${card('ttv','Tự Tại Viên','🕯️',d.ttv,'#7c3aed')}
+        ${d.other>0?card('other','Chưa Phân Loại','❓',d.other,'#94a3b8'):''}
       </div>
     </div></div>`;
 }
