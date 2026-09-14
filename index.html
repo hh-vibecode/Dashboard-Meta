@@ -4467,6 +4467,7 @@ function renderSaleOnl(){
   window._saonlLists.ht={title:'Hiền Thuỷ — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('HT'))};
   window._saonlLists.sd={title:'Shidai — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('Shidai'))};
   window._saonlLists.ttv={title:'Tự Tại Viên — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('TTV'))};
+  window._saonlByBrand={total:closedRev,ct:revCT,ht:revHT,sd:revSD,ttv:revTTV};
   // Revenue by sales
   const revBySalesRows=Object.entries(bySales).filter(([,d])=>d.rev>0).sort((a,b)=>b[1].rev-a[1].rev).map(([s,d])=>`<tr style="border-bottom:1px solid var(--border)">
     <td style="padding:9px 14px;font-weight:700">${s}</td>
@@ -4482,14 +4483,8 @@ function renderSaleOnl(){
 
     <div class="sec-label">I. Tổng Doanh Thu</div>
     <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
-      ${clk('closed',mkKpi('✅','Tổng Doanh Thu Đã Chốt',vnd(closedRev),num(closed)+' đơn · doanh số thực','g-green'))}
+      <div onclick="saonlShowByBrand()" title="Bấm để xem theo thương hiệu" style="cursor:pointer">${mkKpi('✅','Tổng Doanh Thu Đã Chốt',vnd(closedRev),num(closed)+' đơn · doanh số thực','g-green')}</div>
       ${clk('pot',mkKpi('💎','Giá Trị Tiềm Năng',vnd(totalPot),'toàn bộ leads','g-yellow'))}
-    </div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:12px">
-      ${clk('ct',mkKpi('🏮','Chánh Tâm',vnd(revCT),'đã chốt','g-blue'))}
-      ${clk('ht',mkKpi('🌊','Hiền Thuỷ',vnd(revHT),'đã chốt','g-yellow'))}
-      ${clk('sd',mkKpi('🐉','Shidai',vnd(revSD),'đã chốt','g-blue'))}
-      ${clk('ttv',mkKpi('🕯️','Tự Tại Viên',vnd(revTTV),'đã chốt','g-purple'))}
     </div>
 
     <div class="sec-label" style="margin-top:16px">II. Tổng Quan Lead</div>
@@ -6037,6 +6032,29 @@ function dataModal(d){
     </div></div>`;
 }
 function saonlShow(key){const d=(window._saonlLists||{})[key];if(d)dataModal(d);}
+// Tổng Doanh Thu → phân theo 4 thương hiệu (gộp 4 card rời trước đây vào modal cho gọn)
+function saonlShowByBrand(){
+  const d=window._saonlByBrand||{total:0,ct:0,ht:0,sd:0,ttv:0};
+  const card=(key,label,icon,val,color)=>`<div onclick="saonlShow('${key}')" style="cursor:pointer;flex:1 1 220px;border:1.5px solid var(--border);border-radius:14px;border-left:4px solid ${color};padding:16px 18px">
+    <div style="font-size:11px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.03em">${icon} ${label}</div>
+    <div style="font-size:24px;font-weight:900;margin-top:6px;color:var(--text)">${vnd(val)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:5px">${pct(d.total?val/d.total*100:0)} tổng doanh thu</div>
+  </div>`;
+  let m=document.getElementById('qcModal');if(!m){m=document.createElement('div');m.id='qcModal';document.body.appendChild(m);}
+  m.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px" onclick="if(event.target===this)qcCloseModal()">
+    <div style="background:var(--surface);border-radius:16px;max-width:680px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;font-weight:800;color:var(--text)">✅ Doanh Thu Theo Thương Hiệu <span style="color:var(--muted);font-weight:600;font-size:13px">· ${vnd(d.total)}</span></div>
+        <button onclick="qcCloseModal()" style="background:var(--bg2);border:none;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--text)">✕</button>
+      </div>
+      <div style="padding:18px 20px;display:flex;gap:12px;flex-wrap:wrap">
+        ${card('ct','Chánh Tâm','🏮',d.ct,'#2563eb')}
+        ${card('ht','Hiền Thuỷ','🌊',d.ht,'#ca8a04')}
+        ${card('sd','Shidai','🐉',d.sd,'#0891b2')}
+        ${card('ttv','Tự Tại Viên','🕯️',d.ttv,'#7c3aed')}
+      </div>
+    </div></div>`;
+}
 // MKT Tổng Quan — Doanh Số: bấm mở breakdown Sỉ / Lẻ, bấm tiếp từng bên ra chi tiết
 function mktShowDetail(key){const d=(window._mktSaleLists||{})[key];if(d)dataModal(d);}
 function mktShowDoanhSo(){
