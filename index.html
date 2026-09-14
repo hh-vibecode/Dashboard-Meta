@@ -4373,10 +4373,15 @@ function renderSaleOnl(){
     if(txtBr==='TTV')return'TTV';
     if(a&&adCampMap[a])return brandText(adCampMap[a])||txtBr;
     return txtBr;};
-  // Bỏ mốc lọc T6/2026 (đã thêm trước đó) — user yêu cầu khớp lại với Tổng Quan MKT (14/9/2026),
-  // không loại lead cũ ở đây nữa vì Tổng Quan MKT (filterSaleRows/calcSaleStats) không loại.
-  let rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
-  if(brSel.length)rows=rows.filter(r=>brSel.includes(brandOf(r)));
+  let rowsAll=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
+  if(brSel.length)rowsAll=rowsAll.filter(r=>brSel.includes(brandOf(r)));
+  // Hơn 6k lead update hàng loạt trước T6/2026 là data KiotViet nạp tay, không phải lead thật — loại khỏi các
+  // chỉ số PIPELINE LEAD (tổng lead, tiềm năng, đang chăm sóc, theo kênh/sales...) ở mục II trở xuống. KHÔNG
+  // loại khỏi Doanh Thu Đã Chốt (mục I, dùng rowsAll) — đơn thật vẫn tính đủ, khớp Tổng Quan MKT.
+  // (User 12/9 rồi 14/9/2026: trước lấy theo báo cáo MKT cho doanh thu, nhưng KHÔNG được lấy data Kiot nạp
+  // tay vào phần tiềm năng/lead.)
+  const SAONL_FLOOR=new Date(2026,5,1);
+  const rows=rowsAll.filter(r=>{const d=parseDate(r[COL_SAONL.DATE]);return d&&d>=SAONL_FLOOR;});
   const toN=vndNum;
   const st=(r,kw)=>(r[COL_SAONL.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
   const total=rows.length;
@@ -4431,8 +4436,10 @@ function renderSaleOnl(){
   const totalPot=rows.reduce((s,r)=>s+toN(r[COL_SAONL.POTENTIAL]),0);
   const caringPot=rows.filter(r=>st(r,'đang chăm sóc')).reduce((s,r)=>s+toN(r[COL_SAONL.POTENTIAL]),0);
   const longPot=rows.filter(r=>st(r,'dài hạn')).reduce((s,r)=>s+toN(r[COL_SAONL.POTENTIAL]),0);
-  // Đơn đã chốt: dùng doanh thu thực tế (cột Doanh thu), không phải giá trị tiềm năng
-  const closedRev=rows.filter(r=>st(r,'chốt')).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
+  // Đơn đã chốt: dùng doanh thu thực tế (cột Doanh thu), không phải giá trị tiềm năng — dùng rowsAll (không
+  // lọc mốc T6/2026) để khớp Tổng Quan MKT, đơn đã chốt là tiền thật bất kể lead tạo lúc nào.
+  const closedAll=rowsAll.filter(r=>st(r,'chốt'));
+  const closedRev=closedAll.reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
   // Top potential customers (loại bỏ lead đã mất)
   const topPot=rows.filter(r=>toN(r[COL_SAONL.POTENTIAL])>0&&!st(r,'mất')&&!st(r,'chốt')).sort((a,b)=>toN(b[COL_SAONL.POTENTIAL])-toN(a[COL_SAONL.POTENTIAL])).slice(0,10);
   const _onlHist=getOnlCrmHistory();
@@ -4456,7 +4463,8 @@ function renderSaleOnl(){
   </tr>`).join('');
   // Revenue by brand — dùng chung brandOf(r) (ưu tiên Ads ID/campaign thật) để khớp với Tổng Quan MKT,
   // thay vì so khớp text cột Kênh riêng lẻ như trước (2 cách tính ra 2 số khác nhau cho cùng 1 chỉ số).
-  function rowsByBrand(br){return rows.filter(r=>st(r,'chốt')&&brandOf(r)===br);}
+  // Dùng rowsAll (không lọc T6/2026) — nhất quán với closedRev, khớp Tổng Quan MKT.
+  function rowsByBrand(br){return closedAll.filter(r=>brandOf(r)===br);}
   function revByBrand(br){return rowsByBrand(br).reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);}
   const revCT=revByBrand('CT');
   const revHT=revByBrand('HT');
@@ -4464,7 +4472,7 @@ function renderSaleOnl(){
   const revTTV=revByBrand('TTV');
   // Đơn đã chốt nhưng không suy được về brand nào (thiếu/không khớp Ads ID & text kênh) — vẫn phải tính vào
   // đâu đó cho khớp Tổng Doanh Thu, không được rơi mất khỏi 4 card brand.
-  const rowsOther=rows.filter(r=>st(r,'chốt')&&!['CT','HT','Shidai','TTV'].includes(brandOf(r)));
+  const rowsOther=closedAll.filter(r=>!['CT','HT','Shidai','TTV'].includes(brandOf(r)));
   const revOther=rowsOther.reduce((s,r)=>s+toN(r[COL_SAONL.REVENUE]),0);
   window._saonlLists.ct={title:'Chánh Tâm — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('CT'))};
   window._saonlLists.ht={title:'Hiền Thuỷ — đã chốt',cols:saoCols,rows:saoMap(rowsByBrand('HT'))};
@@ -4487,7 +4495,7 @@ function renderSaleOnl(){
 
     <div class="sec-label">I. Tổng Doanh Thu</div>
     <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
-      <div onclick="saonlShowByBrand()" title="Bấm để xem theo thương hiệu" style="cursor:pointer">${mkKpi('✅','Tổng Doanh Thu Đã Chốt',vnd(closedRev),num(closed)+' đơn · doanh số thực','g-green')}</div>
+      <div onclick="saonlShowByBrand()" title="Bấm để xem theo thương hiệu" style="cursor:pointer">${mkKpi('✅','Tổng Doanh Thu Đã Chốt',vnd(closedRev),num(closedAll.length)+' đơn · doanh số thực','g-green')}</div>
       ${clk('pot',mkKpi('💎','Giá Trị Tiềm Năng',vnd(totalPot),'toàn bộ leads','g-yellow'))}
     </div>
 
