@@ -4373,10 +4373,9 @@ function renderSaleOnl(){
     if(txtBr==='TTV')return'TTV';
     if(a&&adCampMap[a])return brandText(adCampMap[a])||txtBr;
     return txtBr;};
-  // Hơn 6k lead update hàng loạt trước T6/2026 không đáng tin (data cũ dồn vào 1 lượt) — loại khỏi báo cáo tạm thời
-  const SAONL_FLOOR=new Date(2026,5,1);
-  let rows=saleOnlRows.filter(r=>{const d=parseDate(r[COL_SAONL.DATE]);return d&&d>=SAONL_FLOOR;});
-  rows=rows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
+  // Bỏ mốc lọc T6/2026 (đã thêm trước đó) — user yêu cầu khớp lại với Tổng Quan MKT (14/9/2026),
+  // không loại lead cũ ở đây nữa vì Tổng Quan MKT (filterSaleRows/calcSaleStats) không loại.
+  let rows=saleOnlRows.filter(saleRangePred(r=>{const closed=/^chốt/i.test(r[COL_SAONL.STATUS]||'');return parseDate(closed?r[COL_SAONL.DATE_CLOSE]:r[COL_SAONL.DATE]);}));
   if(brSel.length)rows=rows.filter(r=>brSel.includes(brandOf(r)));
   const toN=vndNum;
   const st=(r,kw)=>(r[COL_SAONL.STATUS]||'').toLowerCase().includes(kw.toLowerCase());
