@@ -1920,7 +1920,7 @@ function srvPlatTabs(cur){
   const btn=v=>`<button onclick="renderSaleReview('${v}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${cur===v?'var(--accent)':'var(--border)'};background:${cur===v?'var(--accent)':'var(--surface)'};color:${cur===v?'#fff':'var(--text2)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">${SRV_PLATFORMS[v].title}</button>`;
   return`<div style="display:flex;gap:6px;margin-bottom:12px">${Object.keys(SRV_PLATFORMS).map(btn).join('')}</div>`;
 }
-const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'},tra_loi_inbox:{label:'Bình luận → đã tư vấn ở tin nhắn',bg:'#cffafe',fg:'#0891b2',icon:'📩'},chua_cham:{label:'Chưa đánh giá',bg:'#fef9c3',fg:'#a16207',icon:'⏳'}};
+const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'},tra_loi_inbox:{label:'Bình luận → đã tư vấn ở tin nhắn',bg:'#cffafe',fg:'#0891b2',icon:'📩'},khong_lien_quan:{label:'Không liên quan',bg:'#f1f5f9',fg:'#64748b',icon:'🙏'},chua_cham:{label:'Chưa đánh giá',bg:'#fef9c3',fg:'#a16207',icon:'⏳'}};
 async function renderSaleReview(plat){
   // Không truyền plat (VD đổi khoảng ngày trên topbar) → vẽ lại đúng tab đang mở gần nhất
   plat=SRV_PLATFORMS[plat]?plat:(window._srvPlat||'social');
@@ -1946,11 +1946,12 @@ async function renderSaleReview(plat){
   const sales=[...new Set(dated.map(r=>r.sale_name).filter(Boolean))].sort();
   const esc=s=>(s||'').toString().replace(/"/g,'&quot;');
   // 'chua_tu_van' = chi_bot+khong_tra_loi gộp (khớp đúng con số hiện ở ô KPI "Chưa Ai Tư Vấn");
-  // 'da_cham' = mọi verdict trừ tra_loi_inbox/chua_cham (khớp mẫu số "Lượt Đã Chấm").
+  // 'da_cham' = mọi verdict trừ tra_loi_inbox/khong_lien_quan/chua_cham (khớp mẫu số "Lượt Đã Chấm").
+  // khong_lien_quan = bình luận tụng niệm/chào dịch vụ, không phải khách hỏi mua → không tính vào tỷ lệ.
   const verdictMatch=r=>{
     if(fV==='all')return true;
     if(fV==='chua_tu_van')return r.verdict==='chi_bot'||r.verdict==='khong_tra_loi';
-    if(fV==='da_cham')return r.verdict!=='tra_loi_inbox'&&r.verdict!=='chua_cham';
+    if(fV==='da_cham')return r.verdict!=='tra_loi_inbox'&&r.verdict!=='khong_lien_quan'&&r.verdict!=='chua_cham';
     return r.verdict===fV;
   };
   const bsMatch=r=>{
@@ -1964,8 +1965,8 @@ async function renderSaleReview(plat){
   const datedBS=dated.filter(bsMatch);
   const rows=datedBS.filter(verdictMatch);
   const cnt=(list,v)=>list.filter(r=>r.verdict===v).length;
-  const inbox=cnt(datedBS,'tra_loi_inbox'),pend=cnt(datedBS,'chua_cham');
-  const total=datedBS.length-inbox-pend,ok=cnt(datedBS,'dung');
+  const inbox=cnt(datedBS,'tra_loi_inbox'),pend=cnt(datedBS,'chua_cham'),klq=cnt(datedBS,'khong_lien_quan');
+  const total=datedBS.length-inbox-pend-klq,ok=cnt(datedBS,'dung');
   const rate=total?ok/total*100:0;
 
   // ── Bộ lọc Thương hiệu + Sale — đẩy lên trên cùng, gọn ──
@@ -1994,7 +1995,7 @@ async function renderSaleReview(plat){
   const brandRows=brandKeysBS.map(b=>{
     const list=datedBS.filter(r=>srvBrandOf(r.page_name)===b);
     const d=cnt(list,'dung'),t=cnt(list,'thieu'),s=cnt(list,'sai'),k=cnt(list,'chi_bot')+cnt(list,'khong_tra_loi');
-    const den=list.length-cnt(list,'tra_loi_inbox')-cnt(list,'chua_cham');
+    const den=list.length-cnt(list,'tra_loi_inbox')-cnt(list,'chua_cham')-cnt(list,'khong_lien_quan');
     const r2=den?d/den*100:0;
     const pages=[...new Set(list.map(r=>r.page_name))];
     return`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="setSrvFilter('Brand','${b}')">
