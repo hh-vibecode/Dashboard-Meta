@@ -273,11 +273,7 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <!-- Ẩn tạm theo yêu cầu user (26/8) — bỏ style="display:none" để hiện lại, không xoá code trang -->
       <div class="nav-item" style="display:none" onclick="switchPage('danhgia')" id="nav-danhgia"><span class="nav-icon">🗓️</span><span class="nav-label">Báo Cáo Đánh Giá</span></div>
       <div class="nav-item" onclick="switchPage('faq')" id="nav-faq"><span class="nav-icon">💬</span><span class="nav-label">FAQ Sản Phẩm</span></div>
-      <div class="nav-item" onclick="toggleRevGroup()" id="nav-rev-group"><span class="nav-icon">🔍</span><span class="nav-label" style="flex:1;display:flex;justify-content:space-between;align-items:center">Chất Lượng Phản Hồi<span id="rev-group-arrow" style="font-size:9px;color:var(--muted);margin-left:6px">▼</span></span></div>
-      <div id="rev-subnav">
-        <div class="nav-item" onclick="switchPage('sale-review')" id="nav-sale-review" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">📱</span><span class="nav-label">Social</span></div>
-        <div class="nav-item" onclick="switchPage('sale-review-zalo')" id="nav-sale-review-zalo" style="padding-left:30px"><span class="nav-icon" style="font-size:14px">💬</span><span class="nav-label">Zalo</span></div>
-      </div>
+      <div class="nav-item" onclick="switchPage('sale-review')" id="nav-sale-review"><span class="nav-icon">🔍</span><span class="nav-label">Chất Lượng Phản Hồi</span></div>
       <div class="nav-item" onclick="switchPage('social')" id="nav-social"><span class="nav-icon">📱</span><span class="nav-label">Báo Cáo Social</span></div>
     </nav>
     <div class="sb-section" id="sec-marketing-label">Marketing</div>
@@ -314,9 +310,6 @@ td.name{max-width:190px;overflow:hidden;text-overflow:ellipsis;font-weight:700;f
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải FAQ...</div>
     </div>
     <div class="tab-page" id="page-sale-review">
-      <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải đánh giá...</div>
-    </div>
-    <div class="tab-page" id="page-sale-review-zalo">
       <div style="padding:60px;text-align:center;color:var(--muted)">Đang tải đánh giá...</div>
     </div>
     <div class="tab-page" id="page-social">
@@ -857,7 +850,7 @@ function doLogin(){
 // Mọi trang trong mục "Đang Phát Triển" — MẶC ĐỊNH chỉ role tester xem được.
 // Thêm trang mới vào mục này thì thêm id vào đây, KHỎI phải sửa chỗ nào khác.
 // Khi nào user bảo public thì bỏ id ra khỏi mảng này + thêm vào ROLE_PAGES của các role liên quan.
-const DEV_PAGES=['danhgia','faq','sale-review','sale-review-zalo','social'];
+const DEV_PAGES=['danhgia','faq','sale-review','social'];
 // Trang ẨN TẠM khỏi sidebar cho MỌI role (kể cả tester) — khác DEV_PAGES (chỉ giới hạn role, không ẩn hẳn).
 // Bỏ id ra khỏi đây để hiện lại. Trước đây chỉ đặt style="display:none" tĩnh trên thẻ nav là KHÔNG đủ — vòng
 // lặp applyRole() bên dưới tự set lại display theo quyền mỗi lần đăng nhập/đổi role, ghi đè mất display:none.
@@ -875,16 +868,13 @@ function applyRole(){
   if(ROLE_SI_REGION_LOCK[role])window._siRegion=ROLE_SI_REGION_LOCK[role];
   const allowed=ROLE_PAGES[role]!==undefined?ROLE_PAGES[role]:null;
   document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el=>{
-    const id=el.id.replace('nav-','');if(id==='si-group'||id==='onl-group'||id==='rev-group')return;
+    const id=el.id.replace('nav-','');if(id==='si-group'||id==='onl-group')return;
     el.style.display=(HIDDEN_PAGES.includes(id)||(allowed&&allowed.indexOf(id)<0))?'none':'';
   });
   const grp=document.getElementById('nav-si-group');
   if(grp){const ok=!allowed||allowed.indexOf('sale-si')>=0||allowed.indexOf('sale-si-data')>=0;grp.style.display=ok?'':'none';}
   const ogrp=document.getElementById('nav-onl-group');
-  if(ogrp){const ok=!allowed||allowed.indexOf('sale-onl')>=0||allowed.indexOf('sale-onl-data')>=0;ogrp.style.display=ok?'':'none';}
-  const rgrp=document.getElementById('nav-rev-group');
-  if(rgrp){const ok=!allowed||allowed.indexOf('sale-review')>=0||allowed.indexOf('sale-review-zalo')>=0;rgrp.style.display=ok?'':'none';}
-  [['sec-dev-label','sec-dev'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
+  if(ogrp){const ok=!allowed||allowed.indexOf('sale-onl')>=0||allowed.indexOf('sale-onl-data')>=0;ogrp.style.display=ok?'':'none';}  [['sec-dev-label','sec-dev'],['sec-marketing-label','sec-marketing'],['sec-sale-label','sec-sale'],['sec-qc-label','sec-qc']].forEach(([lab,nav])=>{
     const n=document.getElementById(nav);if(!n)return;
     const vis=[...n.querySelectorAll('.nav-item')].some(it=>it.style.display!=='none');
     const l=document.getElementById(lab);if(l)l.style.display=vis?'':'none';n.style.display=vis?'':'none';
@@ -920,18 +910,14 @@ function switchPage(p){
     return;
   }
   window._curPage=p;
-  ['danhgia','faq','sale-review','sale-review-zalo','social','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
+  ['danhgia','faq','sale-review','social','overview','detail','sale-overview','sale-si','sale-si-data','sale-onl','sale-onl-data','qc-doisoat','qc-invoice','qc-compare'].forEach(x=>{
     document.getElementById('page-'+x).classList.toggle('active',x===p);
     const nav=document.getElementById('nav-'+x);if(nav)nav.classList.toggle('active',x===p);
   });
   if(p==='danhgia')renderDanhGia();
   if(p==='faq')renderFaq();
-  if(p==='sale-review'||p==='sale-review-zalo')renderSaleReview(p==='sale-review-zalo'?'zalo':'social');
+  if(p==='sale-review')renderSaleReview();
   if(p==='social')renderSocial();
-  // Nhóm Chất Lượng Phản Hồi (Social / Zalo): sáng header + mở dropdown khi đang ở 1 trang con
-  const rgrp=document.getElementById('nav-rev-group');
-  if(rgrp)rgrp.classList.toggle('active',p==='sale-review'||p==='sale-review-zalo');
-  if(p==='sale-review'||p==='sale-review-zalo'){const s=document.getElementById('rev-subnav'),a=document.getElementById('rev-group-arrow');if(s&&s.style.display==='none'){s.style.display='';if(a)a.textContent='▼';}}
   // Nhóm Báo Cáo Sỉ: sáng header + mở dropdown khi đang ở 1 trang con
   const grp=document.getElementById('nav-si-group');
   if(grp)grp.classList.toggle('active',p==='sale-si'||p==='sale-si-data');
@@ -942,7 +928,6 @@ function switchPage(p){
   if(p==='sale-onl'||p==='sale-onl-data'){const s=document.getElementById('onl-subnav'),a=document.getElementById('onl-group-arrow');if(s&&s.style.display==='none'){s.style.display='';if(a)a.textContent='▼';}}
 }
 function toggleSiGroup(){const s=document.getElementById('si-subnav'),a=document.getElementById('si-group-arrow');if(s){const open=s.style.display!=='none';s.style.display=open?'none':'';if(a)a.textContent=open?'▶':'▼';}}
-function toggleRevGroup(){const s=document.getElementById('rev-subnav'),a=document.getElementById('rev-group-arrow');if(s){const open=s.style.display!=='none';s.style.display=open?'none':'';if(a)a.textContent=open?'▶':'▼';}}
 function toggleOnlGroup(){const s=document.getElementById('onl-subnav'),a=document.getElementById('onl-group-arrow');if(s){const open=s.style.display!=='none';s.style.display=open?'none':'';if(a)a.textContent=open?'▶':'▼';}}
 
 // ── Load ──
@@ -1896,6 +1881,14 @@ async function loadSaleReviewFromSupabase(){
   console.log('[SALE-REVIEW] rows:',saleReviewRows.length);
 }
 function setSrvFilter(k,v){window['_srv'+k]=v;if(k==='Search')window._srvSearchFocus=true;renderSaleReview();}
+// Nút "Thu gọn" trong ô chi tiết — đóng lại rồi kéo màn hình về dòng tóm tắt nếu dòng đó đã trôi khỏi tầm nhìn
+// (hội thoại dài, bấm nút dưới đáy thì không bị lạc chỗ)
+function srvCloseBtn(id){return`<button onclick="event.stopPropagation();closeSrvItem(${id})" style="padding:4px 11px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">▲ Thu gọn</button>`;}
+function closeSrvItem(i){
+  const d=document.getElementById('srv-d-'+i),a=document.getElementById('srv-arrow-'+i);if(!d)return;
+  d.style.display='none';if(a)a.textContent='▶';
+  const row=a&&a.closest('tr');if(row&&row.getBoundingClientRect().top<80)row.scrollIntoView({block:'center',behavior:'smooth'});
+}
 function toggleSrvItem(i){const d=document.getElementById('srv-d-'+i),a=document.getElementById('srv-arrow-'+i);if(!d)return;const open=d.style.display==='none';d.style.display=open?'':'none';if(a)a.textContent=open?'▼':'▶';}
 // Page Facebook -> thương hiệu (dùng chung quy ước CT/HT/Shidai/TTV với toàn dashboard, xem detectBrand)
 const SRV_BRANDS={CT:'Chánh Tâm',HT:'Hiền Thuỷ',Shidai:'Shidai',TTV:'Tự Tại Viên'};
@@ -1909,8 +1902,24 @@ function srvBrandOf(pageName){
 }
 // Nền tảng của 1 lượt chấm: Zalo cá nhân nối qua Pancake có conv_id dạng "pzl_..." — còn lại (Facebook/TikTok) là Social.
 // Suy từ conv_id nên không cần thêm cột vào bảng sale_response_review.
-const SRV_PLATFORMS={social:{title:'Social',page:'sale-review',acct:'PAGE'},zalo:{title:'Zalo',page:'sale-review-zalo',acct:'TÀI KHOẢN ZALO'}};
+const SRV_PLATFORMS={social:{title:'📱 Social',acct:'PAGE'},zalo:{title:'💬 Zalo',acct:'TÀI KHOẢN ZALO'}};
 function srvPlatformOf(r){return /^pzl_/.test(r.conv_id||'')?'zalo':'social';}
+// Badge "data mới tới đâu" của tab đang mở: lần chấm gần nhất (reviewed_at) + hội thoại mới nhất đã được chấm (conv_at)
+function srvUpdatedBadge(list){
+  const maxOf=k=>list.reduce((m,r)=>r[k]&&r[k]>m?r[k]:m,'');
+  const rev=maxOf('reviewed_at'),conv=maxOf('conv_at');
+  if(!rev&&!conv)return'';
+  const p=n=>String(n).padStart(2,'0');
+  const fmt=t=>{const d=new Date(t);return`${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}/${p(d.getMonth()+1)}`;};
+  const ago=t=>{const h=(Date.now()-new Date(t))/36e5;return h<1?Math.max(1,Math.round(h*60))+' phút trước':h<48?Math.round(h)+' giờ trước':Math.round(h/24)+' ngày trước';};
+  const stale=rev&&(Date.now()-new Date(rev))/36e5>36;
+  return`<span title="Hội thoại mới nhất đã chấm: ${conv?fmt(conv):'—'}" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;background:${stale?'#fef3c7':'var(--bg2)'};color:${stale?'#92400e':'var(--text2)'};font-size:11px;font-weight:700;white-space:nowrap">🕒 Cập nhật ${rev?fmt(rev)+' · '+ago(rev):'—'}${conv?` · hội thoại tới ${fmt(conv)}`:''}</span>`;
+}
+// Tab Social | Zalo trên cùng trang (tách khỏi hàng dropdown lọc) — cùng kiểu nút với siRegionToggle
+function srvPlatTabs(cur){
+  const btn=v=>`<button onclick="renderSaleReview('${v}')" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${cur===v?'var(--accent)':'var(--border)'};background:${cur===v?'var(--accent)':'var(--surface)'};color:${cur===v?'#fff':'var(--text2)'};font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">${SRV_PLATFORMS[v].title}</button>`;
+  return`<div style="display:flex;gap:6px;margin-bottom:12px">${Object.keys(SRV_PLATFORMS).map(btn).join('')}</div>`;
+}
 const SRV_VERDICT={dung:{label:'Đúng',bg:'#dcfce7',fg:'#16a34a',icon:'✅'},thieu:{label:'Thiếu ý',bg:'#fef3c7',fg:'#b45309',icon:'⚠️'},sai:{label:'Sai kiến thức',bg:'#fee2e2',fg:'#e11d48',icon:'❌'},chi_bot:{label:'Chỉ bot trả lời',bg:'#e0e7ff',fg:'#4338ca',icon:'🤖'},khong_tra_loi:{label:'Không trả lời',bg:'#e5e7eb',fg:'#6b7280',icon:'🚫'},tra_loi_inbox:{label:'Bình luận → đã tư vấn ở tin nhắn',bg:'#cffafe',fg:'#0891b2',icon:'📩'},chua_cham:{label:'Chưa đánh giá',bg:'#fef9c3',fg:'#a16207',icon:'⏳'}};
 async function renderSaleReview(plat){
   // Không truyền plat (VD đổi khoảng ngày trên topbar) → vẽ lại đúng tab đang mở gần nhất
@@ -1918,8 +1927,8 @@ async function renderSaleReview(plat){
   // Bộ lọc brand/sale/kết quả/tìm kiếm là của từng nền tảng — đổi tab thì xoá, tránh sale bên Social kẹt lại khi sang Zalo
   if(window._srvPlat&&window._srvPlat!==plat){window._srvBrand=window._srvSale=window._srvVerdict='all';window._srvSearch='';}
   window._srvPlat=plat;
-  const P=SRV_PLATFORMS[plat],pageTitle=`Chất Lượng Phản Hồi Sale · ${P.title}`;
-  const el=document.getElementById('page-'+P.page);
+  const P=SRV_PLATFORMS[plat],pageTitle='Chất Lượng Phản Hồi Sale';
+  const el=document.getElementById('page-sale-review');
   if(!el)return;
   if(!saleReviewRows.length){
     el.innerHTML=`<div class="page-title">${pageTitle}</div><div style="padding:60px;text-align:center;color:var(--muted)">Đang tải...</div>`;
@@ -1927,7 +1936,7 @@ async function renderSaleReview(plat){
   }
   const platRows=saleReviewRows.filter(r=>srvPlatformOf(r)===plat);
   if(!platRows.length){
-    el.innerHTML=`<div class="page-title">${pageTitle}</div>
+    el.innerHTML=`${srvPlatTabs(plat)}<div class="page-title">${pageTitle}</div>
       <div style="padding:60px;text-align:center;color:var(--muted)">Chưa có dữ liệu đánh giá nào.</div>`;
     return;
   }
@@ -2056,7 +2065,10 @@ async function renderSaleReview(plat){
       </td>
     </tr>
     <tr id="srv-d-${r.id}" style="display:none;background:var(--bg2)"><td colspan="9" style="padding:14px 18px 16px 34px">
-      ${r.pancake_url?`<div style="margin-bottom:8px"><a href="${r.pancake_url}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:12px;text-decoration:none">🔗 Mở hội thoại trên Pancake</a></div>`:''}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        ${r.pancake_url?`<a href="${r.pancake_url}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:12px;text-decoration:none">🔗 Mở hội thoại trên Pancake</a>`:''}
+        <span style="margin-left:auto">${srvCloseBtn(r.id)}</span>
+      </div>
       ${r.full_thread?`<div style="border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:10px;max-height:360px;overflow-y:auto">${fmtThread(r.full_thread)}</div>`:`
       <div style="border-left:3px solid var(--border);padding-left:12px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Khách hỏi</div>
@@ -2075,6 +2087,7 @@ async function renderSaleReview(plat){
         <div style="font-size:12.5px;color:#1e3a8a;line-height:1.65;white-space:pre-line">${r.suggestion}</div>
         ${r.source_faq?`<div style="font-size:10.5px;color:#3b5bb8;margin-top:7px">📄 Căn cứ: ${r.source_faq}</div>`:''}
       </div>`:''}
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">${srvCloseBtn(r.id)}</div>
     </td></tr>`;
   }).join('')||`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
   const detailBlock=showDetail?`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
@@ -2086,8 +2099,9 @@ async function renderSaleReview(plat){
     :`<div style="padding:34px;text-align:center;color:var(--muted);font-size:12.5px">Chưa có bộ lọc</div>`;
 
   el.innerHTML=`
+    ${srvPlatTabs(plat)}
     <div class="page-title">${pageTitle}</div>
-    <div class="page-sub">📅 ${curPeriodLabel()}</div>
+    <div class="page-sub" style="display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap"><span>📅 ${curPeriodLabel()}</span>${srvUpdatedBadge(platRows)}</div>
     ${topFilters}
     ${kpi}
     <div class="sec-label" style="margin-top:16px">Tóm Tắt Nhanh</div>
@@ -3837,9 +3851,9 @@ function renderSaleSi(){
 
   const siClk=(key,html)=>`<div onclick="siShow('${key}')" title="Bấm để xem chi tiết" style="cursor:pointer">${html}</div>`;
   document.getElementById('page-sale-si').innerHTML=`
+    <div style="margin-bottom:12px">${siRegionToggle()}</div>
     <div class="page-title">Báo Cáo KH Sỉ</div>
     <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      ${siRegionToggle()}
       <select onchange="setSiProductOv(this.value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer">
         <option value="all"${prodFOv==='all'?' selected':''}>📦 Tất cả sản phẩm</option>
         <option value="Nến Bơ"${prodFOv==='Nến Bơ'?' selected':''}>Nến Bơ</option>
@@ -4216,10 +4230,8 @@ function renderSaleSiData(){
       <td style="padding:9px 12px;text-align:center"><span onclick="openSiProfile(${i})" title="Xem hồ sơ khách hàng" style="cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;gap:2px;transition:transform .1s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${(()=>{const dl=parseDriveLink(r[COL_SI.LINK]);let u=dl?(dl.type==='file'?'https://drive.google.com/thumbnail?id='+dl.id+'&sz=w80':dl.type==='img'?dl.url:''):'';if(!u){const aR=(r[COL_SI.MA_KH]||r[COL_SI.LEAD_ID]||r[COL_SI.PHONE]||'').toString().trim();u=aR?localStorage.getItem('siAva:'+aR.replace(/[^A-Za-z0-9._-]/g,'')):'';}return u?`<img src="${u}" referrerpolicy="no-referrer" style="width:30px;height:30px;border-radius:50%;object-fit:cover">`:fbAvatar;})()}<span style="font-size:9px;font-style:italic;color:var(--accent);font-weight:600;white-space:nowrap">(xem chi tiết)</span></span></td>
     </tr>`).join('');
   elp.innerHTML=`
+    <div style="margin-bottom:12px">${siRegionToggle()}</div>
     <div class="page-title">CRM Khách Hàng Sỉ</div>
-    <div class="page-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      ${siRegionToggle()}
-    </div>
     <div class="sec-label">Hoạt Động Chăm Sóc</div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);gap:12px">
       ${fc('all','👥','Tổng Số KH',num(khTotal),'khách riêng biệt','g-blue')}
