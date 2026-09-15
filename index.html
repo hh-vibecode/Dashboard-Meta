@@ -2026,7 +2026,6 @@ async function renderSaleReview(plat){
   // hoặc chọn khoảng ngày trên topbar) — mặc định ẩn hẳn để giao diện gọn, không dội cả nghìn dòng ra ngay.
   const hasDateRange=!!(document.getElementById('dateFrom')?.value||document.getElementById('dateTo')?.value);
   const showDetail=fV!=='all'||fB!=='all'||fS!=='all'||hasDateRange||!!q;
-  const cut=(s,n)=>{s=(s||'').toString().trim();return s.length>n?s.slice(0,n)+'…':s;};
   // Giờ hội thoại: conv_at là timestamptz (UTC) → Date tự quy đổi theo giờ máy người xem, không cần cộng tay +7.
   const fmtDT=(at,date)=>{if(!at)return date||'';try{const d=new Date(at);const p=n=>String(n).padStart(2,'0');
     return`${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;}catch(e){return date||'';}};
@@ -2056,8 +2055,6 @@ async function renderSaleReview(plat){
       <td style="padding:9px 10px;font-size:11.5px;font-weight:700;white-space:nowrap">${SRV_BRANDS[b]||b}</td>
       <td style="padding:9px 10px;font-size:12px"><div style="font-weight:700;white-space:normal;word-break:break-word">${r.customer_name||'—'}</div>${r.phone?`<div style="font-size:11px;color:var(--muted)">${r.phone}</div>`:''}</td>
       <td style="padding:9px 10px;font-size:11.5px;white-space:normal">${r.sale_name||'<span style="color:var(--muted)">—</span>'}</td>
-      <td style="padding:9px 10px;font-size:11.5px;color:var(--text2);white-space:normal;word-break:break-word" title="${esc(r.customer_ask)}">${cut(r.customer_ask,90)}</td>
-      <td style="padding:9px 10px;font-size:11.5px;color:var(--text2);white-space:normal;word-break:break-word" title="${esc(r.sale_reply)}">${r.sale_reply?cut(r.sale_reply,90):'<i style="color:#e11d48">(không trả lời)</i>'}</td>
       <td style="padding:9px 10px;white-space:nowrap"><span style="display:inline-block;padding:3px 9px;border-radius:6px;background:${v.bg};color:${v.fg};font-size:11px;font-weight:700">${v.icon} ${v.label}</span></td>
       <td style="padding:9px 6px;text-align:center" onclick="event.stopPropagation()">${r.pancake_url?`<a href="${r.pancake_url}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:11.5px;text-decoration:none">Link</a>`:'<span style="color:var(--muted)">—</span>'}</td>
       <td style="padding:9px 6px;text-align:center" onclick="event.stopPropagation()">
@@ -2065,7 +2062,7 @@ async function renderSaleReview(plat){
           style="cursor:pointer;font-size:14px;line-height:1;opacity:${srvReportedIds().has(r.id)?'1':'.45'}">${srvReportedIds().has(r.id)?'🚩':'❗'}</span>
       </td>
     </tr>
-    <tr id="srv-d-${r.id}" style="display:none;background:var(--bg2)"><td colspan="9" style="padding:14px 18px 16px 34px">
+    <tr id="srv-d-${r.id}" style="display:none;background:var(--bg2)"><td colspan="7" style="padding:14px 18px 16px 34px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         ${r.pancake_url?`<a href="${r.pancake_url}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;font-size:12px;text-decoration:none">🔗 Mở hội thoại trên Pancake</a>`:''}
         <span style="margin-left:auto">${srvCloseBtn(r.id)}</span>
@@ -2090,11 +2087,11 @@ async function renderSaleReview(plat){
       </div>`:''}
       <div style="display:flex;justify-content:flex-end;margin-top:10px">${srvCloseBtn(r.id)}</div>
     </td></tr>`;
-  }).join('')||`<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
+  }).join('')||`<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--muted)">Không có lượt nào khớp bộ lọc</td></tr>`;
   const detailBlock=showDetail?`<div class="tov-card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
-      <colgroup>${['9%','10%','12%','9%','20%','20%','9%','5%','4%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
+      <colgroup>${['14%','15%','24%','16%','17%','7%','7%'].map(w=>`<col style="width:${w}">`).join('')}</colgroup>
       <thead><tr style="background:var(--bg2);border-bottom:2px solid var(--border)">
-        ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KHÁCH HỎI','left'],['SALE TRẢ LỜI','left'],['KẾT QUẢ','left'],['LINK','center'],['BÁO SAI','center']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
+        ${[['NGÀY','left'],['THƯƠNG HIỆU','left'],['KHÁCH HÀNG','left'],['SALE','left'],['KẾT QUẢ','left'],['LINK','center'],['BÁO SAI','center']].map(([c,a])=>`<th style="padding:10px 10px;text-align:${a};font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap">${c}</th>`).join('')}
       </tr></thead><tbody>${bodyRows}</tbody>
     </table></div></div>`
     :`<div style="padding:34px;text-align:center;color:var(--muted);font-size:12.5px">Chưa có bộ lọc</div>`;
